@@ -1,0 +1,138 @@
+/* Document List Component Styles */
+
+.documentList {
+  padding: 1rem;
+  background: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.documentListHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.documentListHeader h3 {
+  margin: 0;
+  color: #111827;
+}
+
+.refreshButton {
+  padding: 0.25rem 0.75rem;
+  background: #f3f4f6;
+  border: none;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background-color 0.2s;
+}
+
+.refreshButton:hover {
+  background: #e5e7eb;
+}
+
+.documentList h3 {
+  margin: 0 0 1rem 0;
+  color: #111827;
+}
+
+.loadingState {
+  text-align: center;
+  padding: 2rem;
+  color: #6b7280;
+}
+
+.documentStats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.statItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: #f9fafb;
+  border-radius: 0.5rem;
+}
+
+.statIcon {
+  font-size: 1.5rem;
+}
+
+.statInfo {
+  flex: 1;
+}
+
+.statValue {
+  font-weight: 600;
+  color: #111827;
+  font-size: 0.875rem;
+}
+
+.statLabel {
+  color: #6b7280;
+  font-size: 0.8125rem;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: #6b7280;
+}
+
+.emptyIcon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.emptyState p {
+  margin: 0.25rem 0;
+}
+
+.emptyHint {
+  font-size: 0.875rem;
+  color: #9ca3af;
+}
+
+.supportedFormats {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.supportedFormats h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.formatsGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.formatItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: 0.5rem 0.75rem;
+  background: #eff6ff;
+  border-radius: 0.375rem;
+}
+
+.formatName {
+  font-weight: 500;
+  color: #1e40af;
+  font-size: 0.8125rem;
+}
+
+.formatExt {
+  color: #6b7280;
+  font-size: 0.75rem;
+}

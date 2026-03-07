@@ -1,0 +1,96 @@
+/* Server-side rendered page layout styles */
+
+.appContainer {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.appHeader {
+  background: white;
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: center;
+}
+
+.appHeader h1 {
+  margin: 0 0 0.5rem 0;
+  font-size: 2rem;
+  color: #111827;
+}
+
+.appHeader p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 1rem;
+}
+
+.appContent {
+  flex: 1;
+  display: flex;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.sidebar {
+  width: 350px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.sidebarSection {
+  flex-shrink: 0;
+}
+
+.mainContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.appFooter {
+  background: white;
+  padding: 1rem;
+  text-align: center;
+  border-top: 1px solid #e5e7eb;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.appFooter p {
+  margin: 0;
+}
+
+.appFooter strong {
+  color: #3b82f6;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .appContent {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .appHeader {
+    padding: 1rem;
+  }
+
+  .appHeader h1 {
+    font-size: 1.5rem;
+  }
+
+  .appContent {
+    padding: 1rem;
+  }
+}

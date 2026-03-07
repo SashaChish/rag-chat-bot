@@ -1,0 +1,126 @@
+/* Upload Component Styles */
+
+.uploadContainer {
+  padding: 1.5rem;
+  background: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.uploadZone {
+  border: 2px dashed #d1d5db;
+  border-radius: 0.75rem;
+  padding: 3rem 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #f9fafb;
+}
+
+.uploadZone:hover:not(.uploading) {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.uploadZone.dragging {
+  border-color: #3b82f6;
+  background: #dbeafe;
+  transform: scale(1.02);
+}
+
+.uploadZone.uploading {
+  cursor: not-allowed;
+  border-style: solid;
+  border-color: #3b82f6;
+}
+
+.fileInput {
+  display: none;
+}
+
+.uploadIcon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.uploadZone h3 {
+  margin: 0 0 0.5rem 0;
+  color: #111827;
+}
+
+.uploadZone p {
+  margin: 0 0 0.25rem 0;
+  color: #6b7280;
+}
+
+.uploadHint {
+  font-size: 0.875rem;
+  color: #9ca3af;
+}
+
+.uploadProgress {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.progressSpinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.progressBar {
+  width: 100%;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: #3b82f6;
+  transition: width 0.2s;
+}
+
+.uploadMessage {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.uploadError {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.uploadSuccess {
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.messageIcon {
+  font-size: 1.25rem;
+}
+
+.chunksInfo {
+  color: #374151;
+  font-size: 0.8125rem;
+}

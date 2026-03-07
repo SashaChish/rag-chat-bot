@@ -5,8 +5,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { initializeLlamaIndex, validateQuery, formatSources } from "@/lib/llamaindex/utils.js";
-import { executeQuery, getQueryEngine } from "@/lib/llamaindex/index.js";
-import { hasDocuments } from "@/lib/llamaindex/utils.js";
+import { executeQuery } from "@/lib/llamaindex/index.js";
+import { hasDocuments } from "@/lib/llamaindex/vectorstore.js";
 
 // Initialize LlamaIndex on module load
 initializeLlamaIndex();
@@ -18,7 +18,7 @@ initializeLlamaIndex();
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { message, conversationHistory = [], streaming = false } = body;
+    const { message, conversationHistory = [], streaming = false, queryEngineType = "default" } = body;
 
     // Validate input
     if (!message) {
@@ -61,7 +61,7 @@ export async function POST(request) {
     }
 
     // Execute query using LlamaIndex.TS with streaming
-    const result = await executeQuery(message, streaming);
+    const result = await executeQuery(message, streaming, "documents", queryEngineType);
 
     if (result.error) {
       if (streaming) {
@@ -95,15 +95,35 @@ export async function POST(request) {
               for await (const chunk of result.response) {
                 // Extract text from chunk - handle different formats
                 let text = "";
+
                 if (typeof chunk === "string") {
                   text = chunk;
                 } else if (chunk && typeof chunk === "object") {
-                  // Try common properties: delta, response, content, message.content
-                  text = chunk.delta || chunk.response || chunk.content || 
-                         (chunk.message && chunk.message.content) || "";
+                  // Try common properties in order
+                  text = chunk.delta || chunk.response || chunk.content ||
+                         (chunk.message && chunk.message.content) ||
+                         chunk.value || chunk.text || "";
+
+                  // If still no text and chunk has toString method
+                  if (!text && typeof chunk.toString === "function") {
+                    const str = chunk.toString();
+                    if (str && str !== "[object Object]") {
+                      text = str;
+                    }
+                  }
+
+                  // If it's a plain object, try to stringify it
+                  if (!text && Object.keys(chunk).length > 0) {
+                    const values = Object.values(chunk).filter(v =>
+                      typeof v === "string" && v.length > 0
+                    );
+                    if (values.length > 0) {
+                      text = values[0];
+                    }
+                  }
                 }
-                
-                if (text && typeof text === "string") {
+
+                if (text && typeof text === "string" && text.length > 0) {
                   controller.enqueue(encoder.encode(`data: ${JSON.stringify({ chunk: text })}\n\n`));
                 }
               }

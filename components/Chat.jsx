@@ -16,7 +16,6 @@ export default function Chat({ onSendMessage }) {
   const [inputError, setInputError] = useState("");
   const messagesEndRef = useRef(null);
 
-  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -28,13 +27,11 @@ export default function Chat({ onSendMessage }) {
       return;
     }
 
-    // Validation
     if (trimmedInput.length < 5) {
       setInputError("Please enter at least 5 characters");
       return;
     }
 
-    // Add user message to chat
     const userMessage = {
       id: Date.now(),
       role: "user",
@@ -46,7 +43,6 @@ export default function Chat({ onSendMessage }) {
     setIsLoading(true);
 
     try {
-      // Create a placeholder assistant message for streaming
       const assistantMessageId = Date.now() + 1;
       const assistantMessage = {
         id: assistantMessageId,
@@ -58,65 +54,22 @@ export default function Chat({ onSendMessage }) {
       };
       setMessages((prev) => [...prev, assistantMessage]);
 
-      // Use streaming API
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ message: trimmedInput, streaming: true }),
+        body: JSON.stringify({ message: trimmedInput, streaming: false }),
       });
 
       if (!response.ok) {
         throw new Error("Failed to get response");
       }
 
-      // Read the SSE stream
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let fullContent = "";
-      let sources = [];
+      const data = await response.json();
+      const fullContent = data.response;
+      const sources = data.sources || [];
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n");
-
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            try {
-              const data = JSON.parse(line.slice(6));
-
-              if (data.done) {
-                // Stream complete
-                sources = data.sources || [];
-              } else if (data.chunk) {
-                // Accumulate the streaming content
-                fullContent += data.chunk;
-
-                // Update the message content
-                setMessages((prev) =>
-                  prev.map((msg) =>
-                    msg.id === assistantMessageId
-                      ? { ...msg, content: fullContent }
-                      : msg
-                  )
-                );
-              } else if (data.response) {
-                // Non-streaming fallback
-                fullContent = data.response;
-                sources = data.sources || [];
-              }
-            } catch (e) {
-              console.error("Error parsing SSE data:", e);
-            }
-          }
-        }
-      }
-
-      // Update the assistant message with final content and sources
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === assistantMessageId

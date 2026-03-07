@@ -26,14 +26,15 @@ User uploads file → POST /api/documents → saveUploadedFile() → loadDocumen
 ### Query Flow
 ```
 User submits question → POST /api/chat → executeQuery()
-→ queryDocuments() → createEmbeddings() [query] → queryCollection() [Chroma]
-→ Build context with retrieved chunks → LLM chat() → Response with sources
+→ getQueryEngine() → queryDocuments() → VectorStoreIndex.asQueryEngine()
+→ Retrieval & Synthesis → Response with sources
 ```
 
 ## Key Modules
 
 ### `lib/llamaindex/` - Core RAG Implementation
-- **`index.js`** - Document indexing and query orchestration. Manages embedding creation, document addition to Chroma, and query execution. Key functions: `addDocuments()`, `queryDocuments()`, `executeQuery()`.
+- **`index.js`** - Document indexing and query orchestration. Manages embedding creation, document addition to Chroma, and query execution. Key functions: `addDocuments()`, `executeQuery()`.
+- **`queryengines.js`** - Query engine factory functions providing multiple retrieval strategies. Functions: `createQueryEngine()`, `createRouterQueryEngine()`, `createSubQuestionEngine()`, `getQueryEngine()`. Supports different query engine types via `queryEngineType` parameter.
 - **`vectorstore.js`** - ChromaDB connection and collection management. Uses local SQLite persistence at `./data/chroma`. Functions: `initChroma()`, `getCollection()`, `addEmbeddings()`, `queryCollection()`.
 - **`settings.js`** - LLM and embedding model configuration via `llamaindex.Settings`. Supports OpenAI and Anthropic providers via environment variables.
 - **`loaders.js`** - Document loading using LlamaIndex.TS specialized file readers. Supports PDF (PDFReader), DOCX (DocxReader), Markdown (MarkdownReader), TXT (TextFileReader). Validates file size and type. Key function: `loadDocument()`.
@@ -76,6 +77,20 @@ Optional configuration:
 - CSS-in-JS with styled-jsx (`<style jsx>`)
 - Global styles in `<style jsx global>`
 - Tailwind-style utility class naming (e.g., `.chat-container`, `.chat-input`)
+
+## Code Commenting Guidelines
+- **Keep comments minimal and meaningful** - only add comments when truly necessary
+- **Avoid explanatory comments** - don't add comments explaining what code does or why a fix was implemented
+- **Use comments for**:
+  - Complex business logic that isn't self-explanatory
+  - Important warnings or edge cases
+  - External API requirements or constraints
+  - Performance considerations or optimizations
+- **Don't use comments for**:
+  - Explaining what a function does (use descriptive names instead)
+  - Documenting implementation details that are obvious from code
+  - Explaining why a fix was needed (use git commit messages instead)
+- **Prefer self-documenting code** - use clear variable names and function names that make comments unnecessary
 
 ## Initialization
 - LlamaIndex.TS settings initialized via `initializeLlamaIndex()` in API routes on module load

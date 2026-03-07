@@ -40,7 +40,7 @@ This document outlines potential improvements to the RAG Chatbot project based o
 
 ### 1. Vector Storage - Use Native LlamaIndex.TS Vector Stores
 
-**Priority**: High
+**Priority**: High ✅ **COMPLETED**
 **Complexity**: Low
 **Impact**: Code simplification, better performance, easier migration
 
@@ -102,7 +102,7 @@ export async function queryIndex(query, index) {
 
 ### 2. Query Engine - Implement Built-in Query Engines
 
-**Priority**: High
+**Priority**: High ✅ **COMPLETED**
 **Complexity**: Low
 **Impact**: Better query handling, simplified code
 
@@ -173,6 +173,41 @@ export function createSubQuestionEngine(index) {
 #### Files to Modify
 - `lib/llamaindex/index.js` - Add query engine factory functions
 - `app/api/chat/route.js` - Use query engines instead of manual logic
+
+#### Implementation Notes
+**Completed on**: 2026-03-07
+
+**Changes Made**:
+- Created `lib/llamaindex/queryengines.js` with factory functions:
+  - `createQueryEngine()` - Basic query engine with streaming support
+  - `createRouterQueryEngine()` - Router query engine for multi-index routing (foundation for future expansion)
+  - `createSubQuestionEngine()` - Sub-question query engine for complex queries
+  - `getQueryEngine()` - Factory function to select appropriate engine
+- Updated `lib/llamaindex/index.js`:
+  - Imported query engine factory functions
+  - Added `queryEngineType` parameter to `executeQuery()`
+  - Integrated query engine factory for engine selection
+  - Maintained backward compatibility with streaming support
+- Updated `app/api/chat/route.js`:
+  - Added `queryEngineType` parameter support in request body
+  - Passes query engine type to executeQuery function
+
+**Usage**:
+Send requests with `queryEngineType` parameter:
+```json
+{
+  "message": "What is the main topic?",
+  "queryEngineType": "default"  // Options: "default", "router", "subquestion"
+}
+```
+
+**Environment Variables**:
+- `TOP_K_RESULTS` - Number of top results to retrieve (default: "3")
+- `VERBOSE` - Enable verbose logging for router engine (default: "false")
+
+**Next Steps**:
+- Add multiple index types (summary, keyword) to enable full router engine functionality
+- Add UI toggle for query engine selection in Chat component
 
 ---
 

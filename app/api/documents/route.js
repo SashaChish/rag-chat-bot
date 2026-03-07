@@ -6,7 +6,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { saveUploadedFile, deleteUploadedFile } from "@/lib/upload.js";
 import { loadDocument, validateFile, isFormatSupported, getSupportedFormatsList } from "@/lib/llamaindex/loaders.js";
-import { addDocuments, getIndexStats, generateDocumentId, formatFileSize } from "@/lib/llamaindex/index.js";
+import { addDocuments, getIndexStats } from "@/lib/llamaindex/index.js";
+import { generateDocumentId, formatFileSize } from "@/lib/llamaindex/utils.js";
 import { initializeSettings } from "@/lib/llamaindex/settings.js";
 
 // Initialize LlamaIndex.TS settings on module load

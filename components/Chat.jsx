@@ -7,6 +7,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import MessageList from "./MessageList";
+import Modal from "./Modal";
 import styles from "./Chat.module.css";
 
 export default function Chat({ onSendMessage }) {
@@ -14,6 +15,9 @@ export default function Chat({ onSendMessage }) {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [inputError, setInputError] = useState("");
+  const [chatEngineType, setChatEngineType] = useState("condense");
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [loadingPhase, setLoadingPhase] = useState(null);
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
@@ -41,6 +45,7 @@ export default function Chat({ onSendMessage }) {
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
+    setLoadingPhase("thinking");
 
     try {
       const assistantMessageId = Date.now() + 1;
@@ -51,44 +56,105 @@ export default function Chat({ onSendMessage }) {
         sources: [],
         timestamp: new Date().toISOString(),
         isStreaming: true,
+        loadingPhase: "thinking",
       };
       setMessages((prev) => [...prev, assistantMessage]);
+
+      // Convert messages to conversation history format
+      const history = messages.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+      }));
 
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ message: trimmedInput, streaming: false }),
+        body: JSON.stringify({
+          message: trimmedInput,
+          streaming: true,
+          conversationHistory: history,
+          chatEngineType: chatEngineType,
+        }),
       });
 
       if (!response.ok) {
         throw new Error("Failed to get response");
       }
 
-      const data = await response.json();
-      const fullContent = data.response;
-      const sources = data.sources || [];
+      // Handle streaming response
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullContent = "";
+      let sources = [];
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split("\n");
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              if (data.done) {
+                sources = data.sources || [];
+                setLoadingPhase("loadingSources");
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantMessageId
+                      ? { ...msg, content: fullContent, isStreaming: false, loadingPhase: "loadingSources" }
+                      : msg
+                  )
+                );
+              } else if (data.chunk) {
+                fullContent += data.chunk;
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantMessageId
+                      ? { ...msg, content: fullContent, isStreaming: true, loadingPhase: "thinking" }
+                      : msg
+                  )
+                );
+              }
+            } catch (e) {
+              console.error("Error parsing SSE data:", e);
+            }
+          }
+        }
+      }
 
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === assistantMessageId
-            ? { ...msg, content: fullContent, sources, isStreaming: false }
+            ? { ...msg, content: fullContent, sources, isStreaming: false, loadingPhase: null }
             : msg
         )
       );
+      setLoadingPhase(null);
     } catch (error) {
       console.error("Error sending message:", error);
-      const errorMessage = {
-        id: Date.now() + 1,
-        role: "assistant",
-        content: "Sorry, there was an error processing your request. Please try again.",
-        error: true,
-        timestamp: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+      // Update the assistant message to show error instead of adding a new message
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === assistantMessageId
+            ? {
+                ...msg,
+                content: "Sorry, there was an error processing your request. Please try again.",
+                error: true,
+                isStreaming: false,
+                loadingPhase: null,
+              }
+            : msg
+        )
+      );
     } finally {
       setIsLoading(false);
+      setLoadingPhase(null);
     }
   };
 
@@ -101,27 +167,46 @@ export default function Chat({ onSendMessage }) {
 
   const handleClearChat = () => {
     if (messages.length === 0) return;
-    if (confirm("Clear all chat history?")) {
-      setMessages([]);
-    }
+    setShowClearModal(true);
+  };
+
+  const handleConfirmClear = () => {
+    setMessages([]);
+    setChatEngineType("condense");
+    setShowClearModal(false);
+  };
+
+  const handleCancelClear = () => {
+    setShowClearModal(false);
   };
 
   return (
     <div className={styles.chatContainer}>
       <div className={styles.chatHeader}>
         <h2>Chat with Your Documents</h2>
-        {messages.length > 0 && (
-          <button
-            onClick={handleClearChat}
-            className={styles.clearChatButton}
-            type="button"
+        <div className={styles.headerControls}>
+          <select
+            value={chatEngineType}
+            onChange={(e) => setChatEngineType(e.target.value)}
+            className={styles.engineSelector}
+            disabled={isLoading}
           >
-            Clear Chat
-          </button>
-        )}
+            <option value="condense">Condense Question</option>
+            <option value="context">Context Engine</option>
+          </select>
+          {messages.length > 0 && (
+            <button
+              onClick={handleClearChat}
+              className={styles.clearChatButton}
+              type="button"
+            >
+              Clear Chat
+            </button>
+          )}
+        </div>
       </div>
 
-      <MessageList messages={messages} isLoading={isLoading} />
+      <MessageList messages={messages} scrollAnchorRef={messagesEndRef} />
 
       <div className={styles.chatInputContainer}>
         <textarea
@@ -152,7 +237,16 @@ export default function Chat({ onSendMessage }) {
         </div>
       )}
 
-      <div ref={messagesEndRef} />
+      <Modal
+        isOpen={showClearModal}
+        onClose={handleCancelClear}
+        onConfirm={handleConfirmClear}
+        title="Clear Chat History"
+        message="Are you sure you want to clear all chat history? This action cannot be undone."
+        confirmText="Clear Chat"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 }

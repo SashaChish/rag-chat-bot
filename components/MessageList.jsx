@@ -7,7 +7,7 @@
 
 import styles from "./MessageList.module.css";
 
-export default function MessageList({ messages, isLoading }) {
+export default function MessageList({ messages, scrollAnchorRef }) {
   // Simple markdown-like formatting
   const formatContent = (content) => {
     if (!content) return "";
@@ -32,7 +32,7 @@ export default function MessageList({ messages, isLoading }) {
 
   return (
     <div className={styles.messageList}>
-      {messages.length === 0 && !isLoading && (
+      {messages.length === 0 && (
         <div className={styles.emptyState}>
           <div className={styles.emptyStateIcon}>💬</div>
           <h3>No messages yet</h3>
@@ -54,9 +54,11 @@ export default function MessageList({ messages, isLoading }) {
             </span>
           </div>
 
-          <div className={`${styles.messageContent} ${message.isStreaming ? styles.loading : ""}`}>
-            {message.isStreaming && (
-              <span className={styles.loadingDots}>Thinking</span>
+          <div className={`${styles.messageContent} ${message.isStreaming || message.loadingPhase ? styles.loading : ""}`}>
+            {(message.isStreaming || message.loadingPhase) && (
+              <span className={styles.loadingDots}>
+                {message.loadingPhase === "loadingSources" ? "Loading sources" : "Thinking"}
+              </span>
             )}
             <span
               dangerouslySetInnerHTML={{ __html: formatContent(message.content) }}
@@ -85,17 +87,7 @@ export default function MessageList({ messages, isLoading }) {
           )}
         </div>
       ))}
-
-      {isLoading && (
-        <div className={`${styles.message} ${styles.messageAssistant}`}>
-          <div className={styles.messageHeader}>
-            <span className={styles.messageRole}>AI Assistant</span>
-          </div>
-          <div className={`${styles.messageContent} ${styles.loading}`}>
-            <span className={styles.loadingDots}>Thinking</span>
-          </div>
-        </div>
-      )}
+      <div ref={scrollAnchorRef} />
     </div>
   );
 }

@@ -5,6 +5,7 @@
 
 html {
   scroll-behavior: smooth;
+  height: 100%;
 }
 
 body {
@@ -14,4 +15,30 @@ body {
     "Helvetica Neue", Arial, sans-serif;
   background: #f9fafb;
   color: #111827;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Hide scrollbar for cleaner look but keep functionality */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
 }

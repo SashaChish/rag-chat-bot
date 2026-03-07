@@ -18,7 +18,7 @@ initializeLlamaIndex();
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { message, conversationHistory = [], streaming = false, queryEngineType = "default" } = body;
+    const { message, conversationHistory = [], streaming = false, queryEngineType = "default", chatEngineType = "condense" } = body;
 
     // Validate input
     if (!message) {
@@ -38,9 +38,21 @@ export async function POST(request) {
       );
     }
 
+    // Validate chat engine type
+    if (chatEngineType !== null && chatEngineType !== undefined) {
+      const validChatEngineTypes = ["condense", "context"];
+      if (!validChatEngineTypes.includes(chatEngineType)) {
+        return NextResponse.json(
+          { error: `Invalid chat engine type: ${chatEngineType}. Must be one of: ${validChatEngineTypes.join(", ")}` },
+          { status: 400 }
+        );
+      }
+    }
+
     // Check if there are documents indexed
     const docsExist = await hasDocuments();
     if (!docsExist) {
+      // Return 200 OK with helpful message - no documents is not an error
       if (streaming) {
         return new Response(
           JSON.stringify({
@@ -61,12 +73,16 @@ export async function POST(request) {
     }
 
     // Execute query using LlamaIndex.TS with streaming
-    const result = await executeQuery(message, streaming, "documents", queryEngineType);
+    const result = await executeQuery(message, streaming, "documents", queryEngineType, conversationHistory, chatEngineType);
 
+    // Handle actual errors (500) vs expected conditions (200)
     if (result.error) {
+      const errorMsg = typeof result.error === 'string' ? result.error : 'An error occurred';
+      console.error("Query error:", errorMsg);
+      
       if (streaming) {
         return new Response(
-          JSON.stringify({ error: result.error }),
+          JSON.stringify({ error: errorMsg }),
           {
             status: 500,
             headers: { "Content-Type": "application/json" },
@@ -74,7 +90,7 @@ export async function POST(request) {
         );
       } else {
         return NextResponse.json(
-          { error: result.error },
+          { error: errorMsg },
           { status: 500 }
         );
       }
@@ -99,10 +115,16 @@ export async function POST(request) {
                 if (typeof chunk === "string") {
                   text = chunk;
                 } else if (chunk && typeof chunk === "object") {
-                  // Try common properties in order
-                  text = chunk.delta || chunk.response || chunk.content ||
-                         (chunk.message && chunk.message.content) ||
-                         chunk.value || chunk.text || "";
+                  // Chat engine response format (EngineResponse)
+                  if (chunk.message && chunk.message.content) {
+                    text = typeof chunk.message.content === "string" 
+                      ? chunk.message.content 
+                      : String(chunk.message.content);
+                  } else {
+                    // Query engine response format
+                    text = chunk.delta || chunk.response || chunk.content ||
+                           chunk.value || chunk.text || "";
+                  }
 
                   // If still no text and chunk has toString method
                   if (!text && typeof chunk.toString === "function") {
@@ -111,16 +133,13 @@ export async function POST(request) {
                       text = str;
                     }
                   }
+                }
 
-                  // If it's a plain object, try to stringify it
-                  if (!text && Object.keys(chunk).length > 0) {
-                    const values = Object.values(chunk).filter(v =>
-                      typeof v === "string" && v.length > 0
-                    );
-                    if (values.length > 0) {
-                      text = values[0];
-                    }
-                  }
+                // Handle chat engine responses (EngineResponse format)
+                if (chunk.message && chunk.message.content) {
+                  text = typeof chunk.message.content === "string" 
+                    ? chunk.message.content 
+                    : chunk.message.content;
                 }
 
                 if (text && typeof text === "string" && text.length > 0) {

@@ -109,6 +109,7 @@ export async function GET(request) {
       stats: {
         exists: stats.exists,
         collectionName: stats.collectionName,
+        count: stats.count,
       },
       supportedFormats: formats,
     });

@@ -5,9 +5,17 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { deleteDocument } from "@/lib/llamaindex/index.js";
-import { getCollection } from "@/lib/llamaindex/vectorstore.js";
+import { getChromaClient } from "@/lib/llamaindex/vectorstore.js";
 import fs from "fs";
 import path from "path";
+
+/**
+ * Get Chroma collection
+ */
+async function getChromaCollection() {
+  const client = await getChromaClient();
+  return await client.getCollection({ name: "documents" });
+}
 
 /**
  * DELETE /api/documents/[id]
@@ -25,7 +33,7 @@ export async function DELETE(request, { params }) {
     }
 
     // Get document metadata to find the file path
-    const coll = await getCollection();
+    const coll = await getChromaCollection();
     const results = await coll.get({
       where: { file_name: id },
     });
@@ -38,7 +46,6 @@ export async function DELETE(request, { params }) {
       const filePath = results.metadatas[0].stored_file_path;
       if (filePath && fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
-        console.log(`Deleted file: ${filePath}`);
       }
     }
 
@@ -85,7 +92,7 @@ export async function GET(request, { params }) {
     // Handle download action
     if (action === 'download') {
       // Find the file path from metadata
-      const coll = await getCollection();
+      const coll = await getChromaCollection();
       const results = await coll.get({
         where: { file_name: id },
       });
@@ -121,7 +128,7 @@ export async function GET(request, { params }) {
     }
 
     // Default GET returns document info
-    const coll = await getCollection();
+    const coll = await getChromaCollection();
     const results = await coll.get({
       where: { file_name: id },
     });

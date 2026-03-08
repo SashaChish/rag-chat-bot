@@ -55,6 +55,7 @@ export async function POST(request) {
         ...doc,
         metadata: {
           ...(doc.metadata || {}),
+          file_name: file.name, // Use original filename instead of stored filename
           file_url: `/uploads/${savedFile.filename}`,
           stored_file_path: savedFile.path,
         }
@@ -99,6 +100,14 @@ export async function POST(request) {
  */
 export async function GET(request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const action = searchParams.get("action");
+
+    // Handle document list action
+    if (action === "list") {
+      return await getDocumentList();
+    }
+
     // Get index stats
     const stats = await getIndexStats();
 
@@ -117,6 +126,92 @@ export async function GET(request) {
     console.error("Error getting documents:", error);
     return NextResponse.json(
       { error: "Failed to retrieve document information" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Get list of all indexed documents with metadata
+ */
+async function getDocumentList() {
+  try {
+    const { getChromaClient } = await import("@/lib/llamaindex/vectorstore.js");
+    const { getFileInfo } = await import("@/lib/upload.js");
+    const { formatFileSize } = await import("@/lib/llamaindex/utils.js");
+
+    // Get Chroma collection directly
+    const client = await getChromaClient();
+    const collection = await client.getCollection({ name: "documents" });
+
+    // Get all documents from the collection
+    const result = await collection.get({
+      include: ["metadatas", "documents"],
+    });
+
+    if (!result || !result.metadatas || result.metadatas.length === 0) {
+      return NextResponse.json({
+        documents: [],
+      });
+    }
+
+    // Group by file_name to get unique documents
+    const documentMap = new Map();
+
+    for (let i = 0; i < result.metadatas.length; i++) {
+      const metadata = result.metadatas[i];
+      const document = result.documents[i];
+      const fileName = metadata.file_name;
+
+      if (!fileName) continue;
+
+      if (!documentMap.has(fileName)) {
+        // Initialize document entry
+        documentMap.set(fileName, {
+          id: fileName,
+          file_name: fileName,
+          file_type: metadata.file_type || "UNKNOWN",
+          upload_date: metadata.upload_date || new Date().toISOString(),
+          file_url: metadata.file_url || null,
+          stored_file_path: metadata.stored_file_path || null,
+          chunk_count: 0,
+          content: document || "",
+          file_size: null,
+        });
+      }
+
+      // Increment chunk count
+      const docEntry = documentMap.get(fileName);
+      docEntry.chunk_count++;
+
+      // Store content if not already stored
+      if (!docEntry.content && document) {
+        docEntry.content = document;
+      }
+    }
+
+    // Get file size for each document
+    const documents = Array.from(documentMap.values());
+
+    for (const doc of documents) {
+      if (doc.stored_file_path) {
+        const fileInfo = getFileInfo(doc.stored_file_path);
+        if (fileInfo) {
+          doc.file_size = formatFileSize(fileInfo.size);
+        }
+      }
+    }
+
+    // Sort by upload date (newest first)
+    documents.sort((a, b) => new Date(b.upload_date) - new Date(a.upload_date));
+
+    return NextResponse.json({
+      documents,
+    });
+  } catch (error) {
+    console.error("Error getting document list:", error);
+    return NextResponse.json(
+      { error: "Failed to retrieve document list" },
       { status: 500 }
     );
   }

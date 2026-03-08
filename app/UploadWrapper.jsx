@@ -10,7 +10,8 @@ import Upload from "@/components/Upload";
 export default function UploadWrapper() {
   function handleUploadSuccess(data) {
     console.log("Document uploaded successfully:", data);
-    // The document list will auto-refresh via its useEffect
+    // Dispatch custom event to notify DocumentList to refresh
+    window.dispatchEvent(new CustomEvent('documentUploaded', { detail: data }));
   }
 
   return <Upload onUploadSuccess={handleUploadSuccess} />;

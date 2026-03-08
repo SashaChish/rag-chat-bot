@@ -1,40 +1,171 @@
 /**
  * Document List Component
- * Displays list of indexed documents with stats
+ * Displays list of indexed documents with stats and management controls
  */
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import styles from "./DocumentList.module.css";
 
 export default function DocumentList() {
   const [stats, setStats] = useState(null);
   const [supportedFormats, setSupportedFormats] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [documents, setDocuments] = useState([]);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [listLoading, setListLoading] = useState(false);
+  const [selectedDocument, setSelectedDocument] = useState(null);
+  const [showDetails, setShowDetails] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState(null);
+  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    fetchDocumentStats();
-  }, []);
-
-  const fetchDocumentStats = async () => {
+  const fetchDocumentStats = useCallback(async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (isRefresh) {
+        setRefreshing(true);
+      }
       const response = await fetch("/api/documents");
       const data = await response.json();
       setStats(data.stats);
       setSupportedFormats(data.supportedFormats || []);
+      setError(null);
     } catch (error) {
       console.error("Error fetching document stats:", error);
+      setError("Failed to load document stats");
     } finally {
-      setLoading(false);
+      if (isRefresh) {
+        setRefreshing(false);
+      } else {
+        setInitialLoading(false);
+      }
+    }
+  }, []);
+
+  const fetchDocumentList = useCallback(async () => {
+    try {
+      setListLoading(true);
+      const response = await fetch("/api/documents?action=list");
+      const data = await response.json();
+      setDocuments(data.documents || []);
+      setError(null);
+    } catch (error) {
+      console.error("Error fetching document list:", error);
+      setError("Failed to load document list");
+    } finally {
+      setListLoading(false);
+    }
+  }, []);
+
+  const fetchData = useCallback(async (isRefresh = false) => {
+    await Promise.all([fetchDocumentStats(isRefresh), fetchDocumentList()]);
+  }, [fetchDocumentStats, fetchDocumentList]);
+
+  useEffect(() => {
+    fetchData(false);
+
+    // Listen for document upload events to refresh the list
+    const handleDocumentUploaded = () => {
+      fetchData(true);
+    };
+
+    window.addEventListener('documentUploaded', handleDocumentUploaded);
+
+    return () => {
+      window.removeEventListener('documentUploaded', handleDocumentUploaded);
+    };
+  }, [fetchData]);
+
+  const handleDelete = async (id) => {
+    try {
+      const response = await fetch(`/api/documents/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to delete document");
+      }
+
+      setShowDeleteConfirm(false);
+      setDocumentToDelete(null);
+
+      // Refresh data without causing UI shift
+      await fetchData(true);
+    } catch (error) {
+      console.error("Error deleting document:", error);
+      alert(error.message || "Failed to delete document");
     }
   };
 
-  if (loading) {
+  const handleDownload = (doc) => {
+    if (doc.file_url) {
+      // Create a temporary anchor element to trigger download
+      const link = document.createElement('a');
+      link.href = doc.file_url;
+      link.download = doc.file_name; // Use original filename for download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  const handleViewDetails = (doc) => {
+    setSelectedDocument(doc);
+    setShowDetails(true);
+  };
+
+  const handlePreview = (doc) => {
+    setSelectedDocument(doc);
+    setShowPreview(true);
+  };
+
+  const closeDetails = () => {
+    setShowDetails(false);
+    setSelectedDocument(null);
+  };
+
+  const closePreview = () => {
+    setShowPreview(false);
+    setSelectedDocument(null);
+  };
+
+  const confirmDelete = (doc) => {
+    setDocumentToDelete(doc);
+    setShowDeleteConfirm(true);
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setDocumentToDelete(null);
+  };
+
+  const getFileIcon = (fileType) => {
+    const icons = {
+      PDF: "📕",
+      TEXT: "📄",
+      MARKDOWN: "📝",
+      DOCX: "📘",
+    };
+    return icons[fileType] || "📄";
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  if (initialLoading) {
     return (
       <div className={styles.documentList}>
-        <h3>Documents</h3>
+        <div className={styles.documentListHeader}>
+          <h3>Documents</h3>
+        </div>
         <div className={styles.loadingState}>Loading...</div>
       </div>
     );
@@ -44,18 +175,30 @@ export default function DocumentList() {
     <div className={styles.documentList}>
       <div className={styles.documentListHeader}>
         <h3>Documents</h3>
-        <button onClick={fetchDocumentStats} className={styles.refreshButton}>
-          🔄 Refresh
+        <button
+          onClick={() => fetchData(true)}
+          className={`${styles.refreshButton} ${refreshing ? styles.spinning : ""}`}
+          disabled={refreshing}
+        >
+          <span className={styles.refreshIcon}>🔄</span>
+          <span className={styles.refreshText}> Refresh</span>
         </button>
       </div>
+
+      {error && (
+        <div className={styles.errorState}>
+          <span className={styles.errorIcon}>⚠️</span>
+          <span>{error}</span>
+        </div>
+      )}
 
       {stats && stats.exists ? (
         <div className={styles.documentStats}>
           <div className={styles.statItem}>
             <div className={styles.statIcon}>📊</div>
             <div className={styles.statInfo}>
-              <div className={styles.statValue}>Indexed</div>
-              <div className={styles.statLabel}>Documents available for search</div>
+              <div className={styles.statValue}>{stats.count} Chunks</div>
+              <div className={styles.statLabel}>From {documents.length} documents</div>
             </div>
           </div>
           <div className={styles.statItem}>
@@ -74,6 +217,72 @@ export default function DocumentList() {
         </div>
       )}
 
+      {documents.length > 0 && (
+        <div className={styles.documentListContainer}>
+          {listLoading ? (
+            <div className={styles.loadingState}>Loading documents...</div>
+          ) : (
+            <div className={styles.documentItems}>
+              {documents.map((doc) => (
+                <div key={doc.id} className={styles.documentItem}>
+                  <div className={styles.documentMain}>
+                    <div className={styles.documentIcon}>
+                      {getFileIcon(doc.file_type)}
+                    </div>
+                    <div className={styles.documentInfo}>
+                      <div className={styles.documentName}>{doc.file_name}</div>
+                      <div className={styles.documentMeta}>
+                        <span className={styles.documentType}>{doc.file_type}</span>
+                        <span className={styles.documentDate}>
+                          {formatDate(doc.upload_date)}
+                        </span>
+                        {doc.chunk_count > 0 && (
+                          <span className={styles.documentChunks}>
+                            {doc.chunk_count} chunk{doc.chunk_count !== 1 ? "s" : ""}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className={styles.documentActions}>
+                    <button
+                      onClick={() => handleViewDetails(doc)}
+                      className={styles.actionButton}
+                      title="View details"
+                    >
+                      ℹ️
+                    </button>
+                    <button
+                      onClick={() => handlePreview(doc)}
+                      className={styles.actionButton}
+                      title="Preview content"
+                    >
+                      👁️
+                    </button>
+                    {doc.file_url && (
+                      <button
+                        onClick={() => handleDownload(doc)}
+                        className={styles.actionButton}
+                        title="Download file"
+                      >
+                        ⬇️
+                      </button>
+                    )}
+                    <button
+                      onClick={() => confirmDelete(doc)}
+                      className={`${styles.actionButton} ${styles.deleteButton}`}
+                      title="Delete document"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {supportedFormats.length > 0 && (
         <div className={styles.supportedFormats}>
           <h4>Supported Formats</h4>
@@ -84,6 +293,117 @@ export default function DocumentList() {
                 <span className={styles.formatExt}>{format.extensions}</span>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Document Details Modal */}
+      {showDetails && selectedDocument && (
+        <div className={styles.modalOverlay} onClick={closeDetails}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3>Document Details</h3>
+              <button onClick={closeDetails} className={styles.closeButton}>
+                ✕
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              <div className={styles.detailRow}>
+                <span className={styles.detailLabel}>File Name:</span>
+                <span className={styles.detailValue}>{selectedDocument.file_name}</span>
+              </div>
+              <div className={styles.detailRow}>
+                <span className={styles.detailLabel}>File Type:</span>
+                <span className={styles.detailValue}>{selectedDocument.file_type}</span>
+              </div>
+              <div className={styles.detailRow}>
+                <span className={styles.detailLabel}>Upload Date:</span>
+                <span className={styles.detailValue}>
+                  {new Date(selectedDocument.upload_date).toLocaleString()}
+                </span>
+              </div>
+              <div className={styles.detailRow}>
+                <span className={styles.detailLabel}>Chunks:</span>
+                <span className={styles.detailValue}>{selectedDocument.chunk_count}</span>
+              </div>
+              {selectedDocument.file_size && (
+                <div className={styles.detailRow}>
+                  <span className={styles.detailLabel}>File Size:</span>
+                  <span className={styles.detailValue}>{selectedDocument.file_size}</span>
+                </div>
+              )}
+              {selectedDocument.file_url && (
+                <div className={styles.detailRow}>
+                  <span className={styles.detailLabel}>Download:</span>
+                  <a
+                    href={selectedDocument.file_url}
+                    download={selectedDocument.file_name}
+                    className={styles.detailLink}
+                  >
+                    Download file
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Document Preview Modal */}
+      {showPreview && selectedDocument && (
+        <div className={styles.modalOverlay} onClick={closePreview}>
+          <div className={`${styles.modal} ${styles.largeModal}`} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3>Document Preview</h3>
+              <button onClick={closePreview} className={styles.closeButton}>
+                ✕
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              <p className={styles.previewFileName}>{selectedDocument.file_name}</p>
+              <div className={styles.previewContent}>
+                {selectedDocument.content ? (
+                  <pre className={styles.previewText}>
+                    {selectedDocument.content.substring(0, 1000)}
+                    {selectedDocument.content.length > 1000 && "..."}
+                  </pre>
+                ) : (
+                  <p className={styles.noPreview}>No content available for preview</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && documentToDelete && (
+        <div className={styles.modalOverlay} onClick={cancelDelete}>
+          <div className={`${styles.modal} ${styles.confirmModal}`} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3>Confirm Delete</h3>
+              <button onClick={cancelDelete} className={styles.closeButton}>
+                ✕
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              <p>Are you sure you want to delete this document?</p>
+              <p className={styles.confirmFileName}>{documentToDelete.file_name}</p>
+              <p className={styles.confirmWarning}>
+                This action cannot be undone.
+              </p>
+              <div className={styles.confirmActions}>
+                <button onClick={cancelDelete} className={styles.cancelButton}>
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDelete(documentToDelete.id)}
+                  className={styles.confirmDeleteButton}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

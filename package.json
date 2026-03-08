@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@llamaindex/anthropic": "^0.3.26",
+    "@llamaindex/chroma": "^0.0.36",
     "@llamaindex/groq": "^0.0.94",
     "@llamaindex/ollama": "^0.1.23",
     "@llamaindex/openai": "^0.4.22",

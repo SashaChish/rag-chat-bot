@@ -14,16 +14,28 @@
 
 .chatHeader {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
   padding: 1rem;
   border-bottom: 1px solid #e5e7eb;
+}
+
+.headerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .chatHeader h2 {
   margin: 0;
   font-size: 1.25rem;
   color: #111827;
+}
+
+.engineDescription {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.875rem;
+  color: #6b7280;
+  line-height: 1.4;
 }
 
 .headerControls {
@@ -144,4 +156,11 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Agent Mode Specific Styles */
+.engineSelector option[value="react"],
+.engineSelector option[value="openai"] {
+  font-weight: 500;
+  color: #1e40af;
 }

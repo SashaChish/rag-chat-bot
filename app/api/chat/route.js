@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { initializeLlamaIndex, validateQuery, formatSources } from "@/lib/llamaindex/utils.js";
 import { executeQuery } from "@/lib/llamaindex/index.js";
 import { hasDocuments } from "@/lib/llamaindex/vectorstore.js";
+import { getSystemPrompt } from "@/lib/llamaindex/prompts.js";
 
 // Initialize LlamaIndex on module load
 initializeLlamaIndex();
@@ -18,7 +19,16 @@ initializeLlamaIndex();
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { message, conversationHistory = [], streaming = false, queryEngineType = "default", chatEngineType = "condense" } = body;
+    const {
+      message,
+      conversationHistory = [],
+      streaming = false,
+      queryEngineType = "default",
+      chatEngineType = "condense",
+      agentType = null,
+      sessionKey = null,
+      systemPrompt = null,
+    } = body;
 
     // Validate input
     if (!message) {
@@ -49,6 +59,17 @@ export async function POST(request) {
       }
     }
 
+    // Validate agent type
+    if (agentType !== null && agentType !== undefined) {
+      const validAgentTypes = ["react", "openai"];
+      if (!validAgentTypes.includes(agentType)) {
+        return NextResponse.json(
+          { error: `Invalid agent type: ${agentType}. Must be one of: ${validAgentTypes.join(", ")}` },
+          { status: 400 }
+        );
+      }
+    }
+
     // Check if there are documents indexed
     const docsExist = await hasDocuments();
     if (!docsExist) {
@@ -73,7 +94,17 @@ export async function POST(request) {
     }
 
     // Execute query using LlamaIndex.TS with streaming
-    const result = await executeQuery(message, streaming, "documents", queryEngineType, conversationHistory, chatEngineType);
+    const result = await executeQuery(
+      message,
+      streaming,
+      "documents",
+      queryEngineType,
+      conversationHistory,
+      chatEngineType,
+      agentType,
+      sessionKey,
+      systemPrompt,
+    );
 
     // Handle actual errors (500) vs expected conditions (200)
     if (result.error) {
@@ -105,6 +136,9 @@ export async function POST(request) {
       const stream = new ReadableStream({
         async start(controller) {
           try {
+            // Collect sources from streaming chunks
+            let collectedSources = [];
+
             // LlamaIndex.TS streaming response
             if (result.streaming && result.response) {
               // The streaming response from LlamaIndex.TS
@@ -117,8 +151,8 @@ export async function POST(request) {
                 } else if (chunk && typeof chunk === "object") {
                   // Chat engine response format (EngineResponse)
                   if (chunk.message && chunk.message.content) {
-                    text = typeof chunk.message.content === "string" 
-                      ? chunk.message.content 
+                    text = typeof chunk.message.content === "string"
+                      ? chunk.message.content
                       : String(chunk.message.content);
                   } else {
                     // Query engine response format
@@ -137,9 +171,25 @@ export async function POST(request) {
 
                 // Handle chat engine responses (EngineResponse format)
                 if (chunk.message && chunk.message.content) {
-                  text = typeof chunk.message.content === "string" 
-                    ? chunk.message.content 
+                  text = typeof chunk.message.content === "string"
+                    ? chunk.message.content
                     : chunk.message.content;
+                }
+
+                // Extract sources from chunk if available
+                if (chunk.sourceNodes && Array.isArray(chunk.sourceNodes)) {
+                  const chunkSources = chunk.sourceNodes.map((nodeWithScore) => ({
+                    filename: nodeWithScore.node.metadata?.file_name || "Unknown",
+                    fileType: nodeWithScore.node.metadata?.file_type || "Unknown",
+                    score: nodeWithScore.score !== undefined ? nodeWithScore.score.toFixed(3) : null,
+                    preview: nodeWithScore.node.getContent().substring(0, 200) + "...",
+                    metadata: nodeWithScore.node.metadata,
+                  }));
+
+                  // Update collected sources (last chunk has complete set)
+                  if (chunkSources.length > 0) {
+                    collectedSources = chunkSources;
+                  }
                 }
 
                 if (text && typeof text === "string" && text.length > 0) {
@@ -147,8 +197,8 @@ export async function POST(request) {
                 }
               }
 
-              // Send done signal with sources
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, sources: result.sources })}\n\n`));
+              // Send done signal with collected sources
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, sources: collectedSources })}\n\n`));
             } else {
               // Non-streaming fallback
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ response: result.response, sources: result.sources })}\n\n`));

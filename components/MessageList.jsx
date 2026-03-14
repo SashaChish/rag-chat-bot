@@ -7,6 +7,48 @@
 
 import styles from "./MessageList.module.css";
 
+// SimilarityBar component for visual score display
+const SimilarityBar = ({ score }) => {
+  // Convert score to number if it's a string
+  const numericScore = typeof score === 'string' ? parseFloat(score) : score;
+
+  // Handle invalid scores
+  if (isNaN(numericScore) || numericScore === undefined || numericScore === null) {
+    return null;
+  }
+
+  const percentage = Math.round(numericScore * 100);
+
+  // Get color based on similarity
+  const getColor = () => {
+    if (numericScore >= 0.7) return '#10b981'; // Green
+    if (numericScore >= 0.4) return '#f59e0b'; // Yellow/orange
+    return '#9ca3af'; // Gray
+  };
+
+  return (
+    <div style={{
+      width: '100%',
+      backgroundColor: '#e5e7eb',
+      borderRadius: '9999px',
+      height: '8px',
+      marginTop: '4px',
+      overflow: 'hidden'
+    }}>
+      <div
+        style={{
+          width: `${percentage}%`,
+          height: '100%',
+          backgroundColor: getColor(),
+          borderRadius: '9999px',
+          transition: 'width 0.3s ease-in-out'
+        }}
+        aria-label={`Similarity score: ${percentage}%`}
+      />
+    </div>
+  );
+};
+
 export default function MessageList({ messages, scrollAnchorRef }) {
   // Simple markdown-like formatting
   const formatContent = (content) => {
@@ -28,6 +70,24 @@ export default function MessageList({ messages, scrollAnchorRef }) {
     formatted = formatted.replace(/\n/g, "<br>");
 
     return formatted;
+  };
+
+  // Get a helpful source explanation message based on the sources
+  const getSourceExplanation = (sources) => {
+    if (!sources || sources.length === 0) return "";
+
+    const uniqueFilenames = [...new Set(sources.map(s => s.filename))];
+
+    if (uniqueFilenames.length === 1) {
+      // All chunks from the same document
+      const filename = uniqueFilenames[0];
+      const chunks = sources.length;
+      return `${chunks} chunk${chunks !== 1 ? 's' : ''} from "${filename}" matched your query based on semantic similarity`;
+    } else {
+      // Multiple documents
+      const docs = uniqueFilenames.length;
+      return `${docs} document${docs !== 1 ? 's' : ''} matched your query based on semantic similarity`;
+    }
   };
 
   return (
@@ -67,22 +127,27 @@ export default function MessageList({ messages, scrollAnchorRef }) {
 
           {message.sources && message.sources.length > 0 && (
             <div className={styles.messageSources}>
-              <div className={styles.sourcesTitle}>Sources:</div>
-              <ul className={styles.sourcesList}>
+              <div className={styles.sourcesExplanation}>
+                {getSourceExplanation(message.sources)}
+              </div>
+              <div className={styles.sourcesList}>
                 {message.sources.map((source, index) => (
-                  <li key={index} className={styles.sourceItem}>
-                    <span className={styles.sourceFilename}>{source.filename}</span>
-                    {source.score && (
-                      <span className={styles.sourceScore}>
-                        (score: {source.score})
-                      </span>
-                    )}
+                  <div key={index} className={styles.sourceCard}>
+                    <div className={styles.sourceHeader}>
+                      <span className={styles.sourceFilename}>{source.filename}</span>
+                      {source.score && (
+                        <span className={styles.sourceScore}>
+                          score: {source.score}
+                        </span>
+                      )}
+                    </div>
+                    {source.score && <SimilarityBar score={source.score} />}
                     {source.preview && (
                       <div className={styles.sourcePreview}>{source.preview}</div>
                     )}
-                  </li>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
           )}
         </div>

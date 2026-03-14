@@ -1,0 +1,17 @@
+version: '3.9'
+
+services:
+  chroma:
+    image: chromadb/chroma:latest
+    container_name: chroma-db
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma-data:/chroma/chroma
+    environment:
+      - ANONYMIZED_TELEMETRY=False
+    restart: unless-stopped
+
+volumes:
+  chroma-data:
+    driver: local

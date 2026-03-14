@@ -10,29 +10,29 @@ This document outlines potential improvements to the RAG Chatbot project based o
 
 ### Currently Using
 
-| Feature | LlamaIndex.TS Component | Status |
-|----------|------------------------|--------|
+| Feature          | LlamaIndex.TS Component                                       | Status         |
+| ---------------- | ------------------------------------------------------------- | -------------- |
 | Document Loading | `PDFReader`, `DocxReader`, `MarkdownReader`, `TextFileReader` | ✅ Implemented |
-| Text Splitting | `SentenceSplitter` | ✅ Implemented |
-| Embeddings | `OpenAIEmbedding`, `OllamaEmbedding` | ✅ Implemented |
-| LLM Integration | `OpenAI`, `Anthropic`, `Groq`, `Ollama` | ✅ Implemented |
-| Global Settings | `Settings` from `@llamaindex/core/global` | ✅ Implemented |
-| Streaming | Manual SSE implementation | ✅ Implemented |
+| Text Splitting   | `SentenceSplitter`                                            | ✅ Implemented |
+| Embeddings       | `OpenAIEmbedding`, `OllamaEmbedding`                          | ✅ Implemented |
+| LLM Integration  | `OpenAI`, `Anthropic`, `Groq`, `Ollama`                       | ✅ Implemented |
+| Global Settings  | `Settings` from `@llamaindex/core/global`                     | ✅ Implemented |
+| Streaming        | Manual SSE implementation                                     | ✅ Implemented |
 
 ### Not Currently Using
 
-| Feature | LlamaIndex.TS Component | Priority |
-|----------|------------------------|----------|
-| Vector Store Index | `VectorStoreIndex`, `ChromaVectorStore` | 🔴 High |
-| Query Engines | `RetrieverQueryEngine`, `RouterQueryEngine`, `SubQuestionQueryEngine` | 🔴 High |
-| Chat Engines | `CondenseQuestionChatEngine`, `ContextChatEngine` | 🔴 High |
-| Agents | `ReActAgent`, `OpenAIAgent`, `@llamaindex/workflow` | 🟡 Medium |
-| Evaluators | `RelevancyEvaluator`, `FaithfulnessEvaluator`, `CorrectnessEvaluator` | 🟡 Medium |
-| Post-Processors | `SimilarityPostprocessor`, `CohereRerank` | 🟡 Medium |
-| Extractors | `TitleExtractor`, `KeywordExtractor`, `SummaryExtractor` | 🟢 Low |
-| Advanced Parsers | `SentenceWindowNodeParser`, `MarkdownNodeParser` | 🟢 Low |
-| Multiple Indexes | `SummaryIndex`, `KeywordTableIndex`, `KnowledgeGraphIndex` | 🟢 Low |
-| Workflows | `@llamaindex/workflow` for orchestration | 🟢 Low |
+| Feature            | LlamaIndex.TS Component                                               | Priority  |
+| ------------------ | --------------------------------------------------------------------- | --------- |
+| Vector Store Index | `VectorStoreIndex`, `ChromaVectorStore`                               | 🔴 High   |
+| Query Engines      | `RetrieverQueryEngine`, `RouterQueryEngine`, `SubQuestionQueryEngine` | 🔴 High   |
+| Chat Engines       | `CondenseQuestionChatEngine`, `ContextChatEngine`                     | 🔴 High   |
+| Agents             | `ReActAgent`, `OpenAIAgent`, `@llamaindex/workflow`                   | 🟡 Medium |
+| Evaluators         | `RelevancyEvaluator`, `FaithfulnessEvaluator`, `CorrectnessEvaluator` | 🟡 Medium |
+| Post-Processors    | `SimilarityPostprocessor`, `CohereRerank`                             | 🟡 Medium |
+| Extractors         | `TitleExtractor`, `KeywordExtractor`, `SummaryExtractor`              | 🟢 Low    |
+| Advanced Parsers   | `SentenceWindowNodeParser`, `MarkdownNodeParser`                      | 🟢 Low    |
+| Multiple Indexes   | `SummaryIndex`, `KeywordTableIndex`, `KnowledgeGraphIndex`            | 🟢 Low    |
+| Workflows          | `@llamaindex/workflow` for orchestration                              | 🟢 Low    |
 
 ---
 
@@ -45,9 +45,11 @@ This document outlines potential improvements to the RAG Chatbot project based o
 **Impact**: Code simplification, better performance, easier migration
 
 #### Current Implementation
+
 Uses ChromaDB directly with manual wrapper operations in `lib/llamaindex/vectorstore.js`.
 
 #### Proposed Implementation
+
 Replace manual ChromaDB operations with `VectorStoreIndex` and `ChromaVectorStore` from LlamaIndex.TS.
 
 ```typescript
@@ -61,7 +63,7 @@ export async function createIndex(documents) {
     vectorStore: new ChromaVectorStore({ collection: "documents" }),
     serviceContext: Settings.serviceContext,
   });
-  
+
   return index;
 }
 
@@ -72,12 +74,12 @@ export async function queryIndex(query, index) {
     responseMode: "compact",
     similarityTopK: parseInt(process.env.TOP_K_RESULTS || "3"),
   });
-  
+
   const response = await queryEngine.query({ query });
-  
+
   return {
     response: response.toString(),
-    sources: response.sourceNodes.map(node => ({
+    sources: response.sourceNodes.map((node) => ({
       text: node.node.getContent(),
       metadata: node.node.metadata,
       score: node.score,
@@ -87,6 +89,7 @@ export async function queryIndex(query, index) {
 ```
 
 #### Benefits
+
 - Automatic embedding persistence
 - Simplified query logic
 - Built-in streaming support
@@ -94,6 +97,7 @@ export async function queryIndex(query, index) {
 - Better integration with other LlamaIndex.TS components
 
 #### Files to Modify
+
 - `lib/llamaindex/index.js` - Replace manual embedding/query logic
 - `lib/llamaindex/vectorstore.js` - May be deprecated or simplified
 - `app/api/chat/route.js` - Use new query methods
@@ -107,13 +111,19 @@ export async function queryIndex(query, index) {
 **Impact**: Better query handling, simplified code
 
 #### Current Implementation
+
 Manual query implementation with manual context building and prompt engineering in `lib/llamaindex/index.js`.
 
 #### Proposed Implementation
+
 Use LlamaIndex.TS's built-in query engines.
 
 ```typescript
-import { RetrieverQueryEngine, RouterQueryEngine, SubQuestionQueryEngine } from "llamaindex";
+import {
+  RetrieverQueryEngine,
+  RouterQueryEngine,
+  SubQuestionQueryEngine,
+} from "llamaindex";
 import { LLMSingleSelector } from "llamaindex";
 
 // Basic query engine
@@ -137,7 +147,8 @@ export async function createRouterQueryEngine() {
     queryEngines: [
       {
         queryEngine: vectorIndex.asQueryEngine(),
-        description: "Good for semantic search and finding relevant information",
+        description:
+          "Good for semantic search and finding relevant information",
       },
       {
         queryEngine: summaryIndex.asQueryEngine(),
@@ -149,7 +160,7 @@ export async function createRouterQueryEngine() {
       },
     ],
   });
-  
+
   return routerEngine;
 }
 
@@ -165,19 +176,23 @@ export function createSubQuestionEngine(index) {
 ```
 
 #### Benefits
+
 - Automatic query routing to best engine
 - Better handling of complex multi-part queries
 - Built-in response modes (compact, tree_summarize, refine)
 - Native streaming support
 
 #### Files to Modify
+
 - `lib/llamaindex/index.js` - Add query engine factory functions
 - `app/api/chat/route.js` - Use query engines instead of manual logic
 
 #### Implementation Notes
+
 **Completed on**: 2026-03-07
 
 **Changes Made**:
+
 - Created `lib/llamaindex/queryengines.js` with factory functions:
   - `createQueryEngine()` - Basic query engine with streaming support
   - `createRouterQueryEngine()` - Router query engine for multi-index routing (foundation for future expansion)
@@ -194,18 +209,21 @@ export function createSubQuestionEngine(index) {
 
 **Usage**:
 Send requests with `queryEngineType` parameter:
+
 ```json
 {
   "message": "What is the main topic?",
-  "queryEngineType": "default"  // Options: "default", "router", "subquestion"
+  "queryEngineType": "default" // Options: "default", "router", "subquestion"
 }
 ```
 
 **Environment Variables**:
+
 - `TOP_K_RESULTS` - Number of top results to retrieve (default: "3")
 - `VERBOSE` - Enable verbose logging for router engine (default: "false")
 
 **Next Steps**:
+
 - Add multiple index types (summary, keyword) to enable full router engine functionality
 - Add UI toggle for query engine selection in Chat component
 
@@ -213,14 +231,16 @@ Send requests with `queryEngineType` parameter:
 
 ### 3. Chat Engine - Use Native Chat Engines
 
-**Priority**: High
+**Priority**: High ✅ **COMPLETED**
 **Complexity**: Low
 **Impact**: Better conversation management
 
 #### Current Implementation
+
 Manual chat implementation without proper conversation history management.
 
 #### Proposed Implementation
+
 Use LlamaIndex.TS's built-in chat engines.
 
 ```typescript
@@ -252,7 +272,7 @@ export async function chat(message, chatEngine) {
     message: message,
     stream: true,
   });
-  
+
   return {
     response: response,
     history: chatEngine.chatHistory,
@@ -261,12 +281,14 @@ export async function chat(message, chatEngine) {
 ```
 
 #### Benefits
+
 - Automatic conversation history management
 - Context condensation for efficient queries
 - Follow-up question handling
 - Better memory for multi-turn conversations
 
 #### Files to Modify
+
 - `lib/llamaindex/index.js` - Add chat engine factory functions
 - `app/api/chat/route.js` - Use chat engines for conversation management
 
@@ -274,14 +296,16 @@ export async function chat(message, chatEngine) {
 
 ### 4. Agents - Implement Agentic Capabilities
 
-**Priority**: Medium
+**Priority**: Medium ✅ **COMPLETED**
 **Complexity**: Medium
 **Impact**: More powerful, autonomous interactions
 
 #### Current Implementation
+
 No agent functionality - just simple Q&A.
 
 #### Proposed Implementation
+
 Add agents for more powerful interactions.
 
 ```typescript
@@ -297,14 +321,14 @@ export function createReActAgent(index) {
       description: "Search through uploaded documents to find information",
     },
   });
-  
+
   const myAgent = new ReActAgent({
     tools: [queryTool],
     llm: Settings.llm,
     verbose: true,
     maxIterations: 10,
   });
-  
+
   return myAgent;
 }
 
@@ -317,12 +341,12 @@ export function createOpenAIAgent(index) {
       description: "Search through uploaded documents",
     },
   });
-  
+
   const myAgent = new OpenAIAgent({
     tools: [queryTool],
     llm: Settings.llm,
   });
-  
+
   return myAgent;
 }
 
@@ -333,9 +357,10 @@ export function createWorkflowAgent(index) {
   const myAgent = agent({
     llm: openai({ model: "gpt-4o" }),
     tools: [index.queryTool()],
-    systemPrompt: "You are a helpful assistant that searches documents to answer questions.",
+    systemPrompt:
+      "You are a helpful assistant that searches documents to answer questions.",
   });
-  
+
   return myAgent;
 }
 
@@ -354,12 +379,14 @@ export function createSummaryTool(index) {
 ```
 
 #### Benefits
+
 - Tool use for extended capabilities
 - Reasoning + action patterns
 - Multi-step problem solving
 - Integration with external tools (web search, APIs, etc.)
 
 #### Files to Modify
+
 - `lib/llamaindex/index.js` - Add agent factory functions
 - `app/api/chat/route.js` - Add agent mode option
 - `components/Chat.jsx` - Add agent mode UI toggle
@@ -373,13 +400,19 @@ export function createSummaryTool(index) {
 **Impact**: Quality assurance, better UX
 
 #### Current Implementation
+
 No evaluation of response quality.
 
 #### Proposed Implementation
+
 Use LlamaIndex.TS's built-in evaluators.
 
 ```typescript
-import { RelevancyEvaluator, FaithfulnessEvaluator, CorrectnessEvaluator } from "llamaindex";
+import {
+  RelevancyEvaluator,
+  FaithfulnessEvaluator,
+  CorrectnessEvaluator,
+} from "llamaindex";
 
 // Initialize evaluators
 const relevancyEvaluator = new RelevancyEvaluator();
@@ -389,41 +422,41 @@ const correctnessEvaluator = new CorrectnessEvaluator();
 // Evaluate a response
 export async function evaluateResponse(query, response, contexts) {
   const results = {};
-  
+
   // Check if response is relevant to query and contexts
   const relevancyResult = await relevancyEvaluator.evaluate({
     query: query,
     response: response,
-    contexts: contexts.map(c => c.getContent()),
+    contexts: contexts.map((c) => c.getContent()),
   });
   results.relevancy = {
     score: relevancyResult.score,
     feedback: relevancyResult.feedback,
   };
-  
+
   // Check if response is faithful to retrieved contexts
   const faithfulnessResult = await faithfulnessEvaluator.evaluate({
     query: query,
     response: response,
-    contexts: contexts.map(c => c.getContent()),
+    contexts: contexts.map((c) => c.getContent()),
   });
   results.faithfulness = {
     score: faithfulnessResult.score,
     feedback: faithfulnessResult.feedback,
   };
-  
+
   return results;
 }
 
 // Batch evaluation for testing
 export async function evaluateBatch(testCases) {
   const results = [];
-  
+
   for (const testCase of testCases) {
     const evaluation = await evaluateResponse(
       testCase.query,
       testCase.response,
-      testCase.contexts
+      testCase.contexts,
     );
     results.push({
       query: testCase.query,
@@ -432,21 +465,24 @@ export async function evaluateBatch(testCases) {
       evaluation,
     });
   }
-  
+
   return results;
 }
 ```
 
 #### Benefits
+
 - Quality assurance for responses
 - Identify hallucinations
 - Improve user trust with quality scores
 - Enable A/B testing of different configurations
 
 #### Files to Create
+
 - `lib/llamaindex/evaluators.js` - New file for evaluation logic
 
 #### Files to Modify
+
 - `app/api/chat/route.js` - Add evaluation option and return scores
 - `components/Chat.jsx` - Display quality indicators
 
@@ -459,9 +495,11 @@ export async function evaluateBatch(testCases) {
 **Impact**: Better retrieval quality
 
 #### Current Implementation
+
 Basic similarity search without result refinement.
 
 #### Proposed Implementation
+
 Add post-processors for result filtering and reranking.
 
 ```typescript
@@ -508,15 +546,18 @@ export function createEnhancedRetriever(index) {
 ```
 
 #### Benefits
+
 - Higher quality retrieved documents
 - Reduced noise in results
 - Better context for LLM responses
 - Configurable quality thresholds
 
 #### Files to Create
+
 - `lib/llamaindex/postprocessors.js` - New file for post-processing logic
 
 #### Files to Modify
+
 - `lib/llamaindex/index.js` - Use enhanced retrievers
 - `.env.example` - Add COHERE_API_KEY
 
@@ -529,13 +570,20 @@ export function createEnhancedRetriever(index) {
 **Impact**: Better metadata, improved search
 
 #### Current Implementation
+
 Minimal metadata extraction (just file info).
 
 #### Proposed Implementation
+
 Use LlamaIndex.TS's built-in extractors.
 
 ```typescript
-import { TitleExtractor, KeywordExtractor, SummaryExtractor, QuestionsAnsweredExtractor } from "llamaindex";
+import {
+  TitleExtractor,
+  KeywordExtractor,
+  SummaryExtractor,
+  QuestionsAnsweredExtractor,
+} from "llamaindex";
 
 // Extract titles from documents
 export async function extractTitles(documents) {
@@ -543,7 +591,7 @@ export async function extractTitles(documents) {
     llm: Settings.llm,
     nodes: 5, // Extract from first 5 nodes
   });
-  
+
   const nodes = await titleExtractor(documents);
   return nodes;
 }
@@ -554,7 +602,7 @@ export async function extractKeywords(documents) {
     llm: Settings.llm,
     keywords: 10, // Extract top 10 keywords
   });
-  
+
   const nodes = await keywordExtractor(documents);
   return nodes;
 }
@@ -565,7 +613,7 @@ export async function generateSummaries(documents) {
     llm: Settings.llm,
     summaryPrompt: "Provide a brief summary of this document",
   });
-  
+
   const nodes = await summaryExtractor(documents);
   return nodes;
 }
@@ -576,7 +624,7 @@ export async function extractQA(documents) {
     llm: Settings.llm,
     questions: 5, // Extract 5 Q&A pairs
   });
-  
+
   const nodes = await qaExtractor(documents);
   return nodes;
 }
@@ -590,22 +638,25 @@ export async function extractMetadata(documents) {
       new SummaryExtractor({ llm: Settings.llm }),
     ],
   });
-  
+
   const nodes = await ingestionPipeline.run({ documents });
   return nodes;
 }
 ```
 
 #### Benefits
+
 - Better search with keywords
 - Document summaries for quick preview
 - Structured Q&A from documents
 - Enhanced metadata for filtering
 
 #### Files to Create
+
 - `lib/llamaindex/extractors.js` - New file for extraction logic
 
 #### Files to Modify
+
 - `lib/llamaindex/index.js` - Add extraction to document processing
 - `components/DocumentList.jsx` - Display extracted metadata
 
@@ -618,9 +669,11 @@ export async function extractMetadata(documents) {
 **Impact**: Better context for chunks
 
 #### Current Implementation
+
 Only uses basic `SentenceSplitter`.
 
 #### Proposed Implementation
+
 Use more advanced node parsers.
 
 ```typescript
@@ -644,7 +697,7 @@ export function createMarkdownParser() {
 export function createWindowPostProcessor() {
   return {
     postprocessNodes: (nodes) => {
-      return nodes.map(node => ({
+      return nodes.map((node) => ({
         ...node,
         content: node.node.metadata.window || node.node.getContent(),
       }));
@@ -656,19 +709,21 @@ export function createWindowPostProcessor() {
 export async function indexWithWindowParser(documents) {
   const nodeParser = createWindowNodeParser();
   const nodes = await nodeParser.getNodesFromDocuments(documents);
-  
+
   const index = await VectorStoreIndex.fromDocuments(nodes);
   return index;
 }
 ```
 
 #### Benefits
+
 - Better context for each chunk
 - Improved retrieval accuracy
 - Specialized parsing for different file types
 - Reduces out-of-context issues
 
 #### Files to Modify
+
 - `lib/llamaindex/index.js` - Add advanced parser options
 
 ---
@@ -680,9 +735,11 @@ export async function indexWithWindowParser(documents) {
 **Impact**: More query options, specialized use cases
 
 #### Current Implementation
+
 Only basic vector similarity search.
 
 #### Proposed Implementation
+
 Add specialized index types.
 
 ```typescript
@@ -704,14 +761,19 @@ export async function createKeywordIndex(documents) {
 }
 
 // Combined query with multiple indexes
-export async function queryAllIndexes(query, vectorIndex, summaryIndex, keywordIndex) {
+export async function queryAllIndexes(
+  query,
+  vectorIndex,
+  summaryIndex,
+  keywordIndex,
+) {
   // Query all indexes in parallel
   const [vectorResults, summaryResults, keywordResults] = await Promise.all([
     vectorIndex.asQueryEngine().query({ query }),
     summaryIndex.asQueryEngine().query({ query }),
     keywordIndex.asQueryEngine().query({ query }),
   ]);
-  
+
   return {
     vector: vectorResults,
     summary: summaryResults,
@@ -724,15 +786,15 @@ export class MultiIndexManager {
   constructor() {
     this.indexes = {};
   }
-  
+
   addIndex(name, index, description) {
     this.indexes[name] = { index, description };
   }
-  
+
   getIndex(name) {
     return this.indexes[name]?.index;
   }
-  
+
   async queryWithRouter(query) {
     const routerEngine = new RouterQueryEngine({
       selector: new LLMSingleSelector(Settings.llm),
@@ -741,19 +803,21 @@ export class MultiIndexManager {
         description: data.description,
       })),
     });
-    
+
     return await routerEngine.query({ query });
   }
 }
 ```
 
 #### Benefits
+
 - Different retrieval strategies for different queries
 - Summary retrieval for overviews
 - Keyword search for exact matches
 - Flexible query routing
 
 #### Files to Create
+
 - `lib/llamaindex/multi-index.js` - New file for multi-index management
 
 ---
@@ -765,9 +829,11 @@ export class MultiIndexManager {
 **Impact**: Advanced multi-agent coordination
 
 #### Current Implementation
+
 No workflow orchestration for complex tasks.
 
 #### Proposed Implementation
+
 Use `@llamaindex/workflow` for orchestration.
 
 ```typescript
@@ -800,16 +866,17 @@ export function createWorkflowAgent() {
   const myAgent = agent({
     llm: openai({ model: "gpt-4o" }),
     tools: [searchTool, summarizeTool],
-    systemPrompt: "You are a research assistant. Search documents and provide accurate, well-sourced answers.",
+    systemPrompt:
+      "You are a research assistant. Search documents and provide accurate, well-sourced answers.",
   });
-  
+
   return myAgent;
 }
 
 // Multi-step workflow
 export async function researchWorkflow(topic) {
   const myAgent = createWorkflowAgent();
-  
+
   const result = await myAgent.run(`
     Research this topic: ${topic}
     
@@ -819,41 +886,44 @@ export async function researchWorkflow(topic) {
     3. Identify any gaps or uncertainties
     4. Provide a comprehensive answer with sources
   `);
-  
+
   return result;
 }
 
 // Task-based workflow
 export function createTaskWorkflow() {
   const myAgent = createWorkflowAgent();
-  
+
   const task1 = new Task({
     name: "search",
     description: "Search for relevant documents",
     agent: myAgent,
   });
-  
+
   const task2 = new Task({
     name: "summarize",
     description: "Summarize findings",
     agent: myAgent,
     dependencies: [task1],
   });
-  
+
   return [task1, task2];
 }
 ```
 
 #### Benefits
+
 - Complex task orchestration
 - Multi-step processing
 - Tool chaining
 - Advanced agent coordination
 
 #### Files to Create
+
 - `lib/llamaindex/workflows.js` - New file for workflow logic
 
 #### Files to Modify
+
 - `package.json` - Add `@llamaindex/workflow` dependency
 
 ---
@@ -861,6 +931,7 @@ export function createTaskWorkflow() {
 ## Implementation Roadmap
 
 ### Phase 1: High Priority (Quick Wins)
+
 1. Implement `VectorStoreIndex` with `ChromaVectorStore`
 2. Add built-in `RetrieverQueryEngine`
 3. Implement `CondenseQuestionChatEngine` for proper chat history
@@ -868,6 +939,7 @@ export function createTaskWorkflow() {
 **Estimated Time**: 2-3 days
 
 ### Phase 2: Medium Priority (Enhanced Features)
+
 4. Add `ReActAgent` for tool use
 5. Implement evaluation metrics (Relevancy, Faithfulness)
 6. Add post-processors for result filtering/reranking
@@ -875,6 +947,7 @@ export function createTaskWorkflow() {
 **Estimated Time**: 3-4 days
 
 ### Phase 3: Low Priority (Advanced Features)
+
 7. Add document extractors (Title, Keywords, Summary)
 8. Implement advanced node parsers (SentenceWindow)
 9. Add multiple index types (Summary, Keyword)
@@ -925,21 +998,25 @@ AGENT_TYPE=react
 ## Testing Strategy
 
 ### Unit Tests
+
 - Test each new module independently
 - Mock LLM responses for reliable testing
 - Test error handling
 
 ### Integration Tests
+
 - Test full RAG pipeline with new components
 - Test agent workflows
 - Test evaluation metrics
 
 ### Performance Tests
+
 - Compare query times before/after
 - Test with large document sets
 - Monitor memory usage
 
 ### Quality Tests
+
 - Run evaluation on test queries
 - Compare responses across different configurations
 - A/B test different retrieval strategies
@@ -949,15 +1026,18 @@ AGENT_TYPE=react
 ## Migration Notes
 
 ### Breaking Changes
+
 - API response format may change with native query engines
 - Document metadata structure may be enhanced
 
 ### Backward Compatibility
+
 - Keep existing API endpoints
 - Add new features as optional/enhancements
 - Provide fallback to manual implementation if needed
 
 ### Rollback Plan
+
 - Keep original implementation in separate files
 - Use feature flags to switch between implementations
 - Monitor metrics during rollout

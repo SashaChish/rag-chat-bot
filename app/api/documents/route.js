@@ -175,7 +175,7 @@ async function getDocumentList() {
           file_url: metadata.file_url || null,
           stored_file_path: metadata.stored_file_path || null,
           chunk_count: 0,
-          content: document || "",
+          content: "",
           file_size: null,
         });
       }
@@ -184,9 +184,9 @@ async function getDocumentList() {
       const docEntry = documentMap.get(fileName);
       docEntry.chunk_count++;
 
-      // Store content if not already stored
-      if (!docEntry.content && document) {
-        docEntry.content = document;
+      // Accumulate content from all chunks
+      if (document) {
+        docEntry.content += document;
       }
     }
 

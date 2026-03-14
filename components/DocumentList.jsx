@@ -364,8 +364,7 @@ export default function DocumentList() {
               <div className={styles.previewContent}>
                 {selectedDocument.content ? (
                   <pre className={styles.previewText}>
-                    {selectedDocument.content.substring(0, 1000)}
-                    {selectedDocument.content.length > 1000 && "..."}
+                    {selectedDocument.content}
                   </pre>
                 ) : (
                   <p className={styles.noPreview}>No content available for preview</p>

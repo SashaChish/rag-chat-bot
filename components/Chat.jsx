@@ -16,9 +16,18 @@ export default function Chat({ onSendMessage }) {
   const [isLoading, setIsLoading] = useState(false);
   const [inputError, setInputError] = useState("");
   const [chatEngineType, setChatEngineType] = useState("condense");
+  const [agentType, setAgentType] = useState(null);
   const [showClearModal, setShowClearModal] = useState(false);
   const [loadingPhase, setLoadingPhase] = useState(null);
   const messagesEndRef = useRef(null);
+  const sessionId = useRef(null);
+
+  // Initialize session ID on mount
+  useEffect(() => {
+    if (!sessionId.current) {
+      sessionId.current = `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    }
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -47,8 +56,11 @@ export default function Chat({ onSendMessage }) {
     setIsLoading(true);
     setLoadingPhase("thinking");
 
+    // Declare assistantMessageId outside try block so it's accessible in catch/finally
+    let assistantMessageId;
+
     try {
-      const assistantMessageId = Date.now() + 1;
+      assistantMessageId = Date.now() + 1;
       const assistantMessage = {
         id: assistantMessageId,
         role: "assistant",
@@ -76,6 +88,8 @@ export default function Chat({ onSendMessage }) {
           streaming: true,
           conversationHistory: history,
           chatEngineType: chatEngineType,
+          agentType: agentType,
+          sessionKey: sessionId.current,
         }),
       });
 
@@ -173,6 +187,7 @@ export default function Chat({ onSendMessage }) {
   const handleConfirmClear = () => {
     setMessages([]);
     setChatEngineType("condense");
+    setAgentType(null);
     setShowClearModal(false);
   };
 
@@ -183,27 +198,48 @@ export default function Chat({ onSendMessage }) {
   return (
     <div className={styles.chatContainer}>
       <div className={styles.chatHeader}>
-        <h2>Chat with Your Documents</h2>
-        <div className={styles.headerControls}>
-          <select
-            value={chatEngineType}
-            onChange={(e) => setChatEngineType(e.target.value)}
-            className={styles.engineSelector}
-            disabled={isLoading}
-          >
-            <option value="condense">Condense Question</option>
-            <option value="context">Context Engine</option>
-          </select>
-          {messages.length > 0 && (
-            <button
-              onClick={handleClearChat}
-              className={styles.clearChatButton}
-              type="button"
+        <div className={styles.headerRow}>
+          <h2>Chat with Your Documents</h2>
+          <div className={styles.headerControls}>
+            <select
+              value={agentType || chatEngineType}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === "react" || value === "openai") {
+                  setAgentType(value);
+                } else {
+                  setAgentType(null);
+                  setChatEngineType(value);
+                }
+              }}
+              className={styles.engineSelector}
+              disabled={isLoading}
             >
-              Clear Chat
-            </button>
-          )}
+              <option value="condense">Condense Question</option>
+              <option value="context">Context Engine</option>
+              <option value="react">ReAct Agent</option>
+              <option value="openai">OpenAI Agent</option>
+            </select>
+            {messages.length > 0 && (
+              <button
+                onClick={handleClearChat}
+                className={styles.clearChatButton}
+                type="button"
+              >
+                Clear Chat
+              </button>
+            )}
+          </div>
         </div>
+        <p className={styles.engineDescription}>
+          {agentType === "react"
+            ? "ReAct Agent uses reasoning + action patterns to autonomously search documents and answer complex, multi-step questions."
+            : agentType === "openai"
+            ? "OpenAI Agent uses function calling to intelligently select and use tools for document search and answering."
+            : chatEngineType === "condense"
+            ? "Condenses conversation history into a standalone query before retrieving relevant documents. Maintains context while keeping queries focused."
+            : "Retrieves relevant documents and provides them as context to the LLM along with your conversation history. Explicit context for comprehensive answers."}
+        </p>
       </div>
 
       <MessageList messages={messages} scrollAnchorRef={messagesEndRef} />

@@ -10,7 +10,6 @@ import type {
   AgentType,
   IndexStats,
   IndexType,
-  DocumentListEntry,
   RAGDocument
 } from "../types";
 import type { ChromaCollection, ChromaMetadata } from "../types/chromadb-compatibility";
@@ -71,7 +70,7 @@ export async function getIndexStats(collectionName: string = "documents"): Promi
   }
 }
 
-export async function deleteDocument(documentId: string, collectionName: string = "documents"): Promise<DeleteDocumentResult> {
+export async function deleteDocument(_documentId: string, collectionName: string = "documents"): Promise<DeleteDocumentResult> {
   try {
     const coll = await getChromaCollection(collectionName);
 
@@ -139,17 +138,18 @@ export async function clearIndex(collectionName: string = "documents"): Promise<
 }
 
 export async function addDocuments(documents: RAGDocument[], collectionName: string = "documents"): Promise<AddDocumentsResult> {
-  const llamaDocuments = documents.map((doc) => {
-    const text = doc.text;
-    const metadata = doc.metadata || {};
+  const llamaDocuments = documents.map(({ text, metadata }) => {
+    const fileName = metadata.file_name || (metadata as any).filename || "Unknown";
+    const fileType = metadata.file_type || (metadata as any).type || "Unknown";
+    const uploadDate = metadata.upload_date || new Date().toISOString();
 
     return new Document({
-      text: text,
+      text,
       metadata: {
         ...metadata,
-        file_name: metadata.file_name || metadata.filename || "Unknown",
-        file_type: metadata.file_type || metadata.type || "Unknown",
-        upload_date: metadata.upload_date || new Date().toISOString(),
+        file_name: fileName,
+        file_type: fileType,
+        upload_date: uploadDate,
       },
     });
   });
@@ -359,12 +359,18 @@ export async function executeQuery(
         const sources: SourceInfo[] = [];
         if (response.sourceNodes) {
           for (const node of response.sourceNodes) {
+            const { node: { metadata = {}, getContent } = {}, score } = node;
+            const fileName = metadata?.file_name || "Unknown";
+            const fileType = metadata?.file_type || "Unknown";
+            const scoreValue = score ? parseFloat(score.toFixed(3)) : 0;
+            const preview = getContent().substring(0, 200) + "...";
+
             sources.push({
-              filename: node.node.metadata?.file_name || "Unknown",
-              fileType: node.node.metadata?.file_type || "Unknown",
-              score: node.score ? parseFloat(node.score.toFixed(3)) : 0,
-              text: node.node.getContent().substring(0, 200) + "...",
-              metadata: node.node.metadata,
+              filename: fileName,
+              fileType,
+              score: scoreValue,
+              text: preview,
+              metadata,
             });
           }
         }
@@ -408,12 +414,18 @@ export async function executeQuery(
     const sources: SourceInfo[] = [];
     if (response.sourceNodes) {
       for (const node of response.sourceNodes) {
+        const { node: { metadata = {}, getContent } = {}, score } = node;
+        const fileName = metadata?.file_name || "Unknown";
+        const fileType = metadata?.file_type || "Unknown";
+        const scoreValue = score ? parseFloat(score.toFixed(3)) : 0;
+        const preview = getContent().substring(0, 200) + "...";
+
         sources.push({
-          filename: node.node.metadata?.file_name || "Unknown",
-          fileType: node.node.metadata?.file_type || "Unknown",
-          score: node.score ? parseFloat(node.score.toFixed(3)) : 0,
-          text: node.node.getContent().substring(0, 200) + "...",
-          metadata: node.node.metadata,
+          filename: fileName,
+          fileType,
+          score: scoreValue,
+          text: preview,
+          metadata,
         });
       }
     }

@@ -5,7 +5,7 @@ import Upload from '@/components/Upload/Upload';
 import type { DocumentUploadResponse, SupportedFormat } from '@/lib/types/api';
 
 export default function UploadWrapper(): JSX.Element {
-  const formatsQuery = useQuery({
+  const { data: formatsData } = useQuery({
     queryKey: ['documents-formats'],
     queryFn: async () => {
       const response = await fetch("/api/documents");
@@ -17,12 +17,13 @@ export default function UploadWrapper(): JSX.Element {
     retry: 1,
   });
 
-  const supportedFormats = formatsQuery.data?.supportedFormats?.map(f => f.type) || ["PDF", "TEXT", "MARKDOWN", "DOCX"];
+  const { supportedFormats } = formatsData || {};
+  const formatTypes = supportedFormats?.map(f => f.type) || ["PDF", "TEXT", "MARKDOWN", "DOCX"];
 
   function handleUploadSuccess(data: DocumentUploadResponse): void {
     console.log("Document uploaded successfully:", data);
     window.dispatchEvent(new CustomEvent('documentUploaded', { detail: data }));
   }
 
-  return <Upload onUploadSuccess={handleUploadSuccess} supportedFormats={supportedFormats} />;
+  return <Upload onUploadSuccess={handleUploadSuccess} supportedFormats={formatTypes} />;
 }

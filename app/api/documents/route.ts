@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { saveUploadedFile, deleteUploadedFile } from '@/lib/core/upload/upload';
-import { loadDocument, validateFile, isFormatSupported, getSupportedFormatsList } from '@/lib/llamaindex/loaders';
+import { loadDocument, validateFile, getSupportedFormatsList } from '@/lib/llamaindex/loaders';
 import { addDocuments, getIndexStats } from '@/lib/llamaindex/index';
 import { generateDocumentId } from '@/lib/core/llamaindex/core.utils';
 import { formatFileSize } from '@/lib/utils/format.utils';
 import { initializeSettings } from '@/lib/llamaindex/settings';
-import type { ErrorResponse, DocumentUploadResponse, DocumentsGetResponse, DocumentListResponse } from '@/lib/types/api';
+import type { DocumentUploadResponse, DocumentsGetResponse, DocumentListResponse } from '@/lib/types/api';
 
 interface DocumentEntry {
   id: string;
@@ -149,7 +149,7 @@ async function getDocumentList(): Promise<NextResponse> {
     for (let i = 0; i < result.metadatas.length; i++) {
       const metadata = result.metadatas[i];
       const document = result.documents[i];
-      const fileName = metadata?.file_name;
+      const { file_name: fileName } = metadata || {};
 
       if (!fileName) continue;
 
@@ -160,10 +160,10 @@ async function getDocumentList(): Promise<NextResponse> {
         documentMap.set(fileName, {
           id: fileName,
           file_name: fileName,
-          file_type: metadata?.file_type || "UNKNOWN",
-          upload_date: metadata?.upload_date || new Date().toISOString(),
-          file_url: metadata?.file_url || null,
-          stored_file_path: metadata?.stored_file_path || null,
+          file_type: metadata?.file_type ?? "UNKNOWN",
+          upload_date: metadata?.upload_date ?? new Date().toISOString(),
+          file_url: metadata?.file_url ?? null,
+          stored_file_path: metadata?.stored_file_path ?? null,
           chunk_count: 0,
           content: "",
           file_size: null,
@@ -208,7 +208,7 @@ async function getDocumentList(): Promise<NextResponse> {
   }
 }
 
-export async function OPTIONS(request: NextRequest): Promise<NextResponse> {
+export async function OPTIONS(_request: NextRequest): Promise<NextResponse> {
   return new NextResponse(null, {
     status: 200,
     headers: {

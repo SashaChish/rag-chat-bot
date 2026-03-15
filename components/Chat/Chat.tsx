@@ -216,7 +216,7 @@ export default function Chat({
             <select
               value={agentType || chatEngineType}
               onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                const value = e.target.value;
+                const { value } = e.target;
                 if (value === "react" || value === "openai") {
                   setAgentType(value as "react" | "openai");
                 } else {

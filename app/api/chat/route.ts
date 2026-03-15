@@ -141,13 +141,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                 if (typeof chunk === "string") {
                   text = chunk;
                 } else if (chunk && typeof chunk === "object") {
-                  if (chunk.message && chunk.message.content) {
-                    text = typeof chunk.message.content === "string"
-                      ? chunk.message.content
-                      : String(chunk.message.content);
+                  const { message } = chunk;
+                  const { content } = message || {};
+                  const { delta, response: chunkResponse, content: chunkContent, value, text: chunkText } = chunk;
+
+                  if (content) {
+                    text = typeof content === "string"
+                      ? content
+                      : String(content);
                   } else {
-                    text = chunk.delta || chunk.response || chunk.content ||
-                           chunk.value || chunk.text || "";
+                    text = delta || chunkResponse || chunkContent || value || chunkText || "";
                   }
 
                   if (!text && typeof chunk.toString === "function") {
@@ -158,20 +161,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                   }
                 }
 
-                if (chunk.message && chunk.message.content) {
-                  text = typeof chunk.message.content === 'string'
-                    ? chunk.message.content
-                    : JSON.stringify(chunk.message.content);
+                const { message: message2 } = chunk || {};
+                const { content: content2 } = message2 || {};
+                if (content2) {
+                  text = typeof content2 === 'string'
+                    ? content2
+                    : JSON.stringify(content2);
                 }
 
-                if (chunk.sourceNodes && Array.isArray(chunk.sourceNodes)) {
-                  const chunkSources = chunk.sourceNodes.map((nodeWithScore: SourceNode) => ({
-                    filename: nodeWithScore.node.metadata?.file_name || "Unknown",
-                    fileType: nodeWithScore.node.metadata?.file_type || "Unknown",
-                    score: nodeWithScore.score !== undefined ? parseFloat(nodeWithScore.score.toFixed(3)) : 0,
-                    preview: nodeWithScore.node.getContent().substring(0, 200) + "...",
-                    metadata: nodeWithScore.node.metadata,
-                  }));
+                const { sourceNodes } = chunk || {};
+                if (sourceNodes && Array.isArray(sourceNodes)) {
+                  const chunkSources = sourceNodes.map((nodeWithScore: SourceNode) => {
+                    const { node } = nodeWithScore;
+                    const { metadata } = node || {};
+                    const { score } = nodeWithScore;
+
+                    return {
+                      filename: metadata?.file_name || "Unknown",
+                      fileType: metadata?.file_type || "Unknown",
+                      score: score !== undefined ? parseFloat(score.toFixed(3)) : 0,
+                      preview: node.getContent().substring(0, 200) + "...",
+                      metadata,
+                    };
+                  });
 
                   if (chunkSources.length > 0) {
                     collectedSources = chunkSources;
@@ -220,7 +232,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 }
 
-export async function GET(request: NextRequest): Promise<NextResponse> {
+export async function GET(_request: NextRequest): Promise<NextResponse> {
   try {
     const docsExist = await hasDocuments();
 

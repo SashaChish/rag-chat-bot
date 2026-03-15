@@ -5,14 +5,16 @@ export function useDocumentDownload() {
   return useMutation({
     mutationKey: ['download-document'],
     mutationFn: (doc: DocumentData): Promise<DocumentData> => {
-      if (!doc.file_url) {
+      const { file_url, file_name } = doc;
+
+      if (!file_url) {
         throw new Error('No file URL available for download');
       }
 
       return new Promise((resolve) => {
         const link = document.createElement('a');
-        link.href = doc.file_url!;
-        link.download = doc.file_name;
+        link.href = file_url;
+        link.download = file_name;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);

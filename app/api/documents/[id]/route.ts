@@ -30,8 +30,9 @@ export async function DELETE(
 
     const deleteResult = await deleteDocument(id);
 
-    if (results.metadatas && results.metadatas.length > 0) {
-      const filePath = results.metadatas[0].stored_file_path;
+    const { metadatas } = results || {};
+    if (metadatas && metadatas.length > 0) {
+      const { stored_file_path: filePath } = metadatas[0] || {};
       if (filePath && fs.existsSync(filePath as string)) {
         fs.unlinkSync(filePath as string);
       }
@@ -79,16 +80,17 @@ export async function GET(
       const coll = await getChromaCollection();
       const results = await coll.get();
 
-      if (!results.metadatas || results.metadatas.length === 0) {
+      const { metadatas } = results || {};
+      if (!metadatas || metadatas.length === 0) {
         return NextResponse.json(
           { error: "Document not found" },
           { status: 404 }
         );
       }
 
-      const filePath = results.metadatas[0].stored_file_path;
-      const fileName = results.metadatas[0].file_name || id;
-      const fileType = results.metadatas[0].file_type || 'application/octet-stream';
+      const { stored_file_path: filePath, file_name, file_type } = metadatas[0] || {};
+      const fileName = file_name || id;
+      const fileType = file_type || 'application/octet-stream';
 
       if (!fs.existsSync(filePath as string)) {
         return NextResponse.json(
@@ -110,20 +112,23 @@ export async function GET(
     const coll = await getChromaCollection();
     const results = await coll.get();
 
-    if (!results.metadatas || results.metadatas.length === 0) {
+    const { metadatas } = results || {};
+    if (!metadatas || metadatas.length === 0) {
       return NextResponse.json(
         { error: "Document not found" },
         { status: 404 }
       );
     }
 
+    const { ids } = results || {};
+    const { file_name, file_type, upload_date, file_url } = metadatas[0] || {};
     return NextResponse.json({
       id,
-      file_name: results.metadatas[0].file_name,
-      file_type: results.metadatas[0].file_type,
-      upload_date: results.metadatas[0].upload_date,
-      file_url: results.metadatas[0].file_url,
-      chunk_count: results.ids?.length || 0,
+      file_name,
+      file_type,
+      upload_date,
+      file_url,
+      chunk_count: ids?.length || 0,
     });
   } catch (error) {
     console.error("Error getting document:", error);

@@ -147,12 +147,15 @@ Client-side state management uses TanStack Query v5 for server state:
 
 - **Minimal Abstraction**: Components use `useQuery` and `useMutation` hooks directly rather than a complex abstraction layer, keeping code maintainable.
 
+- **Destructuring Pattern**: Hook return values are always destructured at the call site for clarity and to eliminate repetitive property access.
+
 - **SSE Streaming Preservation**: Chat component maintains custom fetch with ReadableStream for streaming responses as TanStack Query does not natively support streaming.
 
 ### Design Patterns
 
 - **Factory Pattern**: Used for creating query engines and chat engines with different strategies
 - **QueryClient Pattern**: TanStack Query client created in client-side provider component to avoid issues with Server/Client Component boundaries in Next.js 14
+- **Destructuring Pattern**: All object properties and hook return values are destructured at the call site for improved readability and maintainability.
 - **Global Caching**: Index instances cached in `global.indexCache` for performance across requests; TanStack Query provides additional query caching
 - **Lazy Initialization**: ChromaDB client initialized on first use with fallback to in-memory; QueryClient cached in browser
 - **Fallback Mechanisms**: Index rebuilt from Chroma when cache empty, in-memory Chroma fallback when server unavailable, automatic retry for failed queries
@@ -182,10 +185,7 @@ Optional configuration:
 - `VERBOSE` - Default: `false` (enables verbose logging for router engine)
 - `CONTEXT_WINDOW` - Default: `128000` (context window size for the LLM - varies by model)
 
-**TanStack Query Configuration**:
-- No additional environment variables required
-- Default configuration set in `lib/query-client.ts`
-- React Query DevTools available in development mode
+**TanStack Query Configuration**: Default configuration set in `lib/query-client.ts`. React Query DevTools available in development mode. ESLint configured with `prefer-destructuring` and `no-unsafe-optional-chaining` rules to enforce destructuring patterns throughout the codebase.
 
 ## Code Conventions
 
@@ -204,13 +204,11 @@ Project conventions are enforced via Hookify rules in `.claude/` directory:
 
 **Descriptive Names Over Comments**: When adding new functionality or fixing issues, do not add explanatory comments to code unless truly necessary. Use descriptive variable and function names instead to make code self-documenting.
 
+**Destructuring**: Always destructure object properties and hook return values at the call site, avoiding repetitive property access. Destructure component props in function signature, TanStack Query hook return values (data, isLoading, error, refetch), mutation return values (mutate, isPending), and query result properties. Use optional chaining with fallback objects for potentially undefined properties.
+
 ## Initialization
 
-- LlamaIndex.TS settings initialized via `initializeLlamaIndex()` in API routes on module load
-- ChromaDB client initialized lazily on first use with fallback to in-memory if server unavailable
-- Global index cache initialized as `global.indexCache` for performance
-- TanStack Query client initialized in client-side `Providers` component with browser caching via `getQueryClient()`
-- React Query DevTools enabled in development mode
+LlamaIndex.TS settings initialized via `initializeLlamaIndex()` in API routes on module load. ChromaDB client initialized lazily on first use with fallback to in-memory if server unavailable. Global index cache initialized as `global.indexCache` for performance. TanStack Query client initialized in client-side `Providers` component with browser caching via `getQueryClient()`. React Query DevTools enabled in development mode. ESLint configured with `prefer-destructuring` and `no-unsafe-optional-chaining` rules to enforce destructuring patterns.
 
 ## Important Notes
 

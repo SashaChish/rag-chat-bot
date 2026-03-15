@@ -17,7 +17,7 @@ export default function Upload({ onUploadSuccess, supportedFormats }: UploadProp
   const [success, setSuccess] = useState<{ message: string; filename: string; chunksProcessed?: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const uploadMutation = useMutation({
+  const { mutate: uploadFile, isPending: isUploading } = useMutation({
     mutationFn: async (file: File): Promise<APIUploadResponse> => {
       const formData = new FormData();
       formData.append('file', file);
@@ -140,7 +140,7 @@ export default function Upload({ onUploadSuccess, supportedFormats }: UploadProp
       return;
     }
 
-    uploadMutation.mutate(file);
+    uploadFile(file);
 
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -155,7 +155,7 @@ export default function Upload({ onUploadSuccess, supportedFormats }: UploadProp
     <div className={styles.uploadContainer}>
       <div
         className={`${styles.uploadZone} ${isDragging ? styles.dragging : ''} ${
-          uploadMutation.isPending ? styles.uploading : ''
+          isUploading ? styles.uploading : ''
         }`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -168,10 +168,10 @@ export default function Upload({ onUploadSuccess, supportedFormats }: UploadProp
           onChange={handleFileSelect}
           className={styles.fileInput}
           accept={getSupportedExtensions(supportedFormats).map(f => `.${f}`).join(',')}
-          disabled={uploadMutation.isPending}
+          disabled={isUploading}
         />
 
-        {uploadMutation.isPending ? (
+        {isUploading ? (
           <div className={styles.uploadProgress}>
             <div className={styles.progressSpinner} />
             <p>Uploading and indexing...</p>

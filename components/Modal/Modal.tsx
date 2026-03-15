@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { useEffect } from "react";
-import styles from "./Modal.module.css";
-import type { ModalProps } from "@/lib/types/components";
+import { useEffect } from 'react';
+import styles from './Modal.module.css';
+import type { ModalProps } from '../../lib/types/components';
 
 export default function Modal({
   isOpen,

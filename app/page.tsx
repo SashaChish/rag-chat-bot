@@ -1,7 +1,7 @@
-import Chat from "@/components/Chat";
-import UploadWrapper from "./UploadWrapper";
-import DocumentList from "@/components/DocumentList";
-import styles from "./page.module.css";
+import Chat from '@/components/Chat/Chat';
+import UploadWrapper from './UploadWrapper';
+import DocumentList from '@/components/DocumentList/DocumentList';
+import styles from './page.module.css';
 
 export default function Home(): JSX.Element {
   return (

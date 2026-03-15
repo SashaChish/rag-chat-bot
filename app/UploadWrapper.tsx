@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Upload from "@/components/Upload";
-import type { DocumentUploadResponse, SupportedFormat } from "@/lib/types/api";
+import { useState, useEffect } from 'react';
+import Upload from '@/components/Upload/Upload';
+import type { DocumentUploadResponse, SupportedFormat } from '@/lib/types/api';
 
 export default function UploadWrapper(): JSX.Element {
   const [supportedFormats, setSupportedFormats] = useState<string[]>([]);

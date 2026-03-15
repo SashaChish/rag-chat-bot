@@ -1,16 +1,18 @@
-import { NextRequest, NextResponse } from "next/server";
-import { initializeLlamaIndex, validateQuery, formatSources } from "@/lib/llamaindex/utils";
-import { executeQuery } from "@/lib/llamaindex/index";
-import { hasDocuments } from "@/lib/llamaindex/vectorstore";
-import { getSystemPrompt } from "@/lib/llamaindex/prompts";
+import { NextRequest, NextResponse } from 'next/server';
+import { initializeLlamaIndex } from '@/lib/core/llamaindex/core.utils';
+import { validateQuery } from '@/lib/validators/query.validators';
+import { formatSources } from '@/lib/utils/format.utils';
+import { executeQuery } from '@/lib/llamaindex/index';
+import { hasDocuments } from '@/lib/llamaindex/vectorstore';
+import { getSystemPrompt } from '@/lib/llamaindex/prompts';
 import type {
   ChatRequest,
   ChatResponse,
   ChatStatusResponse,
   ChatStreamChunk,
   ErrorResponse
-} from "@/lib/types/api";
-import type { SourceInfo, QueryChunk, SourceNode } from "@/lib/types/llamaindex";
+} from '@/lib/types/api';
+import type { SourceInfo, QueryChunk, SourceNode } from '@/lib/types/core.types';
 
 initializeLlamaIndex();
 
@@ -157,9 +159,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                 }
 
                 if (chunk.message && chunk.message.content) {
-                  text = typeof chunk.message.content === "string"
+                  text = typeof chunk.message.content === 'string'
                     ? chunk.message.content
-                    : chunk.message.content;
+                    : JSON.stringify(chunk.message.content);
                 }
 
                 if (chunk.sourceNodes && Array.isArray(chunk.sourceNodes)) {

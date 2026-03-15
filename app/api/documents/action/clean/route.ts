@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
-import { initializeLlamaIndex } from "@/lib/llamaindex/utils";
-import { getAllDocuments, deleteDocumentByName } from "@/lib/llamaindex/vectorstore";
-import { clearIndex } from "@/lib/llamaindex/index";
-import type { ErrorResponse } from "@/lib/types/api";
-import type { DocumentListEntry } from "@/lib/types/llamaindex";
+import { NextRequest, NextResponse } from 'next/server';
+import { initializeLlamaIndex } from '@/lib/core/llamaindex/core.utils';
+import { getAllDocuments, deleteDocumentByName } from '@/lib/llamaindex/vectorstore';
+import { clearIndex } from '@/lib/llamaindex/index';
+import type { ErrorResponse } from '@/lib/types/api';
+import type { DocumentListEntry } from '@/lib/types/core.types';
 
 initializeLlamaIndex();
 

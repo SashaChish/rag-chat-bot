@@ -1,15 +1,14 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import MessageList from "./MessageList";
-import Modal from "./Modal";
-import styles from "./Chat.module.css";
+import MessageList from '../MessageList/MessageList';
+import Modal from '../Modal/Modal';
+import styles from './Chat.module.css';
 import type {
-  ChatUIMessage,
   ChatProps,
-  LoadingPhase,
-} from "@/lib/types/components";
-import { SourceInfo } from "@/lib/types";
+} from '../../lib/types/components';
+import type { ChatUIMessage, LoadingPhase } from './Chat.types';
+import type { SourceInfo } from '../../lib/types/core.types';
 
 export default function Chat({
   onSendMessage,

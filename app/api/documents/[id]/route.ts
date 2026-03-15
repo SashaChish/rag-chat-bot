@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
-import { deleteDocument } from "@/lib/llamaindex/index";
-import { getChromaClient } from "@/lib/llamaindex/vectorstore";
-import fs from "fs";
-import path from "path";
-import type { ErrorResponse } from "@/lib/types/api";
-import type { ChromaCollection } from "@/lib/types/chromadb-compatibility";
+import { NextRequest, NextResponse } from 'next/server';
+import { deleteDocument } from '@/lib/llamaindex/index';
+import { getChromaClient } from '@/lib/llamaindex/vectorstore';
+import fs from 'fs';
+import path from 'path';
+import type { ErrorResponse } from '@/lib/types/api';
+import type { ChromaCollection } from '@/lib/types/chromadb-compatibility';
 
 async function getChromaCollection(): Promise<ChromaCollection> {
   const client = await getChromaClient();

@@ -1,31 +1,25 @@
-"use client";
+'use client';
 
-import { SourceInfo } from "@/lib/types";
-import styles from "./MessageList.module.css";
-import type { MessageListProps } from "@/lib/types/components";
-
-interface SimilarityBarProps {
-  score: string | number;
-}
+import { SourceInfo } from '../../lib/types/core.types';
+import styles from './MessageList.module.css';
+import type { MessageListProps } from '../../lib/types/components';
+import type { SimilarityBarProps } from './MessageList.types';
+import {
+  formatContent,
+  getSourceExplanation,
+  getSimilarityColor,
+  getSimilarityPercentage,
+  isValidScore,
+} from './MessageList.utils';
 
 const SimilarityBar = ({ score }: SimilarityBarProps): JSX.Element | null => {
-  const numericScore = typeof score === "string" ? parseFloat(score) : score;
-
-  if (
-    isNaN(numericScore) ||
-    numericScore === undefined ||
-    numericScore === null
-  ) {
+  if (!isValidScore(score)) {
     return null;
   }
 
-  const percentage = Math.round(numericScore * 100);
-
-  const getColor = (): string => {
-    if (numericScore >= 0.7) return "#10b981"; // Green
-    if (numericScore >= 0.4) return "#f59e0b"; // Yellow/orange
-    return "#9ca3af"; // Gray
-  };
+  const numericScore = typeof score === 'string' ? parseFloat(score) : score;
+  const percentage = getSimilarityPercentage(numericScore);
+  const color = getSimilarityColor(numericScore);
 
   return (
     <div
@@ -41,10 +35,10 @@ const SimilarityBar = ({ score }: SimilarityBarProps): JSX.Element | null => {
       <div
         style={{
           width: `${percentage}%`,
-          height: "100%",
-          backgroundColor: getColor(),
-          borderRadius: "9999px",
-          transition: "width 0.3s ease-in-out",
+          height: '100%',
+          backgroundColor: color,
+          borderRadius: '9999px',
+          transition: 'width 0.3s ease-in-out',
         }}
         aria-label={`Similarity score: ${percentage}%`}
       />
@@ -56,42 +50,7 @@ export default function MessageList({
   messages,
   scrollAnchorRef,
 }: MessageListProps): JSX.Element {
-  const formatContent = (content: string): string => {
-    if (!content) return "";
 
-    // Handle bold text
-    let formatted = content.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-
-    formatted = formatted.replace(/\*(.*?)\*/g, "<em>$1</em>");
-
-    formatted = formatted.replace(
-      /```([\s\S]*?)```/g,
-      "<pre><code>$1</code></pre>",
-    );
-
-    formatted = formatted.replace(/`([^`]+)`/g, "<code>$1</code>");
-
-    formatted = formatted.replace(/\n/g, "<br>");
-
-    return formatted;
-  };
-
-  const getSourceExplanation = (sources: SourceInfo[] | undefined): string => {
-    if (!sources || sources.length === 0) return "";
-
-    const uniqueFilenames = [
-      ...new Set(sources.map((s: SourceInfo) => s.filename)),
-    ];
-
-    if (uniqueFilenames.length === 1) {
-      const filename = uniqueFilenames[0];
-      const chunks = sources.length;
-      return `${chunks} chunk${chunks !== 1 ? "s" : ""} from "${filename}" matched your query based on semantic similarity`;
-    } else {
-      const docs = uniqueFilenames.length;
-      return `${docs} document${docs !== 1 ? "s" : ""} matched your query based on semantic similarity`;
-    }
-  };
 
   return (
     <div className={styles.messageList}>
@@ -137,7 +96,7 @@ export default function MessageList({
           {message.sources && message.sources.length > 0 && (
             <div className={styles.messageSources}>
               <div className={styles.sourcesExplanation}>
-                {getSourceExplanation(message.sources)}
+                {getSourceExplanation(message.sources)?.text}
               </div>
               <div className={styles.sourcesList}>
                 {message.sources.map((source: SourceInfo, index: number) => (

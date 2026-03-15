@@ -1,15 +1,11 @@
-"use client";
+'use client';
 
-import { useState, useRef } from "react";
-import styles from "./Upload.module.css";
-import type { UploadProps } from "@/lib/types/components";
-
-const FORMAT_NAME_TO_EXTENSIONS: Record<string, string[]> = {
-  PDF: ["pdf"],
-  TEXT: ["txt"],
-  MARKDOWN: ["md", "markdown"],
-  DOCX: ["docx"],
-};
+import { useState, useRef } from 'react';
+import styles from './Upload.module.css';
+import type { UploadProps } from '../../lib/types/components';
+import {
+  getSupportedExtensions,
+} from './Upload.utils';
 
 export default function Upload({ onUploadSuccess, supportedFormats }: UploadProps): JSX.Element {
   const [isDragging, setIsDragging] = useState<boolean>(false);
@@ -18,20 +14,6 @@ export default function Upload({ onUploadSuccess, supportedFormats }: UploadProp
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ message: string; filename: string; chunksProcessed?: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const getSupportedExtensions = (): string[] => {
-    if (!supportedFormats || supportedFormats.length === 0) {
-      return ["pdf", "txt", "md", "markdown", "docx"];
-    }
-    const extensions: string[] = [];
-    for (const formatName of supportedFormats) {
-      const formatExts = FORMAT_NAME_TO_EXTENSIONS[formatName];
-      if (formatExts) {
-        extensions.push(...formatExts);
-      }
-    }
-    return extensions.length > 0 ? extensions : ["pdf", "txt", "md", "markdown", "docx"];
-  };
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>): void => {
     e.preventDefault();
@@ -67,14 +49,14 @@ export default function Upload({ onUploadSuccess, supportedFormats }: UploadProp
     setIsUploading(true);
 
     try {
-      const ext = file.name.split(".").pop()?.toLowerCase() || "";
-      const formatsToCheck = getSupportedExtensions();
+      const ext = file.name.split('.').pop()?.toLowerCase() || '';
+      const formatsToCheck = getSupportedExtensions(supportedFormats);
 
       if (!formatsToCheck.includes(ext)) {
         throw new Error(
           `Unsupported file format. Supported formats: ${supportedFormats && supportedFormats.length > 0
-            ? supportedFormats.join(", ")
-            : "PDF, TEXT, MARKDOWN, DOCX"}`
+            ? supportedFormats.join(', ')
+            : 'PDF, TEXT, MARKDOWN, DOCX'}`
         );
       }
 
@@ -101,10 +83,10 @@ export default function Upload({ onUploadSuccess, supportedFormats }: UploadProp
       }, 200);
 
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append('file', file);
 
-      const response = await fetch("/api/documents", {
-        method: "POST",
+      const response = await fetch('/api/documents', {
+        method: 'POST',
         body: formData,
       });
 
@@ -114,7 +96,7 @@ export default function Upload({ onUploadSuccess, supportedFormats }: UploadProp
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Upload failed");
+        throw new Error(data.error || 'Upload failed');
       }
 
       setSuccess({
@@ -129,7 +111,7 @@ export default function Upload({ onUploadSuccess, supportedFormats }: UploadProp
         onUploadSuccess(data);
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Unknown error";
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
       setTimeout(() => setError(null), 5000);
     } finally {
@@ -138,7 +120,7 @@ export default function Upload({ onUploadSuccess, supportedFormats }: UploadProp
     }
 
     if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+      fileInputRef.current.value = '';
     }
   };
 
@@ -146,19 +128,11 @@ export default function Upload({ onUploadSuccess, supportedFormats }: UploadProp
     fileInputRef.current?.click();
   };
 
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
-  };
-
   return (
     <div className={styles.uploadContainer}>
       <div
-        className={`${styles.uploadZone} ${isDragging ? styles.dragging : ""} ${
-          isUploading ? styles.uploading : ""
+        className={`${styles.uploadZone} ${isDragging ? styles.dragging : ''} ${
+          isUploading ? styles.uploading : ''
         }`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -170,7 +144,7 @@ export default function Upload({ onUploadSuccess, supportedFormats }: UploadProp
           type="file"
           onChange={handleFileSelect}
           className={styles.fileInput}
-          accept={getSupportedExtensions().map(f => `.${f}`).join(",")}
+          accept={getSupportedExtensions(supportedFormats).map(f => `.${f}`).join(',')}
           disabled={isUploading}
         />
 
@@ -194,8 +168,8 @@ export default function Upload({ onUploadSuccess, supportedFormats }: UploadProp
             </p>
             <p className={styles.uploadHint}>
               Supported formats: {supportedFormats && supportedFormats.length > 0
-                ? supportedFormats.join(", ")
-                : "PDF, TEXT, MARKDOWN, DOCX"} (max 10MB)
+                ? supportedFormats.join(', ')
+                : 'PDF, TEXT, MARKDOWN, DOCX'} (max 10MB)
             </p>
           </>
         )}

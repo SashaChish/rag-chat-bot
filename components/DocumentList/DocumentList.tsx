@@ -1,30 +1,17 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useCallback } from "react";
-import styles from "./DocumentList.module.css";
-import type { DocumentListProps } from "@/lib/types/components";
-
-interface DocumentStats {
-  exists: boolean;
-  count: number;
-  collectionName: string;
-}
-
-interface SupportedFormat {
-  type: string;
-  extensions: string;
-}
-
-interface DocumentData {
-  id: string;
-  file_name: string;
-  file_type: string;
-  upload_date: string;
-  chunk_count: number;
-  file_size?: string;
-  file_url?: string;
-  content?: string;
-}
+import { useState, useEffect, useCallback } from 'react';
+import styles from './DocumentList.module.css';
+import type { DocumentListProps } from '../../lib/types/components';
+import type {
+  DocumentData,
+  DocumentStats,
+  SupportedFormat,
+} from './DocumentList.types';
+import {
+  getFileIcon,
+  formatDocumentDate,
+} from './DocumentList.utils';
 
 export default function DocumentList(): JSX.Element {
   const [stats, setStats] = useState<DocumentStats | null>(null);
@@ -171,23 +158,9 @@ export default function DocumentList(): JSX.Element {
     setDocumentToDelete(null);
   };
 
-  const getFileIcon = (fileType: string): string => {
-    const icons: Record<string, string> = {
-      PDF: "📕",
-      TEXT: "📄",
-      MARKDOWN: "📝",
-      DOCX: "📘",
-    };
-    return icons[fileType] || "📄";
-  };
 
-  const formatDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
+
+
 
   if (initialLoading) {
     return (
@@ -270,7 +243,7 @@ export default function DocumentList(): JSX.Element {
                           {doc.file_type}
                         </span>
                         <span className={styles.documentDate}>
-                          {formatDate(doc.upload_date)}
+                          {formatDocumentDate(doc.upload_date)}
                         </span>
                         {doc.chunk_count > 0 && (
                           <span className={styles.documentChunks}>

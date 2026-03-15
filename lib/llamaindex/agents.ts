@@ -59,7 +59,7 @@ export function createReActAgent(
   const defaultTools = [createDocumentSearchTool(index)];
   const agentTools = [...defaultTools, ...tools];
 
-  const agentConfig: Record<string, unknown> = {
+  const agentConfig: any = {
     toolRetriever: index.asRetriever({
       similarityTopK: topK,
     }),

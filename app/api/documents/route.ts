@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
-import { saveUploadedFile, deleteUploadedFile } from "@/lib/upload";
-import { loadDocument, validateFile, isFormatSupported, getSupportedFormatsList } from "@/lib/llamaindex/loaders";
-import { addDocuments, getIndexStats } from "@/lib/llamaindex/index";
-import { generateDocumentId, formatFileSize } from "@/lib/llamaindex/utils";
-import { initializeSettings } from "@/lib/llamaindex/settings";
-import type { ErrorResponse, DocumentUploadResponse, DocumentsGetResponse, DocumentListResponse } from "@/lib/types/api";
+import { NextRequest, NextResponse } from 'next/server';
+import { saveUploadedFile, deleteUploadedFile } from '@/lib/core/upload/upload';
+import { loadDocument, validateFile, isFormatSupported, getSupportedFormatsList } from '@/lib/llamaindex/loaders';
+import { addDocuments, getIndexStats } from '@/lib/llamaindex/index';
+import { generateDocumentId } from '@/lib/core/llamaindex/core.utils';
+import { formatFileSize } from '@/lib/utils/format.utils';
+import { initializeSettings } from '@/lib/llamaindex/settings';
+import type { ErrorResponse, DocumentUploadResponse, DocumentsGetResponse, DocumentListResponse } from '@/lib/types/api';
 
 interface DocumentEntry {
   id: string;
@@ -124,9 +125,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
 async function getDocumentList(): Promise<NextResponse> {
   try {
-    const { getChromaClient } = await import("@/lib/llamaindex/vectorstore");
-    const { getFileInfo } = await import("@/lib/upload");
-    const { formatFileSize } = await import("@/lib/llamaindex/utils");
+    const { getChromaClient } = await import('@/lib/llamaindex/vectorstore');
+    const { getFileInfo } = await import('@/lib/core/upload/upload');
+    const { formatFileSize } = await import('@/lib/utils/format.utils');
 
     const client = await getChromaClient();
     const collection = await client.getCollection({ name: "documents" });
@@ -170,14 +171,12 @@ async function getDocumentList(): Promise<NextResponse> {
       }
 
       // Increment chunk count
-      // @ts-ignore
-      // @ts-ignore
-      const docEntry = documentMap.get(fileName);
-      // @ts-ignore
-      // @ts-ignore
-      docEntry.chunk_count++;
+      const docEntry = documentMap.get(fileName as string);
+      if (docEntry) {
+        docEntry.chunk_count++;
+      }
 
-      if (document) {
+      if (document && docEntry) {
         docEntry.content += document;
       }
     }

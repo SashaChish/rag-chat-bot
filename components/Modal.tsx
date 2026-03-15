@@ -1,12 +1,8 @@
-/**
- * Modal Component
- * Reusable modal dialog for confirmations and prompts
- */
-
 "use client";
 
 import { useEffect } from "react";
 import styles from "./Modal.module.css";
+import type { ModalProps } from "@/lib/types/components";
 
 export default function Modal({
   isOpen,
@@ -17,16 +13,16 @@ export default function Modal({
   confirmText = "Confirm",
   cancelText = "Cancel",
   variant = "default",
-}) {
+}: ModalProps): JSX.Element | null {
   useEffect(() => {
-    const handleEscape = (e) => {
+    const handleEscape = (e: KeyboardEvent): void => {
       if (e.key === "Escape" && isOpen) {
         onClose();
       }
     };
 
     document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
+    return (): void => document.removeEventListener("keydown", handleEscape);
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
@@ -35,7 +31,7 @@ export default function Modal({
     <div className={styles.modalOverlay} onClick={onClose}>
       <div
         className={`${styles.modalContent} ${styles[variant]}`}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
       >
         <div className={styles.modalHeader}>
           <h3>{title}</h3>
@@ -43,6 +39,7 @@ export default function Modal({
             onClick={onClose}
             className={styles.closeButton}
             aria-label="Close modal"
+            type="button"
           >
             ×
           </button>

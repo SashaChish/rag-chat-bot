@@ -1,24 +1,26 @@
-/**
- * Chat API Route
- * Handles chat message requests using LlamaIndex.TS QueryEngine with streaming support
- */
-
 import { NextRequest, NextResponse } from "next/server";
-import { initializeLlamaIndex, validateQuery, formatSources } from "@/lib/llamaindex/utils.js";
-import { executeQuery } from "@/lib/llamaindex/index.js";
-import { hasDocuments } from "@/lib/llamaindex/vectorstore.js";
-import { getSystemPrompt } from "@/lib/llamaindex/prompts.js";
+import { initializeLlamaIndex, validateQuery, formatSources } from "@/lib/llamaindex/utils";
+import { executeQuery } from "@/lib/llamaindex/index";
+import { hasDocuments } from "@/lib/llamaindex/vectorstore";
+import { getSystemPrompt } from "@/lib/llamaindex/prompts";
+import type {
+  ChatRequest,
+  ChatResponse,
+  ChatStatusResponse,
+  ChatStreamChunk,
+  ErrorResponse
+} from "@/lib/types/api";
+import type { SourceInfo, QueryChunk, SourceNode } from "@/lib/types/llamaindex";
 
-// Initialize LlamaIndex on module load
 initializeLlamaIndex();
 
 /**
  * POST /api/chat
  * Handle chat message requests with optional streaming
  */
-export async function POST(request) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const body = await request.json();
+    const body = await request.json() as ChatRequest;
     const {
       message,
       conversationHistory = [],
@@ -30,7 +32,6 @@ export async function POST(request) {
       systemPrompt = null,
     } = body;
 
-    // Validate input
     if (!message) {
       return NextResponse.json(
         { error: "Message is required" },
@@ -38,17 +39,15 @@ export async function POST(request) {
       );
     }
 
-    // Validate query
     try {
       validateQuery(message);
     } catch (error) {
       return NextResponse.json(
-        { error: error.message },
+        { error: (error as Error).message },
         { status: 400 }
       );
     }
 
-    // Validate chat engine type
     if (chatEngineType !== null && chatEngineType !== undefined) {
       const validChatEngineTypes = ["condense", "context"];
       if (!validChatEngineTypes.includes(chatEngineType)) {
@@ -59,7 +58,6 @@ export async function POST(request) {
       }
     }
 
-    // Validate agent type
     if (agentType !== null && agentType !== undefined) {
       const validAgentTypes = ["react", "openai"];
       if (!validAgentTypes.includes(agentType)) {
@@ -70,12 +68,10 @@ export async function POST(request) {
       }
     }
 
-    // Check if there are documents indexed
     const docsExist = await hasDocuments();
     if (!docsExist) {
-      // Return 200 OK with helpful message - no documents is not an error
       if (streaming) {
-        return new Response(
+        return new NextResponse(
           JSON.stringify({
             response: "I don't have any documents to search through yet. Please upload some documents first, and then I can help answer your questions!",
             sources: [],
@@ -93,7 +89,6 @@ export async function POST(request) {
       }
     }
 
-    // Execute query using LlamaIndex.TS with streaming
     const result = await executeQuery(
       message,
       streaming,
@@ -106,13 +101,12 @@ export async function POST(request) {
       systemPrompt,
     );
 
-    // Handle actual errors (500) vs expected conditions (200)
     if (result.error) {
       const errorMsg = typeof result.error === 'string' ? result.error : 'An error occurred';
       console.error("Query error:", errorMsg);
-      
+
       if (streaming) {
-        return new Response(
+        return new NextResponse(
           JSON.stringify({ error: errorMsg }),
           {
             status: 500,
@@ -127,40 +121,33 @@ export async function POST(request) {
       }
     }
 
-    // Handle streaming response
     if (streaming) {
       const encoder = new TextEncoder();
       const decoder = new TextDecoder();
 
-      // Create a readable stream for the response
       const stream = new ReadableStream({
         async start(controller) {
           try {
-            // Collect sources from streaming chunks
-            let collectedSources = [];
+            let collectedSources: SourceInfo[] = [];
 
-            // LlamaIndex.TS streaming response
             if (result.streaming && result.response) {
-              // The streaming response from LlamaIndex.TS
-              for await (const chunk of result.response) {
-                // Extract text from chunk - handle different formats
+              const responseStream = result.response as AsyncGenerator<QueryChunk>;
+
+              for await (const chunk of responseStream) {
                 let text = "";
 
                 if (typeof chunk === "string") {
                   text = chunk;
                 } else if (chunk && typeof chunk === "object") {
-                  // Chat engine response format (EngineResponse)
                   if (chunk.message && chunk.message.content) {
                     text = typeof chunk.message.content === "string"
                       ? chunk.message.content
                       : String(chunk.message.content);
                   } else {
-                    // Query engine response format
                     text = chunk.delta || chunk.response || chunk.content ||
                            chunk.value || chunk.text || "";
                   }
 
-                  // If still no text and chunk has toString method
                   if (!text && typeof chunk.toString === "function") {
                     const str = chunk.toString();
                     if (str && str !== "[object Object]") {
@@ -169,24 +156,21 @@ export async function POST(request) {
                   }
                 }
 
-                // Handle chat engine responses (EngineResponse format)
                 if (chunk.message && chunk.message.content) {
                   text = typeof chunk.message.content === "string"
                     ? chunk.message.content
                     : chunk.message.content;
                 }
 
-                // Extract sources from chunk if available
                 if (chunk.sourceNodes && Array.isArray(chunk.sourceNodes)) {
-                  const chunkSources = chunk.sourceNodes.map((nodeWithScore) => ({
+                  const chunkSources = chunk.sourceNodes.map((nodeWithScore: SourceNode) => ({
                     filename: nodeWithScore.node.metadata?.file_name || "Unknown",
                     fileType: nodeWithScore.node.metadata?.file_type || "Unknown",
-                    score: nodeWithScore.score !== undefined ? nodeWithScore.score.toFixed(3) : null,
+                    score: nodeWithScore.score !== undefined ? parseFloat(nodeWithScore.score.toFixed(3)) : 0,
                     preview: nodeWithScore.node.getContent().substring(0, 200) + "...",
                     metadata: nodeWithScore.node.metadata,
                   }));
 
-                  // Update collected sources (last chunk has complete set)
                   if (chunkSources.length > 0) {
                     collectedSources = chunkSources;
                   }
@@ -197,10 +181,8 @@ export async function POST(request) {
                 }
               }
 
-              // Send done signal with collected sources
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, sources: collectedSources })}\n\n`));
             } else {
-              // Non-streaming fallback
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ response: result.response, sources: result.sources })}\n\n`));
             }
 
@@ -212,7 +194,7 @@ export async function POST(request) {
         },
       });
 
-      return new Response(stream, {
+      return new NextResponse(stream, {
         headers: {
           "Content-Type": "text/event-stream",
           "Cache-Control": "no-cache",
@@ -220,11 +202,12 @@ export async function POST(request) {
         },
       });
     } else {
-      // Non-streaming response
-      return NextResponse.json({
-        response: result.response,
+      const response: ChatResponse = {
+        response: result.response as string,
         sources: result.sources,
-      });
+      };
+
+      return NextResponse.json(response);
     }
   } catch (error) {
     console.error("Error in chat API:", error);
@@ -235,20 +218,18 @@ export async function POST(request) {
   }
 }
 
-/**
- * GET /api/chat
- * Check chat status (e.g., whether documents are indexed)
- */
-export async function GET(request) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const docsExist = await hasDocuments();
 
-    return NextResponse.json({
+    const response: ChatStatusResponse = {
       ready: docsExist,
       message: docsExist
         ? "Ready to answer questions"
         : "Please upload documents first",
-    });
+    };
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error("Error in chat status check:", error);
     return NextResponse.json(

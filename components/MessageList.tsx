@@ -1,47 +1,50 @@
-/**
- * Message List Component
- * Displays chat messages with user/bot styling and source citations
- */
-
 "use client";
 
+import { SourceInfo } from "@/lib/types";
 import styles from "./MessageList.module.css";
+import type { MessageListProps } from "@/lib/types/components";
 
-// SimilarityBar component for visual score display
-const SimilarityBar = ({ score }) => {
-  // Convert score to number if it's a string
-  const numericScore = typeof score === 'string' ? parseFloat(score) : score;
+interface SimilarityBarProps {
+  score: string | number;
+}
 
-  // Handle invalid scores
-  if (isNaN(numericScore) || numericScore === undefined || numericScore === null) {
+const SimilarityBar = ({ score }: SimilarityBarProps): JSX.Element | null => {
+  const numericScore = typeof score === "string" ? parseFloat(score) : score;
+
+  if (
+    isNaN(numericScore) ||
+    numericScore === undefined ||
+    numericScore === null
+  ) {
     return null;
   }
 
   const percentage = Math.round(numericScore * 100);
 
-  // Get color based on similarity
-  const getColor = () => {
-    if (numericScore >= 0.7) return '#10b981'; // Green
-    if (numericScore >= 0.4) return '#f59e0b'; // Yellow/orange
-    return '#9ca3af'; // Gray
+  const getColor = (): string => {
+    if (numericScore >= 0.7) return "#10b981"; // Green
+    if (numericScore >= 0.4) return "#f59e0b"; // Yellow/orange
+    return "#9ca3af"; // Gray
   };
 
   return (
-    <div style={{
-      width: '100%',
-      backgroundColor: '#e5e7eb',
-      borderRadius: '9999px',
-      height: '8px',
-      marginTop: '4px',
-      overflow: 'hidden'
-    }}>
+    <div
+      style={{
+        width: "100%",
+        backgroundColor: "#e5e7eb",
+        borderRadius: "9999px",
+        height: "8px",
+        marginTop: "4px",
+        overflow: "hidden",
+      }}
+    >
       <div
         style={{
           width: `${percentage}%`,
-          height: '100%',
+          height: "100%",
           backgroundColor: getColor(),
-          borderRadius: '9999px',
-          transition: 'width 0.3s ease-in-out'
+          borderRadius: "9999px",
+          transition: "width 0.3s ease-in-out",
         }}
         aria-label={`Similarity score: ${percentage}%`}
       />
@@ -49,44 +52,44 @@ const SimilarityBar = ({ score }) => {
   );
 };
 
-export default function MessageList({ messages, scrollAnchorRef }) {
-  // Simple markdown-like formatting
-  const formatContent = (content) => {
+export default function MessageList({
+  messages,
+  scrollAnchorRef,
+}: MessageListProps): JSX.Element {
+  const formatContent = (content: string): string => {
     if (!content) return "";
 
     // Handle bold text
     let formatted = content.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
 
-    // Handle italic text
     formatted = formatted.replace(/\*(.*?)\*/g, "<em>$1</em>");
 
-    // Handle code blocks
-    formatted = formatted.replace(/```([\s\S]*?)```/g, "<pre><code>$1</code></pre>");
+    formatted = formatted.replace(
+      /```([\s\S]*?)```/g,
+      "<pre><code>$1</code></pre>",
+    );
 
-    // Handle inline code
     formatted = formatted.replace(/`([^`]+)`/g, "<code>$1</code>");
 
-    // Handle line breaks
     formatted = formatted.replace(/\n/g, "<br>");
 
     return formatted;
   };
 
-  // Get a helpful source explanation message based on the sources
-  const getSourceExplanation = (sources) => {
+  const getSourceExplanation = (sources: SourceInfo[] | undefined): string => {
     if (!sources || sources.length === 0) return "";
 
-    const uniqueFilenames = [...new Set(sources.map(s => s.filename))];
+    const uniqueFilenames = [
+      ...new Set(sources.map((s: SourceInfo) => s.filename)),
+    ];
 
     if (uniqueFilenames.length === 1) {
-      // All chunks from the same document
       const filename = uniqueFilenames[0];
       const chunks = sources.length;
-      return `${chunks} chunk${chunks !== 1 ? 's' : ''} from "${filename}" matched your query based on semantic similarity`;
+      return `${chunks} chunk${chunks !== 1 ? "s" : ""} from "${filename}" matched your query based on semantic similarity`;
     } else {
-      // Multiple documents
       const docs = uniqueFilenames.length;
-      return `${docs} document${docs !== 1 ? 's' : ''} matched your query based on semantic similarity`;
+      return `${docs} document${docs !== 1 ? "s" : ""} matched your query based on semantic similarity`;
     }
   };
 
@@ -114,14 +117,20 @@ export default function MessageList({ messages, scrollAnchorRef }) {
             </span>
           </div>
 
-          <div className={`${styles.messageContent} ${message.isStreaming || message.loadingPhase ? styles.loading : ""}`}>
+          <div
+            className={`${styles.messageContent} ${message.isStreaming || message.loadingPhase ? styles.loading : ""}`}
+          >
             {(message.isStreaming || message.loadingPhase) && (
               <span className={styles.loadingDots}>
-                {message.loadingPhase === "loadingSources" ? "Loading sources" : "Thinking"}
+                {message.loadingPhase === "loadingSources"
+                  ? "Loading sources"
+                  : "Thinking"}
               </span>
             )}
             <span
-              dangerouslySetInnerHTML={{ __html: formatContent(message.content) }}
+              dangerouslySetInnerHTML={{
+                __html: formatContent(message.content),
+              }}
             />
           </div>
 
@@ -131,10 +140,12 @@ export default function MessageList({ messages, scrollAnchorRef }) {
                 {getSourceExplanation(message.sources)}
               </div>
               <div className={styles.sourcesList}>
-                {message.sources.map((source, index) => (
+                {message.sources.map((source: SourceInfo, index: number) => (
                   <div key={index} className={styles.sourceCard}>
                     <div className={styles.sourceHeader}>
-                      <span className={styles.sourceFilename}>{source.filename}</span>
+                      <span className={styles.sourceFilename}>
+                        {source.filename}
+                      </span>
                       {source.score && (
                         <span className={styles.sourceScore}>
                           score: {source.score}
@@ -143,7 +154,9 @@ export default function MessageList({ messages, scrollAnchorRef }) {
                     </div>
                     {source.score && <SimilarityBar score={source.score} />}
                     {source.preview && (
-                      <div className={styles.sourcePreview}>{source.preview}</div>
+                      <div className={styles.sourcePreview}>
+                        {source.preview}
+                      </div>
                     )}
                   </div>
                 ))}

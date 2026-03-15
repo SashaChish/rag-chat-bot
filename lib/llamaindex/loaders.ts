@@ -1,29 +1,19 @@
-/**
- * Document Loader Factory
- * Uses LlamaIndex.TS file readers to load documents and creates LlamaIndex.TS Document objects
- */
-
 import { PDFReader } from "@llamaindex/readers/pdf";
 import { DocxReader } from "@llamaindex/readers/docx";
 import { MarkdownReader } from "@llamaindex/readers/markdown";
 import { TextFileReader } from "@llamaindex/readers/text";
+import type { BaseReader } from "llamaindex";
 import fs from "fs/promises";
+import type { RAGDocument } from "../types";
 
-/**
- * Supported file types and their extensions
- */
-export const SUPPORTED_FORMATS = {
+export const SUPPORTED_FORMATS: Record<string, string[]> = {
   PDF: ["pdf"],
   TEXT: ["txt"],
   MARKDOWN: ["md", "markdown"],
   DOCX: ["docx"],
 };
 
-/**
- * File extension to reader mapping
- * Uses LlamaIndex.TS specialized readers for each file type
- */
-const FILE_EXT_TO_READER = {
+const FILE_EXT_TO_READER: Record<string, BaseReader> = {
   txt: new TextFileReader(),
   pdf: new PDFReader(),
   md: new MarkdownReader(),
@@ -31,10 +21,7 @@ const FILE_EXT_TO_READER = {
   docx: new DocxReader(),
 };
 
-/**
- * All supported extensions
- */
-export const SUPPORTED_EXTENSIONS = [
+export const SUPPORTED_EXTENSIONS: string[] = [
   ...SUPPORTED_FORMATS.PDF,
   ...SUPPORTED_FORMATS.TEXT,
   ...SUPPORTED_FORMATS.MARKDOWN,
@@ -44,11 +31,13 @@ export const SUPPORTED_EXTENSIONS = [
 /**
  * Get the file type from a filename
  */
-export function getFileType(filename) {
-  const ext = filename.split(".").pop().toLowerCase();
+export function getFileType(filename: string): string | null {
+  const ext = filename.split(".").pop()?.toLowerCase();
+
+  if (!ext) return null;
 
   for (const [type, extensions] of Object.entries(SUPPORTED_FORMATS)) {
-    if (extensions.includes(ext)) {
+    if ((extensions as string[]).includes(ext as string)) {
       return type;
     }
   }
@@ -56,30 +45,19 @@ export function getFileType(filename) {
   return null;
 }
 
-/**
- * Check if a file format is supported
- */
-export function isFormatSupported(filename) {
+export function isFormatSupported(filename: string): boolean {
   return getFileType(filename) !== null;
 }
 
-
-
-/**
- * Load documents from a file
- * Uses LlamaIndex.TS specialized file readers for proper parsing
- */
-export async function loadDocument(filePath) {
+export async function loadDocument(filePath: string): Promise<RAGDocument[]> {
   try {
-    // Check if file exists
     const fileExists = await fs.access(filePath).then(() => true).catch(() => false);
     if (!fileExists) {
       throw new Error(`File not found: ${filePath}`);
     }
 
-    // Check file size
     const stats = await fs.stat(filePath);
-    const maxSizeMB = parseInt(process.env.MAX_FILE_SIZE_MB || "10");
+    const maxSizeMB = parseInt(process.env.MAX_FILE_SIZE_MB || "10", 10);
     const maxSizeBytes = maxSizeMB * 1024 * 1024;
 
     if (stats.size > maxSizeBytes) {
@@ -93,9 +71,13 @@ export async function loadDocument(filePath) {
       throw new Error("File is empty");
     }
 
-    // Get the file extension and corresponding reader
-    const filename = filePath.split("/").pop();
-    const ext = filename.split(".").pop().toLowerCase();
+    // Get file extension and corresponding reader
+    const filename = filePath.split("/").pop() || filePath;
+    const ext = filename.split(".").pop()?.toLowerCase();
+
+    if (!ext) {
+      throw new Error("Invalid filename - no extension found");
+    }
 
     const reader = FILE_EXT_TO_READER[ext];
     if (!reader) {
@@ -104,20 +86,18 @@ export async function loadDocument(filePath) {
       );
     }
 
-    // Use the specialized LlamaIndex.TS reader to parse the file
     const documents = await reader.loadData(filePath);
 
-    // Add custom metadata to each document
     return documents.map((doc) => ({
-      ...doc,
+      text: doc.getText(),
       metadata: {
         ...doc.metadata,
         file_name: filename,
         file_path: filePath,
-        file_type: getFileType(filename),
+        file_type: getFileType(filename) || "unknown",
         upload_date: new Date().toISOString(),
       },
-    }));
+    })) as RAGDocument[];
   } catch (error) {
     console.error(`Error loading document ${filePath}:`, error);
     throw error;
@@ -127,7 +107,7 @@ export async function loadDocument(filePath) {
 /**
  * Validate a file before loading
  */
-export function validateFile(file) {
+export function validateFile(file: File): boolean {
   // Check file type
   if (!isFormatSupported(file.name)) {
     throw new Error(
@@ -135,8 +115,7 @@ export function validateFile(file) {
     );
   }
 
-  // Check file size
-  const maxSizeMB = parseInt(process.env.MAX_FILE_SIZE_MB || "10");
+  const maxSizeMB = parseInt(process.env.MAX_FILE_SIZE_MB || "10", 10);
   const maxSizeBytes = maxSizeMB * 1024 * 1024;
 
   if (file.size > maxSizeBytes) {
@@ -145,7 +124,6 @@ export function validateFile(file) {
     );
   }
 
-  // Check if file is empty
   if (file.size === 0) {
     throw new Error("File is empty");
   }
@@ -153,10 +131,7 @@ export function validateFile(file) {
   return true;
 }
 
-/**
- * Get supported formats list for UI display
- */
-export function getSupportedFormatsList() {
+export function getSupportedFormatsList(): Array<{ type: string; extensions: string }> {
   return Object.entries(SUPPORTED_FORMATS).map(([type, extensions]) => ({
     type,
     extensions: extensions.map((ext) => `.${ext}`).join(", "),

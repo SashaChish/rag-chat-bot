@@ -6,10 +6,11 @@ import {
 import { LLMSingleSelector } from "llamaindex";
 import { LLMQuestionGenerator } from "llamaindex";
 import { Settings } from "@llamaindex/core/global";
+import type { QueryEngineType } from "../types";
 
-const topK = parseInt(process.env.TOP_K_RESULTS || "3");
+const topK = parseInt(process.env.TOP_K_RESULTS || "3", 10);
 
-export function createQueryEngine(index) {
+export function createQueryEngine(index: any): any {
   return index.asQueryEngine({
     retrieverMode: "default",
     responseMode: "compact",
@@ -18,7 +19,7 @@ export function createQueryEngine(index) {
   });
 }
 
-export async function createRouterQueryEngine(index) {
+export async function createRouterQueryEngine(index: any): Promise<any> {
   const vectorEngine = index.asQueryEngine({
     retrieverMode: "default",
     responseMode: "compact",
@@ -37,7 +38,7 @@ export async function createRouterQueryEngine(index) {
   });
 }
 
-export function createSubQuestionEngine(index) {
+export function createSubQuestionEngine(index: any): any {
   const queryTool = new QueryEngineTool({
     queryEngine: index.asQueryEngine({
       retrieverMode: "default",
@@ -52,7 +53,7 @@ export function createSubQuestionEngine(index) {
   });
 }
 
-export function getQueryEngine(index, type = "default") {
+export async function getQueryEngine(index: any, type: QueryEngineType = "default"): Promise<any> {
   switch (type) {
     case "router":
       return createRouterQueryEngine(index);

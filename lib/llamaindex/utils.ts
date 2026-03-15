@@ -1,14 +1,7 @@
-/**
- * Utility functions for LlamaIndex.TS integration
- */
+import { initializeSettings } from "./settings";
+import type { SourceInfo, DocumentMetadata, RAGDocument } from "../types";
 
-import { initializeSettings } from "./settings.js";
-
-/**
- * Initialize LlamaIndex.TS settings
- * Call this once on application startup
- */
-export function initializeLlamaIndex() {
+export function initializeLlamaIndex(): boolean {
   try {
     initializeSettings();
     console.log("LlamaIndex.TS settings initialized");
@@ -19,10 +12,7 @@ export function initializeLlamaIndex() {
   }
 }
 
-/**
- * Validate a user query
- */
-export function validateQuery(query) {
+export function validateQuery(query: string): boolean {
   // Check if query is empty or whitespace only
   if (!query || query.trim().length === 0) {
     throw new Error("Query cannot be empty");
@@ -30,7 +20,6 @@ export function validateQuery(query) {
 
   const trimmed = query.trim();
 
-  // Check minimum length
   if (trimmed.length < 5) {
     throw new Error("Query must be at least 5 characters long");
   }
@@ -43,62 +32,48 @@ export function validateQuery(query) {
   return true;
 }
 
-/**
- * Sanitize user input to prevent injection attacks
- */
-export function sanitizeInput(input) {
+export function sanitizeInput(input: string): string {
   if (typeof input !== "string") {
     return "";
   }
 
-  // Basic sanitization - remove potentially harmful characters
   return input
-    .replace(/[<>]/g, "") // Remove HTML tags
-    .replace(/[\x00-\x1F\x7F]/g, "") // Remove control characters
+    .replace(/[<>]/g, "")
+    .replace(/[\x00-\x1F\x7F]/g, "")
     .trim();
 }
 
-/**
- * Format sources for display
- */
-export function formatSources(sources) {
+export function formatSources(sources: SourceInfo[]): SourceInfo[] {
   if (!sources || sources.length === 0) {
     return [];
   }
 
-  // Remove duplicates by filename
-  const uniqueSources = [];
-  const seenFilenames = new Set();
+  const uniqueSources: SourceInfo[] = [];
+  const seenFilenames = new Set<string>();
 
   for (const source of sources) {
     if (!seenFilenames.has(source.filename)) {
       uniqueSources.push({
         filename: source.filename,
         fileType: source.fileType,
-        score: source.score.toFixed(3),
-        preview: source.text,
+        score: source.score,
+        text: source.text,
+        preview: source.preview || source.text,
       });
       seenFilenames.add(source.filename);
     }
   }
 
-  // Sort by score (highest first)
   return uniqueSources.sort((a, b) => b.score - a.score);
 }
 
-/**
- * Generate a unique document ID
- */
-export function generateDocumentId(filename) {
+export function generateDocumentId(filename: string): string {
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 9);
   return `${filename}-${timestamp}-${random}`;
 }
 
-/**
- * Format error message for display
- */
-export function formatError(error) {
+export function formatError(error: unknown): string {
   if (!error) {
     return "An unknown error occurred";
   }
@@ -107,21 +82,18 @@ export function formatError(error) {
     return error;
   }
 
-  if (error.message) {
+  if (error instanceof Error && error.message) {
     return error.message;
   }
 
-  if (error.toString) {
-    return error.toString();
+  if (typeof error === "object" && error !== null && "toString" in error) {
+    return String(error);
   }
 
   return "An unknown error occurred";
 }
 
-/**
- * Chunk text for display (e.g., in source previews)
- */
-export function chunkText(text, maxLength = 200) {
+export function chunkText(text: string, maxLength: number = 200): string {
   if (!text || text.length <= maxLength) {
     return text;
   }
@@ -129,16 +101,13 @@ export function chunkText(text, maxLength = 200) {
   return text.substring(0, maxLength) + "...";
 }
 
-/**
- * Extract metadata from document
- */
-export function extractDocumentMetadata(document) {
+export function extractDocumentMetadata(document: RAGDocument): Partial<DocumentMetadata> {
   if (!document || !document.metadata) {
     return {};
   }
 
   const { metadata } = document;
-  const allowedFields = [
+  const allowedFields: (keyof DocumentMetadata)[] = [
     "file_name",
     "file_path",
     "file_type",
@@ -148,7 +117,7 @@ export function extractDocumentMetadata(document) {
     "author",
   ];
 
-  const result = {};
+  const result: Partial<DocumentMetadata> = {};
   for (const field of allowedFields) {
     if (metadata[field] !== undefined) {
       result[field] = metadata[field];
@@ -158,38 +127,27 @@ export function extractDocumentMetadata(document) {
   return result;
 }
 
-/**
- * Get chunk size from environment
- */
-export function getChunkSize() {
-  return parseInt(process.env.CHUNK_SIZE || "1000");
+export function getChunkSize(): number {
+  return parseInt(process.env.CHUNK_SIZE || "1000", 10);
 }
 
-/**
- * Get chunk overlap from environment
- */
-export function getChunkOverlap() {
-  return parseInt(process.env.CHUNK_OVERLAP || "200");
+export function getChunkOverlap(): number {
+  return parseInt(process.env.CHUNK_OVERLAP || "200", 10);
 }
 
-/**
- * Get top-k results from environment
- */
-export function getTopK() {
-  return parseInt(process.env.TOP_K_RESULTS || "3");
+export function getTopK(): number {
+  return parseInt(process.env.TOP_K_RESULTS || "3", 10);
 }
 
-/**
- * Get max file size from environment
- */
-export function getMaxFileSize() {
-  return parseInt(process.env.MAX_FILE_SIZE_MB || "10");
+export function getMaxFileSize(): number {
+  return parseInt(process.env.MAX_FILE_SIZE_MB || "10", 10);
 }
 
-/**
- * Format file size for display
- */
-export function formatFileSize(bytes) {
+export function getContextWindow(): number {
+  return parseInt(process.env.CONTEXT_WINDOW || "128000", 10);
+}
+
+export function formatFileSize(bytes: number): string {
   if (bytes === 0) return "0 Bytes";
 
   const k = 1024;
@@ -198,4 +156,3 @@ export function formatFileSize(bytes) {
 
   return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
 }
-

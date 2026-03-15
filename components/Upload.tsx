@@ -1,32 +1,28 @@
-/**
- * Upload Component
- * File upload interface with progress tracking and error handling
- */
-
 "use client";
 
 import { useState, useRef } from "react";
 import styles from "./Upload.module.css";
+import type { UploadProps } from "@/lib/types/components";
 
-export default function Upload({ onUploadSuccess, supportedFormats }) {
-  const [isDragging, setIsDragging] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
-  const fileInputRef = useRef(null);
+export default function Upload({ onUploadSuccess, supportedFormats }: UploadProps): JSX.Element {
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<{ message: string; filename: string; chunksProcessed?: number } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleDragOver = (e) => {
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>): void => {
     e.preventDefault();
     setIsDragging(true);
   };
 
-  const handleDragLeave = (e) => {
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>): void => {
     e.preventDefault();
     setIsDragging(false);
   };
 
-  const handleDrop = (e) => {
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>): void => {
     e.preventDefault();
     setIsDragging(false);
 
@@ -36,23 +32,21 @@ export default function Upload({ onUploadSuccess, supportedFormats }) {
     }
   };
 
-  const handleFileSelect = (e) => {
-    const files = Array.from(e.target.files);
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>): void => {
+    const files = Array.from(e.target.files || []);
     if (files.length > 0) {
       handleFileUpload(files[0]);
     }
   };
 
-  const handleFileUpload = async (file) => {
-    // Reset states
+  const handleFileUpload = async (file: File): Promise<void> => {
     setError(null);
     setSuccess(null);
     setUploadProgress(0);
     setIsUploading(true);
 
     try {
-      // Validate file
-      const ext = file.name.split(".").pop().toLowerCase();
+      const ext = file.name.split(".").pop()?.toLowerCase() || "";
       const supportedExtensions = [
         "pdf",
         "txt",
@@ -69,7 +63,6 @@ export default function Upload({ onUploadSuccess, supportedFormats }) {
         );
       }
 
-      // Check file size (max 10MB)
       const maxSizeMB = 10;
       const maxSizeBytes = maxSizeMB * 1024 * 1024;
       if (file.size > maxSizeBytes) {
@@ -82,7 +75,6 @@ export default function Upload({ onUploadSuccess, supportedFormats }) {
         );
       }
 
-      // Simulate upload progress
       const progressInterval = setInterval(() => {
         setUploadProgress((prev) => {
           if (prev >= 90) {
@@ -93,7 +85,6 @@ export default function Upload({ onUploadSuccess, supportedFormats }) {
         });
       }, 200);
 
-      // Upload file
       const formData = new FormData();
       formData.append("file", file);
 
@@ -117,33 +108,30 @@ export default function Upload({ onUploadSuccess, supportedFormats }) {
         chunksProcessed: data.chunksProcessed,
       });
 
-      // Clear success message after 3 seconds
       setTimeout(() => setSuccess(null), 3000);
 
-      // Notify parent component
       if (onUploadSuccess) {
         onUploadSuccess(data);
       }
     } catch (err) {
-      setError(err.message);
-      // Clear error after 5 seconds
+      const errorMessage = err instanceof Error ? err.message : "Unknown error";
+      setError(errorMessage);
       setTimeout(() => setError(null), 5000);
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
     }
 
-    // Reset file input
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
 
-  const handleButtonClick = () => {
+  const handleButtonClick = (): void => {
     fileInputRef.current?.click();
   };
 
-  const formatFileSize = (bytes) => {
+  const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return "0 Bytes";
     const k = 1024;
     const sizes = ["Bytes", "KB", "MB", "GB"];

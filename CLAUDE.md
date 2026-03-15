@@ -145,6 +145,10 @@ Project conventions are enforced via Hookify rules in `.claude/` directory:
 
 **Exports**: Use `export function` for named exports
 
+**No `any` Types**: Do not use the `any` type. Use proper type definitions or `unknown` when the type cannot be determined at compile time.
+
+**Descriptive Names Over Comments**: When adding new functionality or fixing issues, do not add explanatory comments to code unless truly necessary. Use descriptive variable and function names instead to make code self-documenting.
+
 ## Initialization
 
 - LlamaIndex.TS settings initialized via `initializeLlamaIndex()` in API routes on module load

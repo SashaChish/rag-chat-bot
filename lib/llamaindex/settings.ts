@@ -1,21 +1,21 @@
-/**
- * LlamaIndex.TS Settings Manager
- * Configures LLM and embedding models
- */
-
 import { Settings } from "@llamaindex/core/global";
 import { OpenAI, OpenAIEmbedding } from "@llamaindex/openai";
 import { Anthropic } from "@llamaindex/anthropic";
 import { Groq } from "@llamaindex/groq";
 import { Ollama, OllamaEmbedding } from "@llamaindex/ollama";
+import type { LLMType, EmbeddingModelType } from "../types";
 
-// Note: LlamaIndex.TS provides dedicated packages for each LLM provider
+export type LLMProvider = 'openai' | 'anthropic' | 'groq' | 'ollama';
 
-/**
- * Configure the LLM provider based on environment variables
- */
-export function configureLLM() {
-  const provider = process.env.LLM_PROVIDER || "openai";
+export type EmbeddingProvider = 'openai' | 'ollama';
+
+export interface LLMConfig {
+  provider: LLMProvider;
+  model: string;
+}
+
+export function configureLLM(): unknown {
+  const provider = (process.env.LLM_PROVIDER || "openai") as LLMProvider;
   const model = process.env.LLM_MODEL || "gpt-4o-mini";
 
   switch (provider) {
@@ -26,8 +26,7 @@ export function configureLLM() {
       Settings.llm = new OpenAI({
         apiKey: process.env.OPENAI_API_KEY,
         model: model,
-        timeout: parseInt(process.env.LLM_TIMEOUT || "60000"), // Default 60 seconds
-        contextWindow: parseInt(process.env.CONTEXT_WINDOW || "128000"),
+        timeout: parseInt(process.env.LLM_TIMEOUT || "60000", 10),
       });
       break;
 
@@ -38,8 +37,7 @@ export function configureLLM() {
       Settings.llm = new Anthropic({
         apiKey: process.env.ANTHROPIC_API_KEY,
         model: model || "claude-3-haiku-20240307",
-        timeout: parseInt(process.env.LLM_TIMEOUT || "60000"),
-        contextWindow: parseInt(process.env.CONTEXT_WINDOW || "200000"),
+        timeout: parseInt(process.env.LLM_TIMEOUT || "60000", 10),
       });
       break;
 
@@ -50,19 +48,14 @@ export function configureLLM() {
       Settings.llm = new Groq({
         apiKey: process.env.GROQ_API_KEY,
         model: model || "llama-3.3-70b-versatile",
-        timeout: parseInt(process.env.LLM_TIMEOUT || "60000"),
-        contextWindow: parseInt(process.env.CONTEXT_WINDOW || "128000"),
+        timeout: parseInt(process.env.LLM_TIMEOUT || "60000", 10),
       });
       break;
 
     case "ollama":
-      // Ollama runs locally - use LlamaIndex.TS Ollama provider
-      const ollamaBaseURL = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
+      const ollamaModel = process.env.OLLAMA_MODEL || model || "llama2";
       Settings.llm = new Ollama({
-        baseURL: ollamaBaseURL,
-        model: model || "llama2",
-        timeout: parseInt(process.env.LLM_TIMEOUT || "120000"), // Ollama may need more time
-        contextWindow: parseInt(process.env.CONTEXT_WINDOW || "4096"),
+        model: ollamaModel,
       });
       break;
 
@@ -73,12 +66,8 @@ export function configureLLM() {
   return Settings.llm;
 }
 
-/**
- * Configure the embedding model
- * Supports multiple embedding providers
- */
-export function configureEmbedding() {
-  const embeddingProvider = process.env.EMBEDDING_PROVIDER || "openai";
+export function configureEmbedding(): EmbeddingModelType {
+  const embeddingProvider = (process.env.EMBEDDING_PROVIDER || "openai") as EmbeddingProvider;
   const embeddingModel = process.env.EMBEDDING_MODEL || "text-embedding-3-small";
 
   switch (embeddingProvider) {
@@ -89,17 +78,14 @@ export function configureEmbedding() {
       Settings.embedModel = new OpenAIEmbedding({
         apiKey: process.env.OPENAI_API_KEY,
         model: embeddingModel,
-        timeout: parseInt(process.env.EMBEDDING_TIMEOUT || "60000"),
+        timeout: parseInt(process.env.EMBEDDING_TIMEOUT || "60000", 10),
       });
       break;
 
     case "ollama":
       const ollamaEmbeddingModel = process.env.OLLAMA_EMBEDDING_MODEL || embeddingModel;
-      const ollamaBaseURL = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
       Settings.embedModel = new OllamaEmbedding({
-        baseURL: ollamaBaseURL,
         model: ollamaEmbeddingModel,
-        timeout: parseInt(process.env.EMBEDDING_TIMEOUT || "60000"),
       });
       break;
 
@@ -110,18 +96,12 @@ export function configureEmbedding() {
   return Settings.embedModel;
 }
 
-/**
- * Initialize all settings (LLM and embeddings)
- */
-export function initializeSettings() {
+export function initializeSettings(): void {
   configureLLM();
   configureEmbedding();
 }
 
-/**
- * Update the LLM provider at runtime
- */
-export function updateLLMProvider(provider, model) {
+export function updateLLMProvider(provider: LLMProvider, model?: string): void {
   process.env.LLM_PROVIDER = provider;
   if (model) {
     process.env.LLM_MODEL = model;
@@ -129,12 +109,9 @@ export function updateLLMProvider(provider, model) {
   configureLLM();
 }
 
-/**
- * Get current LLM configuration
- */
-export function getLLMConfig() {
+export function getLLMConfig(): LLMConfig {
   return {
-    provider: process.env.LLM_PROVIDER || "openai",
+    provider: (process.env.LLM_PROVIDER || "openai") as LLMProvider,
     model: process.env.LLM_MODEL || "gpt-4o-mini",
   };
 }

@@ -1,28 +1,46 @@
-/**
- * Document List Component
- * Displays list of indexed documents with stats and management controls
- */
-
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
 import styles from "./DocumentList.module.css";
+import type { DocumentListProps } from "@/lib/types/components";
 
-export default function DocumentList() {
-  const [stats, setStats] = useState(null);
-  const [supportedFormats, setSupportedFormats] = useState([]);
-  const [documents, setDocuments] = useState([]);
-  const [initialLoading, setInitialLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [listLoading, setListLoading] = useState(false);
-  const [selectedDocument, setSelectedDocument] = useState(null);
-  const [showDetails, setShowDetails] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [documentToDelete, setDocumentToDelete] = useState(null);
-  const [error, setError] = useState(null);
+interface DocumentStats {
+  exists: boolean;
+  count: number;
+  collectionName: string;
+}
 
-  const fetchDocumentStats = useCallback(async (isRefresh = false) => {
+interface SupportedFormat {
+  type: string;
+  extensions: string;
+}
+
+interface DocumentData {
+  id: string;
+  file_name: string;
+  file_type: string;
+  upload_date: string;
+  chunk_count: number;
+  file_size?: string;
+  file_url?: string;
+  content?: string;
+}
+
+export default function DocumentList(): JSX.Element {
+  const [stats, setStats] = useState<DocumentStats | null>(null);
+  const [supportedFormats, setSupportedFormats] = useState<SupportedFormat[]>([]);
+  const [documents, setDocuments] = useState<DocumentData[]>([]);
+  const [initialLoading, setInitialLoading] = useState<boolean>(true);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [listLoading, setListLoading] = useState<boolean>(false);
+  const [selectedDocument, setSelectedDocument] = useState<DocumentData | null>(null);
+  const [showDetails, setShowDetails] = useState<boolean>(false);
+  const [showPreview, setShowPreview] = useState<boolean>(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
+  const [documentToDelete, setDocumentToDelete] = useState<DocumentData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchDocumentStats = useCallback(async (isRefresh: boolean = false): Promise<void> => {
     try {
       if (isRefresh) {
         setRefreshing(true);
@@ -44,7 +62,7 @@ export default function DocumentList() {
     }
   }, []);
 
-  const fetchDocumentList = useCallback(async () => {
+  const fetchDocumentList = useCallback(async (): Promise<void> => {
     try {
       setListLoading(true);
       const response = await fetch("/api/documents?action=list");
@@ -59,26 +77,25 @@ export default function DocumentList() {
     }
   }, []);
 
-  const fetchData = useCallback(async (isRefresh = false) => {
+  const fetchData = useCallback(async (isRefresh: boolean = false): Promise<void> => {
     await Promise.all([fetchDocumentStats(isRefresh), fetchDocumentList()]);
   }, [fetchDocumentStats, fetchDocumentList]);
 
   useEffect(() => {
     fetchData(false);
 
-    // Listen for document upload events to refresh the list
-    const handleDocumentUploaded = () => {
+    const handleDocumentUploaded = (): void => {
       fetchData(true);
     };
 
     window.addEventListener('documentUploaded', handleDocumentUploaded);
 
-    return () => {
+    return (): void => {
       window.removeEventListener('documentUploaded', handleDocumentUploaded);
     };
   }, [fetchData]);
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: string): Promise<void> => {
     try {
       const response = await fetch(`/api/documents/${encodeURIComponent(id)}`, {
         method: "DELETE",
@@ -92,58 +109,57 @@ export default function DocumentList() {
       setShowDeleteConfirm(false);
       setDocumentToDelete(null);
 
-      // Refresh data without causing UI shift
       await fetchData(true);
     } catch (error) {
       console.error("Error deleting document:", error);
-      alert(error.message || "Failed to delete document");
+      const errorMessage = error instanceof Error ? error.message : "Failed to delete document";
+      alert(errorMessage);
     }
   };
 
-  const handleDownload = (doc) => {
+  const handleDownload = (doc: DocumentData): void => {
     if (doc.file_url) {
-      // Create a temporary anchor element to trigger download
       const link = document.createElement('a');
       link.href = doc.file_url;
-      link.download = doc.file_name; // Use original filename for download
+      link.download = doc.file_name;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     }
   };
 
-  const handleViewDetails = (doc) => {
+  const handleViewDetails = (doc: DocumentData): void => {
     setSelectedDocument(doc);
     setShowDetails(true);
   };
 
-  const handlePreview = (doc) => {
+  const handlePreview = (doc: DocumentData): void => {
     setSelectedDocument(doc);
     setShowPreview(true);
   };
 
-  const closeDetails = () => {
+  const closeDetails = (): void => {
     setShowDetails(false);
     setSelectedDocument(null);
   };
 
-  const closePreview = () => {
+  const closePreview = (): void => {
     setShowPreview(false);
     setSelectedDocument(null);
   };
 
-  const confirmDelete = (doc) => {
+  const confirmDelete = (doc: DocumentData): void => {
     setDocumentToDelete(doc);
     setShowDeleteConfirm(true);
   };
 
-  const cancelDelete = () => {
+  const cancelDelete = (): void => {
     setShowDeleteConfirm(false);
     setDocumentToDelete(null);
   };
 
-  const getFileIcon = (fileType) => {
-    const icons = {
+  const getFileIcon = (fileType: string): string => {
+    const icons: Record<string, string> = {
       PDF: "📕",
       TEXT: "📄",
       MARKDOWN: "📝",
@@ -152,7 +168,7 @@ export default function DocumentList() {
     return icons[fileType] || "📄";
   };
 
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: string): string => {
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
@@ -179,6 +195,7 @@ export default function DocumentList() {
           onClick={() => fetchData(true)}
           className={`${styles.refreshButton} ${refreshing ? styles.spinning : ""}`}
           disabled={refreshing}
+          type="button"
         >
           <span className={styles.refreshIcon}>🔄</span>
           <span className={styles.refreshText}> Refresh</span>
@@ -223,7 +240,7 @@ export default function DocumentList() {
             <div className={styles.loadingState}>Loading documents...</div>
           ) : (
             <div className={styles.documentItems}>
-              {documents.map((doc) => (
+              {documents.map((doc: DocumentData) => (
                 <div key={doc.id} className={styles.documentItem}>
                   <div className={styles.documentMain}>
                     <div className={styles.documentIcon}>
@@ -249,6 +266,7 @@ export default function DocumentList() {
                       onClick={() => handleViewDetails(doc)}
                       className={styles.actionButton}
                       title="View details"
+                      type="button"
                     >
                       ℹ️
                     </button>
@@ -256,6 +274,7 @@ export default function DocumentList() {
                       onClick={() => handlePreview(doc)}
                       className={styles.actionButton}
                       title="Preview content"
+                      type="button"
                     >
                       👁️
                     </button>
@@ -264,6 +283,7 @@ export default function DocumentList() {
                         onClick={() => handleDownload(doc)}
                         className={styles.actionButton}
                         title="Download file"
+                        type="button"
                       >
                         ⬇️
                       </button>
@@ -272,6 +292,7 @@ export default function DocumentList() {
                       onClick={() => confirmDelete(doc)}
                       className={`${styles.actionButton} ${styles.deleteButton}`}
                       title="Delete document"
+                      type="button"
                     >
                       🗑️
                     </button>
@@ -287,7 +308,7 @@ export default function DocumentList() {
         <div className={styles.supportedFormats}>
           <h4>Supported Formats</h4>
           <div className={styles.formatsGrid}>
-            {supportedFormats.map((format) => (
+            {supportedFormats.map((format: SupportedFormat) => (
               <div key={format.type} className={styles.formatItem}>
                 <span className={styles.formatName}>{format.type}</span>
                 <span className={styles.formatExt}>{format.extensions}</span>
@@ -297,13 +318,12 @@ export default function DocumentList() {
         </div>
       )}
 
-      {/* Document Details Modal */}
       {showDetails && selectedDocument && (
         <div className={styles.modalOverlay} onClick={closeDetails}>
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modal} onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h3>Document Details</h3>
-              <button onClick={closeDetails} className={styles.closeButton}>
+              <button onClick={closeDetails} className={styles.closeButton} type="button">
                 ✕
               </button>
             </div>
@@ -349,13 +369,12 @@ export default function DocumentList() {
         </div>
       )}
 
-      {/* Document Preview Modal */}
       {showPreview && selectedDocument && (
         <div className={styles.modalOverlay} onClick={closePreview}>
-          <div className={`${styles.modal} ${styles.largeModal}`} onClick={(e) => e.stopPropagation()}>
+          <div className={`${styles.modal} ${styles.largeModal}`} onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h3>Document Preview</h3>
-              <button onClick={closePreview} className={styles.closeButton}>
+              <button onClick={closePreview} className={styles.closeButton} type="button">
                 ✕
               </button>
             </div>
@@ -375,13 +394,12 @@ export default function DocumentList() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
       {showDeleteConfirm && documentToDelete && (
         <div className={styles.modalOverlay} onClick={cancelDelete}>
-          <div className={`${styles.modal} ${styles.confirmModal}`} onClick={(e) => e.stopPropagation()}>
+          <div className={`${styles.modal} ${styles.confirmModal}`} onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h3>Confirm Delete</h3>
-              <button onClick={cancelDelete} className={styles.closeButton}>
+              <button onClick={cancelDelete} className={styles.closeButton} type="button">
                 ✕
               </button>
             </div>
@@ -392,12 +410,13 @@ export default function DocumentList() {
                 This action cannot be undone.
               </p>
               <div className={styles.confirmActions}>
-                <button onClick={cancelDelete} className={styles.cancelButton}>
+                <button onClick={cancelDelete} className={styles.cancelButton} type="button">
                   Cancel
                 </button>
                 <button
                   onClick={() => handleDelete(documentToDelete.id)}
                   className={styles.confirmDeleteButton}
+                  type="button"
                 >
                   Delete
                 </button>

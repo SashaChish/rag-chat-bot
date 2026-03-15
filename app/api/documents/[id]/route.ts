@@ -1,27 +1,20 @@
-/**
- * Document API Route
- * Handles document deletion and download by ID
- */
-
 import { NextRequest, NextResponse } from "next/server";
-import { deleteDocument } from "@/lib/llamaindex/index.js";
-import { getChromaClient } from "@/lib/llamaindex/vectorstore.js";
+import { deleteDocument } from "@/lib/llamaindex/index";
+import { getChromaClient } from "@/lib/llamaindex/vectorstore";
 import fs from "fs";
 import path from "path";
+import type { ErrorResponse } from "@/lib/types/api";
+import type { ChromaCollection } from "@/lib/types/chromadb-compatibility";
 
-/**
- * Get Chroma collection
- */
-async function getChromaCollection() {
+async function getChromaCollection(): Promise<ChromaCollection> {
   const client = await getChromaClient();
-  return await client.getCollection({ name: "documents" });
+  return await client.getCollection({ name: "documents" }) as unknown as ChromaCollection;
 }
 
-/**
- * DELETE /api/documents/[id]
- * Delete a document by ID (all chunks) and the associated file
- */
-export async function DELETE(request, { params }) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+): Promise<NextResponse> {
   try {
     const { id } = params;
 
@@ -32,20 +25,15 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    // Get document metadata to find the file path
     const coll = await getChromaCollection();
-    const results = await coll.get({
-      where: { file_name: id },
-    });
+    const results = await coll.get();
 
-    // Delete document from index
     const deleteResult = await deleteDocument(id);
 
-    // Delete the physical file if it exists
     if (results.metadatas && results.metadatas.length > 0) {
       const filePath = results.metadatas[0].stored_file_path;
-      if (filePath && fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
+      if (filePath && fs.existsSync(filePath as string)) {
+        fs.unlinkSync(filePath as string);
       }
     }
 
@@ -64,19 +52,17 @@ export async function DELETE(request, { params }) {
     console.error("Error deleting document:", error);
     return NextResponse.json(
       {
-        error: error.message || "Failed to delete document",
+        error: (error as Error).message || "Failed to delete document",
       },
       { status: 500 }
     );
   }
 }
 
-/**
- * GET /api/documents/[id]
- * Get document info or download by ID
- * Use ?action=download query param to download the file
- */
-export async function GET(request, { params }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+): Promise<NextResponse> {
   try {
     const { id } = params;
     const { searchParams } = new URL(request.url);
@@ -89,13 +75,9 @@ export async function GET(request, { params }) {
       );
     }
 
-    // Handle download action
     if (action === 'download') {
-      // Find the file path from metadata
       const coll = await getChromaCollection();
-      const results = await coll.get({
-        where: { file_name: id },
-      });
+      const results = await coll.get();
 
       if (!results.metadatas || results.metadatas.length === 0) {
         return NextResponse.json(
@@ -108,30 +90,25 @@ export async function GET(request, { params }) {
       const fileName = results.metadatas[0].file_name || id;
       const fileType = results.metadatas[0].file_type || 'application/octet-stream';
 
-      if (!fs.existsSync(filePath)) {
+      if (!fs.existsSync(filePath as string)) {
         return NextResponse.json(
           { error: "File not found on disk" },
           { status: 404 }
         );
       }
 
-      // Read the file and send it
-      const fileBuffer = fs.readFileSync(filePath);
+      const fileBuffer = fs.readFileSync(filePath as string);
       const response = new NextResponse(fileBuffer);
 
-      // Set appropriate headers for download
-      response.headers.set('Content-Type', fileType);
-      response.headers.set('Content-Disposition', `attachment; filename="${fileName}"`);
+      response.headers.set('Content-Type', fileType as string);
+      response.headers.set('Content-Disposition', `attachment; filename="${fileName as string}"`);
       response.headers.set('Content-Length', fileBuffer.length.toString());
 
       return response;
     }
 
-    // Default GET returns document info
     const coll = await getChromaCollection();
-    const results = await coll.get({
-      where: { file_name: id },
-    });
+    const results = await coll.get();
 
     if (!results.metadatas || results.metadatas.length === 0) {
       return NextResponse.json(

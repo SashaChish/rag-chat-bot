@@ -1,28 +1,15 @@
-/**
- * Documents Cleanup API Route
- * Handles administrative cleanup of ChromaDB documents
- */
+import { NextRequest, NextResponse } from "next/server";
+import { initializeLlamaIndex } from "@/lib/llamaindex/utils";
+import { getAllDocuments, deleteDocumentByName } from "@/lib/llamaindex/vectorstore";
+import { clearIndex } from "@/lib/llamaindex/index";
+import type { ErrorResponse } from "@/lib/types/api";
+import type { DocumentListEntry } from "@/lib/types/llamaindex";
 
-import { NextResponse } from "next/server";
-import { initializeLlamaIndex } from "@/lib/llamaindex/utils.js";
-import { getAllDocuments, deleteDocumentByName } from "@/lib/llamaindex/vectorstore.js";
-import { clearIndex } from "@/lib/llamaindex/index.js";
-
-// Initialize LlamaIndex on module load
 initializeLlamaIndex();
 
-/**
- * POST /api/documents/action/clean
- * Handle document cleanup operations
- *
- * Actions:
- * - "list": List all documents in ChromaDB
- * - "delete": Delete specific document(s)
- * - "clear": Clear all documents
- */
-export async function POST(request) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const body = await request.json();
+    const body = await request.json() as { action?: string; fileNames?: string[] };
     const { action } = body;
 
     if (!action) {
@@ -34,16 +21,14 @@ export async function POST(request) {
 
     switch (action) {
       case "list":
-        // List all documents in ChromaDB
-        const result = await getAllDocuments();
+        const listResult = await getAllDocuments();
         return NextResponse.json({
           success: true,
-          documents: result.documents,
-          total_chunks: result.total_chunks,
+          documents: listResult.documents,
+          total_chunks: listResult.total_chunks,
         });
 
       case "delete":
-        // Delete specific document(s)
         const { fileNames } = body;
 
         if (!fileNames || !Array.isArray(fileNames) || fileNames.length === 0) {
@@ -54,21 +39,38 @@ export async function POST(request) {
         }
 
         let totalDeleted = 0;
-        const results = [];
+        const results: DocumentListEntry[] = [];
 
         for (const fileName of fileNames) {
           try {
             const deletedCount = await deleteDocumentByName(fileName);
             totalDeleted += deletedCount;
             results.push({
+              id: fileName,
               file_name: fileName,
+              file_type: "unknown",
+              upload_date: new Date().toISOString(),
+              file_url: null,
+              stored_file_path: null,
+              chunk_count: deletedCount,
+              content: "",
+              file_size: null,
               deleted_chunks: deletedCount,
               success: true,
             });
           } catch (error) {
             results.push({
+              id: fileName,
               file_name: fileName,
-              error: error.message,
+              file_type: "unknown",
+              upload_date: new Date().toISOString(),
+              file_url: null,
+              stored_file_path: null,
+              chunk_count: 0,
+              content: "",
+              file_size: null,
+              deleted_chunks: 0,
+              error: (error as Error).message,
               success: false,
             });
           }
@@ -85,13 +87,13 @@ export async function POST(request) {
 
       case "clear":
         // Clear all documents
-        const result = await clearIndex("documents");
+        const clearResult = await clearIndex("documents");
         return NextResponse.json({
-          success: result.success,
-          message: result.success
+          success: clearResult.success,
+          message: clearResult.success
             ? "All documents cleared from ChromaDB and collection recreated"
             : "Failed to clear documents",
-          error: result.error || null,
+          error: clearResult.error || null,
         });
 
       default:

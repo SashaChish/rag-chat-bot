@@ -1,17 +1,30 @@
-/**
- * File upload utilities
- */
-
 import fs from "fs";
 import path from "path";
 import { nanoid } from "nanoid";
 
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
 
-/**
- * Ensure upload directory exists
- */
-export function ensureUploadDir() {
+export interface UploadedFile {
+  path: string;
+  filename: string;
+  originalName: string;
+  size: number;
+  type: string;
+}
+
+export interface FileInfo {
+  path: string;
+  size: number;
+  created: Date;
+  modified: Date;
+}
+
+export interface CleanupResult {
+  deleted: number;
+  error?: string;
+}
+
+export function ensureUploadDir(): void {
   if (!fs.existsSync(UPLOAD_DIR)) {
     fs.mkdirSync(UPLOAD_DIR, { recursive: true });
   }
@@ -20,15 +33,13 @@ export function ensureUploadDir() {
 /**
  * Save an uploaded file
  */
-export async function saveUploadedFile(file) {
+export async function saveUploadedFile(file: File): Promise<UploadedFile> {
   ensureUploadDir();
 
-  // Generate unique filename
   const ext = path.extname(file.name);
   const filename = `${nanoid()}${ext}`;
   const filepath = path.join(UPLOAD_DIR, filename);
 
-  // Write file to disk
   const buffer = Buffer.from(await file.arrayBuffer());
   fs.writeFileSync(filepath, buffer);
 
@@ -41,19 +52,13 @@ export async function saveUploadedFile(file) {
   };
 }
 
-/**
- * Delete an uploaded file
- */
-export function deleteUploadedFile(filepath) {
+export function deleteUploadedFile(filepath: string): void {
   if (fs.existsSync(filepath)) {
     fs.unlinkSync(filepath);
   }
 }
 
-/**
- * Get file info
- */
-export function getFileInfo(filepath) {
+export function getFileInfo(filepath: string): FileInfo | null {
   if (!fs.existsSync(filepath)) {
     return null;
   }
@@ -67,10 +72,7 @@ export function getFileInfo(filepath) {
   };
 }
 
-/**
- * Clean up old upload files
- */
-export function cleanupOldUploads(maxAgeHours = 24) {
+export function cleanupOldUploads(maxAgeHours: number = 24): CleanupResult {
   const now = Date.now();
   const maxAge = maxAgeHours * 60 * 60 * 1000;
 
@@ -92,6 +94,6 @@ export function cleanupOldUploads(maxAgeHours = 24) {
     return { deleted };
   } catch (error) {
     console.error("Error cleaning up old uploads:", error);
-    return { deleted: 0, error: error.message };
+    return { deleted: 0, error: (error as Error).message };
   }
 }

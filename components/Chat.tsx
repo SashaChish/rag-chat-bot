@@ -1,39 +1,39 @@
-/**
- * Chat Interface Component
- * Main chat interface with message history and input
- */
-
 "use client";
 
 import { useState, useRef, useEffect } from "react";
 import MessageList from "./MessageList";
 import Modal from "./Modal";
 import styles from "./Chat.module.css";
+import type {
+  ChatUIMessage,
+  ChatProps,
+  LoadingPhase,
+} from "@/lib/types/components";
+import { SourceInfo } from "@/lib/types";
 
-export default function Chat({ onSendMessage }) {
-  const [messages, setMessages] = useState([]);
+export default function Chat({
+  onSendMessage,
+  supportedFormats,
+}: ChatProps): JSX.Element {
+  const [messages, setMessages] = useState<ChatUIMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [inputError, setInputError] = useState("");
-  const [chatEngineType, setChatEngineType] = useState("condense");
-  const [agentType, setAgentType] = useState(null);
+  const [chatEngineType, setChatEngineType] = useState<"condense" | "context">(
+    "condense",
+  );
+  const [agentType, setAgentType] = useState<"react" | "openai" | null>(null);
   const [showClearModal, setShowClearModal] = useState(false);
-  const [loadingPhase, setLoadingPhase] = useState(null);
-  const messagesEndRef = useRef(null);
-  const sessionId = useRef(null);
-
-  // Initialize session ID on mount
-  useEffect(() => {
-    if (!sessionId.current) {
-      sessionId.current = `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-    }
-  }, []);
+  const [sessionKey] = useState<string>(
+    `session-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+  );
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = async (): Promise<void> => {
     const trimmedInput = input.trim();
 
     if (!trimmedInput || isLoading) {
@@ -45,7 +45,7 @@ export default function Chat({ onSendMessage }) {
       return;
     }
 
-    const userMessage = {
+    const userMessage: ChatUIMessage = {
       id: Date.now(),
       role: "user",
       content: trimmedInput,
@@ -54,14 +54,12 @@ export default function Chat({ onSendMessage }) {
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
-    setLoadingPhase("thinking");
 
-    // Declare assistantMessageId outside try block so it's accessible in catch/finally
-    let assistantMessageId;
+    let assistantMessageId: number;
 
     try {
       assistantMessageId = Date.now() + 1;
-      const assistantMessage = {
+      const assistantMessage: ChatUIMessage = {
         id: assistantMessageId,
         role: "assistant",
         content: "",
@@ -72,8 +70,7 @@ export default function Chat({ onSendMessage }) {
       };
       setMessages((prev) => [...prev, assistantMessage]);
 
-      // Convert messages to conversation history format
-      const history = messages.map(msg => ({
+      const history = messages.map((msg) => ({
         role: msg.role,
         content: msg.content,
       }));
@@ -89,7 +86,7 @@ export default function Chat({ onSendMessage }) {
           conversationHistory: history,
           chatEngineType: chatEngineType,
           agentType: agentType,
-          sessionKey: sessionId.current,
+          sessionKey: sessionKey,
         }),
       });
 
@@ -97,101 +94,117 @@ export default function Chat({ onSendMessage }) {
         throw new Error("Failed to get response");
       }
 
-      // Handle streaming response
-      const reader = response.body.getReader();
+      const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let fullContent = "";
-      let sources = [];
+      let sources: SourceInfo[] = [];
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n");
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split("\n");
 
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              
-              if (data.done) {
-                sources = data.sources || [];
-                setLoadingPhase("loadingSources");
-                setMessages((prev) =>
-                  prev.map((msg) =>
-                    msg.id === assistantMessageId
-                      ? { ...msg, content: fullContent, isStreaming: false, loadingPhase: "loadingSources" }
-                      : msg
-                  )
-                );
-              } else if (data.chunk) {
-                fullContent += data.chunk;
-                setMessages((prev) =>
-                  prev.map((msg) =>
-                    msg.id === assistantMessageId
-                      ? { ...msg, content: fullContent, isStreaming: true, loadingPhase: "thinking" }
-                      : msg
-                  )
-                );
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              try {
+                const data = JSON.parse(line.slice(6));
+
+                if (data.done) {
+                  sources = data.sources || [];
+
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === assistantMessageId
+                        ? {
+                            ...msg,
+                            content: fullContent,
+                            isStreaming: false,
+                            loadingPhase: "loadingSources",
+                          }
+                        : msg,
+                    ),
+                  );
+                } else if (data.chunk) {
+                  fullContent += data.chunk;
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === assistantMessageId
+                        ? {
+                            ...msg,
+                            content: fullContent,
+                            isStreaming: true,
+                            loadingPhase: "thinking",
+                          }
+                        : msg,
+                    ),
+                  );
+                }
+              } catch (e) {
+                console.error("Error parsing SSE data:", e);
               }
-            } catch (e) {
-              console.error("Error parsing SSE data:", e);
             }
           }
         }
-      }
 
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === assistantMessageId
-            ? { ...msg, content: fullContent, sources, isStreaming: false, loadingPhase: null }
-            : msg
-        )
-      );
-      setLoadingPhase(null);
+        // Send done signal with collected sources
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMessageId
+              ? {
+                  ...msg,
+                  content: fullContent,
+                  sources,
+                  isStreaming: false,
+                  loadingPhase: null,
+                }
+              : msg,
+          ),
+        );
+      }
     } catch (error) {
       console.error("Error sending message:", error);
-      // Update the assistant message to show error instead of adding a new message
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === assistantMessageId
             ? {
                 ...msg,
-                content: "Sorry, there was an error processing your request. Please try again.",
+                content:
+                  "Sorry, there was an error processing your request. Please try again.",
                 error: true,
                 isStreaming: false,
                 loadingPhase: null,
               }
-            : msg
-        )
+            : msg,
+        ),
       );
     } finally {
       setIsLoading(false);
-      setLoadingPhase(null);
     }
   };
 
-  const handleKeyPress = (e) => {
+  const handleKeyPress = (e: React.KeyboardEvent): void => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
   };
 
-  const handleClearChat = () => {
+  const handleClearChat = (): void => {
     if (messages.length === 0) return;
     setShowClearModal(true);
   };
 
-  const handleConfirmClear = () => {
+  const handleConfirmClear = (): void => {
     setMessages([]);
     setChatEngineType("condense");
     setAgentType(null);
     setShowClearModal(false);
   };
 
-  const handleCancelClear = () => {
+  const handleCancelClear = (): void => {
     setShowClearModal(false);
   };
 
@@ -203,13 +216,15 @@ export default function Chat({ onSendMessage }) {
           <div className={styles.headerControls}>
             <select
               value={agentType || chatEngineType}
-              onChange={(e) => {
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
                 const value = e.target.value;
                 if (value === "react" || value === "openai") {
-                  setAgentType(value);
+                  setAgentType(value as "react" | "openai");
                 } else {
                   setAgentType(null);
-                  setChatEngineType(value);
+                  if (value === "condense" || value === "context") {
+                    setChatEngineType(value);
+                  }
                 }
               }}
               className={styles.engineSelector}
@@ -235,10 +250,10 @@ export default function Chat({ onSendMessage }) {
           {agentType === "react"
             ? "ReAct Agent uses reasoning + action patterns to autonomously search documents and answer complex, multi-step questions."
             : agentType === "openai"
-            ? "OpenAI Agent uses function calling to intelligently select and use tools for document search and answering."
-            : chatEngineType === "condense"
-            ? "Condenses conversation history into a standalone query before retrieving relevant documents. Maintains context while keeping queries focused."
-            : "Retrieves relevant documents and provides them as context to the LLM along with your conversation history. Explicit context for comprehensive answers."}
+              ? "OpenAI Agent uses function calling to intelligently select and use tools for document search and answering."
+              : chatEngineType === "condense"
+                ? "Condenses conversation history into a standalone query before retrieving relevant documents. Maintains context while keeping queries focused."
+                : "Retrieves relevant documents and provides them as context to LLM along with your conversation history. Explicit context for comprehensive answers."}
         </p>
       </div>
 
@@ -261,17 +276,12 @@ export default function Chat({ onSendMessage }) {
           onClick={handleSendMessage}
           className={styles.sendButton}
           disabled={isLoading || !input.trim()}
-          type="button"
         >
           {isLoading ? "Sending..." : "Send"}
         </button>
       </div>
 
-      {inputError && (
-        <div className={styles.inputError}>
-          {inputError}
-        </div>
-      )}
+      {inputError && <div className={styles.inputError}>{inputError}</div>}
 
       <Modal
         isOpen={showClearModal}

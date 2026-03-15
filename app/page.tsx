@@ -1,15 +1,9 @@
-/**
- * Main Application Page (Server Component)
- * RAG Chatbot with document upload and chat interface
- * Server-rendered layout with client-side interactive components
- */
-
 import Chat from "@/components/Chat";
 import UploadWrapper from "./UploadWrapper";
 import DocumentList from "@/components/DocumentList";
 import styles from "./page.module.css";
 
-export default function Home() {
+export default function Home(): JSX.Element {
   return (
     <main className={styles.appContainer}>
       <header className={styles.appHeader}>
@@ -28,7 +22,7 @@ export default function Home() {
         </aside>
 
         <section className={styles.mainContent}>
-          <Chat />
+          <Chat onSendMessage={undefined} />
         </section>
       </div>
 

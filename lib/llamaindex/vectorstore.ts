@@ -1,34 +1,22 @@
-/**
- * Vector Store Manager
- * Manages Chroma connection using chromadb package
- * Provides compatibility layer for LlamaIndex.TS integration
- */
-
 import { ChromaClient } from "chromadb";
 
-let chromaClient = null;
-let initialized = false;
+let chromaClient: ChromaClient | null = null;
+let initialized: boolean = false;
 
-/**
- * Initialize Chroma vector store with local SQLite backend
- * Note: In chromadb v3.x, local persistence requires running a ChromaDB server
- */
-export async function initChroma() {
+export async function initChroma(): Promise<ChromaClient> {
   if (initialized && chromaClient) {
     return chromaClient;
   }
 
   const chromaHost = process.env.CHROMA_HOST || "localhost";
-  const chromaPort = parseInt(process.env.CHROMA_PORT || "8000");
+  const chromaPort = parseInt(process.env.CHROMA_PORT || "8000", 10);
 
   try {
-    // Initialize Chroma client connecting to local server
     chromaClient = new ChromaClient({
       host: chromaHost,
       port: chromaPort,
     });
 
-    // Test connection by listing collections
     await chromaClient.listCollections();
 
     initialized = true;
@@ -42,7 +30,6 @@ export async function initChroma() {
     console.warn("Or install locally: https://docs.trychroma.com/deployment/local");
     console.warn("=".repeat(60));
 
-    // Fallback to in-memory Chroma instance (data won't persist)
     console.warn("Falling back to in-memory Chroma (data will not persist after restart)");
     chromaClient = new ChromaClient();
 
@@ -51,33 +38,24 @@ export async function initChroma() {
   }
 }
 
-/**
- * Get the Chroma client instance
- * Note: For full LlamaIndex.TS vector store compatibility,
- * the index manager uses Chroma through a custom wrapper
- */
-export async function getVectorStore() {
+export async function getVectorStore(): Promise<ChromaClient> {
   if (!initialized) {
     await initChroma();
   }
-  return chromaClient;
+  return chromaClient as ChromaClient;
 }
 
 /**
  * Get Chroma client instance
  */
-export async function getChromaClient() {
+export async function getChromaClient(): Promise<ChromaClient> {
   return await getVectorStore();
 }
 
-/**
- * Get or create a collection for documents
- */
-export async function getCollection(collectionName = "documents") {
+export async function getCollection(collectionName: string = "documents"): Promise<any> {
   const client = await getChromaClient();
 
   try {
-    // Try to get existing collection
     const collection = await client.getOrCreateCollection({
       name: collectionName,
       metadata: { description: "RAG Chatbot documents" },
@@ -90,10 +68,7 @@ export async function getCollection(collectionName = "documents") {
   }
 }
 
-/**
- * Check if collection has any documents
- */
-export async function hasDocuments(collectionName = "documents") {
+export async function hasDocuments(collectionName: string = "documents"): Promise<boolean> {
   try {
     const client = await getChromaClient();
     const coll = await client.getCollection({ name: collectionName });
@@ -106,21 +81,15 @@ export async function hasDocuments(collectionName = "documents") {
   }
 }
 
-/**
- * Clear all documents from collection
- */
-export async function clearCollection(collectionName = "documents") {
+export async function clearCollection(collectionName: string = "documents"): Promise<{ success: boolean; error?: string }> {
   try {
     const client = await getChromaClient();
 
-    // Delete collection and recreate it
     try {
       await client.deleteCollection({ name: collectionName });
     } catch (e) {
-      // Collection might not exist, that's fine
     }
 
-    // Recreate empty collection
     await client.createCollection({
       name: collectionName,
       metadata: { description: "RAG Chatbot documents" },
@@ -131,20 +100,15 @@ export async function clearCollection(collectionName = "documents") {
     console.error("Error clearing collection:", error);
     return {
       success: false,
-      error: error.message,
+      error: (error as Error).message,
     };
   }
 }
 
-/**
- * Delete a document by ID (file_name)
- * Deletes all chunks associated with the document
- */
-export async function deleteDocument(id, collectionName = "documents") {
+export async function deleteDocument(id: string, collectionName: string = "documents"): Promise<{ success: boolean; chunksDeleted?: number; error?: string }> {
   try {
     const coll = await getCollection(collectionName);
 
-    // Query for all chunks with this file_name
     const results = await coll.get({
       where: { file_name: id },
     });
@@ -163,15 +127,12 @@ export async function deleteDocument(id, collectionName = "documents") {
     console.error("Error deleting document:", error);
     return {
       success: false,
-      error: error.message,
+      error: (error as Error).message,
     };
   }
 }
 
-/**
- * Get collection statistics
- */
-export async function getCollectionStats(collectionName = "documents") {
+export async function getCollectionStats(collectionName: string = "documents"): Promise<{ exists: boolean; collectionName: string; count: number }> {
   try {
     const client = await getChromaClient();
     const coll = await client.getCollection({ name: collectionName });
@@ -191,15 +152,10 @@ export async function getCollectionStats(collectionName = "documents") {
   }
 }
 
-/**
- * Get all unique documents stored in ChromaDB
- * Returns a list of documents with their file names, chunk counts, and metadata
- */
-export async function getAllDocuments() {
+export async function getAllDocuments(): Promise<{ documents: any[]; total_chunks: number }> {
   try {
     const coll = await getCollection();
 
-    // Get all documents from ChromaDB
     const results = await coll.get();
 
     if (!results || !results.metadatas || results.metadatas.length === 0) {
@@ -207,8 +163,8 @@ export async function getAllDocuments() {
     }
 
     // Group by file_name to get unique documents
-    const documents = {};
-    results.metadatas.forEach((metadata) => {
+    const documents: Record<string, any> = {};
+    results.metadatas.forEach((metadata: any) => {
       const fileName = metadata.file_name || "unknown";
 
       if (!documents[fileName]) {
@@ -225,9 +181,7 @@ export async function getAllDocuments() {
       documents[fileName].chunk_count++;
     });
 
-    // Convert to array
     const documentList = Object.values(documents).sort((a, b) => {
-      // Sort by upload date descending, then by file name
       const dateA = a.upload_date ? new Date(a.upload_date).getTime() : 0;
       const dateB = b.upload_date ? new Date(b.upload_date).getTime() : 0;
       return dateB - dateA || a.file_name.localeCompare(b.file_name);
@@ -239,21 +193,14 @@ export async function getAllDocuments() {
     };
   } catch (error) {
     console.error("Error getting all documents:", error);
-    throw new Error(`Failed to retrieve documents: ${error.message}`);
+    throw new Error(`Failed to retrieve documents: ${(error as Error).message}`);
   }
 }
 
-/**
- * Delete a specific document (all its chunks) from ChromaDB
- * Does not touch the file system or index cache
- * @param {string} fileName - Name of the document to delete
- * @returns {Promise<number>} Number of chunks deleted
- */
-export async function deleteDocumentByName(fileName) {
+export async function deleteDocumentByName(fileName: string): Promise<number> {
   try {
     const coll = await getCollection();
 
-    // Query for all chunks with this file_name
     const results = await coll.get({
       where: { file_name: fileName },
     });
@@ -268,6 +215,6 @@ export async function deleteDocumentByName(fileName) {
     return results.ids.length;
   } catch (error) {
     console.error(`Error deleting document ${fileName}:`, error);
-    throw new Error(`Failed to delete document: ${error.message}`);
+    throw new Error(`Failed to delete document: ${(error as Error).message}`);
   }
 }

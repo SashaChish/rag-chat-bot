@@ -1,28 +1,23 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import Upload from '@/components/Upload/Upload';
 import type { DocumentUploadResponse, SupportedFormat } from '@/lib/types/api';
 
 export default function UploadWrapper(): JSX.Element {
-  const [supportedFormats, setSupportedFormats] = useState<string[]>([]);
-
-  useEffect(() => {
-    async function fetchSupportedFormats(): Promise<void> {
-      try {
-        const response = await fetch("/api/documents");
-        if (response.ok) {
-          const data = await response.json();
-          const formatNames = (data.supportedFormats as SupportedFormat[]).map(f => f.type);
-          setSupportedFormats(formatNames || []);
-        }
-      } catch (error) {
-        console.error("Failed to fetch supported formats:", error);
-        setSupportedFormats(["PDF", "TEXT", "MARKDOWN", "DOCX"]);
+  const formatsQuery = useQuery({
+    queryKey: ['documents-formats'],
+    queryFn: async () => {
+      const response = await fetch("/api/documents");
+      if (!response.ok) {
+        throw new Error("Failed to fetch supported formats");
       }
-    }
-    fetchSupportedFormats();
-  }, []);
+      return response.json() as Promise<{ supportedFormats: SupportedFormat[] }>;
+    },
+    retry: 1,
+  });
+
+  const supportedFormats = formatsQuery.data?.supportedFormats?.map(f => f.type) || ["PDF", "TEXT", "MARKDOWN", "DOCX"];
 
   function handleUploadSuccess(data: DocumentUploadResponse): void {
     console.log("Document uploaded successfully:", data);

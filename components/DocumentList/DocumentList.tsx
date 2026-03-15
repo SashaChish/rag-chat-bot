@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import styles from './DocumentList.module.css';
-import type { DocumentListProps } from '../../lib/types/components';
 import type {
   DocumentData,
   DocumentStats,
@@ -12,16 +12,66 @@ import {
   getFileIcon,
   formatDocumentDate,
 } from './DocumentList.utils';
+import { useDocumentDownload } from '@/lib/hooks/use-document-download';
 
 export default function DocumentList(): JSX.Element {
-  const [stats, setStats] = useState<DocumentStats | null>(null);
-  const [supportedFormats, setSupportedFormats] = useState<SupportedFormat[]>(
-    [],
-  );
-  const [documents, setDocuments] = useState<DocumentData[]>([]);
-  const [initialLoading, setInitialLoading] = useState<boolean>(true);
-  const [refreshing, setRefreshing] = useState<boolean>(false);
-  const [listLoading, setListLoading] = useState<boolean>(false);
+  const queryClient = useQueryClient();
+  const downloadMutation = useDocumentDownload();
+
+  const statsQuery = useQuery({
+    queryKey: ['documents-stats'],
+    queryFn: async () => {
+      const response = await fetch("/api/documents");
+      if (!response.ok) {
+        throw new Error("Failed to load document stats");
+      }
+      return response.json() as Promise<{ stats: DocumentStats; supportedFormats: SupportedFormat[] }>;
+    },
+  });
+  const documentsQuery = useQuery({
+    queryKey: ['documents-list'],
+    queryFn: async () => {
+      const response = await fetch("/api/documents?action=list");
+      if (!response.ok) {
+        throw new Error("Failed to load document list");
+      }
+      return response.json() as Promise<{ documents: DocumentData[] }>;
+    },
+  });
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/documents/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to delete document");
+      }
+      return id;
+    },
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['documents-list'] });
+      const previousDocuments = queryClient.getQueryData<{ documents: DocumentData[] }>(['documents-list']);
+      
+      queryClient.setQueryData<{ documents: DocumentData[] }>(['documents-list'], (old) =>
+        old ? { documents: old.documents.filter(doc => doc.id !== id) } : old
+      );
+
+      return { previousDocuments };
+    },
+    onError: (error, id, context) => {
+      console.error("Error deleting document:", error);
+      if (context?.previousDocuments) {
+        queryClient.setQueryData(['documents-list'], context.previousDocuments);
+      }
+      alert(error instanceof Error ? error.message : "Failed to delete document");
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['documents-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['documents-list'] });
+    },
+  });
   const [selectedDocument, setSelectedDocument] = useState<DocumentData | null>(
     null,
   );
@@ -31,60 +81,11 @@ export default function DocumentList(): JSX.Element {
   const [documentToDelete, setDocumentToDelete] = useState<DocumentData | null>(
     null,
   );
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchDocumentStats = useCallback(
-    async (isRefresh: boolean = false): Promise<void> => {
-      try {
-        if (isRefresh) {
-          setRefreshing(true);
-        }
-        const response = await fetch("/api/documents");
-        const data = await response.json();
-        setStats(data.stats);
-        setSupportedFormats(data.supportedFormats || []);
-        setError(null);
-      } catch (error) {
-        console.error("Error fetching document stats:", error);
-        setError("Failed to load document stats");
-      } finally {
-        if (isRefresh) {
-          setRefreshing(false);
-        } else {
-          setInitialLoading(false);
-        }
-      }
-    },
-    [],
-  );
-
-  const fetchDocumentList = useCallback(async (): Promise<void> => {
-    try {
-      setListLoading(true);
-      const response = await fetch("/api/documents?action=list");
-      const data = await response.json();
-      setDocuments(data.documents || []);
-      setError(null);
-    } catch (error) {
-      console.error("Error fetching document list:", error);
-      setError("Failed to load document list");
-    } finally {
-      setListLoading(false);
-    }
-  }, []);
-
-  const fetchData = useCallback(
-    async (isRefresh: boolean = false): Promise<void> => {
-      await Promise.all([fetchDocumentStats(isRefresh), fetchDocumentList()]);
-    },
-    [fetchDocumentStats, fetchDocumentList],
-  );
 
   useEffect(() => {
-    fetchData(false);
-
     const handleDocumentUploaded = (): void => {
-      fetchData(true);
+      queryClient.invalidateQueries({ queryKey: ['documents-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['documents-list'] });
     };
 
     window.addEventListener("documentUploaded", handleDocumentUploaded);
@@ -92,40 +93,16 @@ export default function DocumentList(): JSX.Element {
     return (): void => {
       window.removeEventListener("documentUploaded", handleDocumentUploaded);
     };
-  }, [fetchData]);
+  }, [queryClient]);
 
-  const handleDelete = async (id: string): Promise<void> => {
-    try {
-      const response = await fetch(`/api/documents/${encodeURIComponent(id)}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to delete document");
-      }
-
-      setShowDeleteConfirm(false);
-      setDocumentToDelete(null);
-
-      await fetchData(true);
-    } catch (error) {
-      console.error("Error deleting document:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to delete document";
-      alert(errorMessage);
-    }
+  const handleDelete = (id: string): void => {
+    deleteMutation.mutate(id);
+    setShowDeleteConfirm(false);
+    setDocumentToDelete(null);
   };
 
   const handleDownload = (doc: DocumentData): void => {
-    if (doc.file_url) {
-      const link = document.createElement("a");
-      link.href = doc.file_url;
-      link.download = doc.file_name;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
+    downloadMutation.mutate(doc);
   };
 
   const handleViewDetails = (doc: DocumentData): void => {
@@ -162,7 +139,7 @@ export default function DocumentList(): JSX.Element {
 
 
 
-  if (initialLoading) {
+  if (statsQuery.isLoading) {
     return (
       <div className={styles.documentList}>
         <div className={styles.documentListHeader}>
@@ -178,9 +155,12 @@ export default function DocumentList(): JSX.Element {
       <div className={styles.documentListHeader}>
         <h3>Documents</h3>
         <button
-          onClick={() => fetchData(true)}
-          className={`${styles.refreshButton} ${refreshing ? styles.spinning : ""}`}
-          disabled={refreshing}
+          onClick={() => {
+            statsQuery.refetch();
+            documentsQuery.refetch();
+          }}
+          className={`${styles.refreshButton} ${documentsQuery.isFetching ? styles.spinning : ""}`}
+          disabled={documentsQuery.isFetching}
           type="button"
         >
           <span className={styles.refreshIcon}>🔄</span>
@@ -188,21 +168,27 @@ export default function DocumentList(): JSX.Element {
         </button>
       </div>
 
-      {error && (
+      {(statsQuery.error || documentsQuery.error) && (
         <div className={styles.errorState}>
           <span className={styles.errorIcon}>⚠️</span>
-          <span>{error}</span>
+          <span>
+            {statsQuery.error instanceof Error 
+              ? statsQuery.error.message 
+              : documentsQuery.error instanceof Error 
+                ? documentsQuery.error.message 
+                : "Failed to load documents"}
+          </span>
         </div>
       )}
 
-      {stats && stats.exists ? (
+      {statsQuery.data?.stats && statsQuery.data.stats.exists ? (
         <div className={styles.documentStats}>
           <div className={styles.statItem}>
             <div className={styles.statIcon}>📊</div>
             <div className={styles.statInfo}>
-              <div className={styles.statValue}>{stats.count} Chunks</div>
+              <div className={styles.statValue}>{statsQuery.data.stats.count} Chunks</div>
               <div className={styles.statLabel}>
-                From {documents.length} documents
+                From {documentsQuery.data?.documents?.length || 0} documents
               </div>
             </div>
           </div>
@@ -210,7 +196,7 @@ export default function DocumentList(): JSX.Element {
             <div className={styles.statIcon}>🗂️</div>
             <div className={styles.statInfo}>
               <div className={styles.statValue}>
-                {stats.collectionName || "documents"}
+                {statsQuery.data.stats.collectionName || "documents"}
               </div>
               <div className={styles.statLabel}>Active collection</div>
             </div>
@@ -224,13 +210,13 @@ export default function DocumentList(): JSX.Element {
         </div>
       )}
 
-      {documents.length > 0 && (
+      {documentsQuery.data?.documents && documentsQuery.data.documents.length > 0 && (
         <div className={styles.documentListContainer}>
-          {listLoading ? (
-            <div className={styles.loadingState}>Loading documents...</div>
+          {documentsQuery.isFetching && !documentsQuery.isLoading ? (
+            <div className={styles.loadingState}>Refreshing...</div>
           ) : (
             <div className={styles.documentItems}>
-              {documents.map((doc: DocumentData) => (
+              {documentsQuery.data.documents.map((doc: DocumentData) => (
                 <div key={doc.id} className={styles.documentItem}>
                   <div className={styles.documentMain}>
                     <div className={styles.documentIcon}>
@@ -297,11 +283,11 @@ export default function DocumentList(): JSX.Element {
         </div>
       )}
 
-      {supportedFormats.length > 0 && (
+      {statsQuery.data?.supportedFormats && statsQuery.data.supportedFormats.length > 0 && (
         <div className={styles.supportedFormats}>
           <h4>Supported Formats</h4>
           <div className={styles.formatsGrid}>
-            {supportedFormats.map((format: SupportedFormat) => (
+            {statsQuery.data.supportedFormats.map((format: SupportedFormat) => (
               <div key={format.type} className={styles.formatItem}>
                 <span className={styles.formatName}>{format.type}</span>
                 <span className={styles.formatExt}>{format.extensions}</span>

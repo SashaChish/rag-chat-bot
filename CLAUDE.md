@@ -14,7 +14,7 @@ npm run lint -- --fix    # Auto-fix ESLint issues
 
 ## Architecture Overview
 
-This is a RAG (Retrieval-Augmented Generation) chatbot built with Next.js 14, LlamaIndex.TS, and ChromaDB. The system allows users to upload documents (PDF, TXT, MD, DOCX) which are chunked, embedded, and stored in a local Chroma vector store. Users can then ask questions and receive AI-generated answers with source citations.
+This is a RAG (Retrieval-Augmented Generation) chatbot built with Next.js 14, LlamaIndex.TS, ChromaDB, and TanStack Query v5. The system allows users to upload documents (PDF, TXT, MD, DOCX) which are chunked, embedded, and stored in a local Chroma vector store. Users can then ask questions and receive AI-generated answers with source citations. TanStack Query provides robust server state management, caching, and automatic refetching for all client-side data fetching.
 
 ### Document Upload Flow
 ```
@@ -49,6 +49,14 @@ User submits question → POST /api/chat → executeQuery()
 
 - **`utils.js`** - Utility functions for query validation, input sanitization, source formatting, and environment-based configuration (chunk size, overlap, top-k). Provides helper functions for document ID generation, file size formatting, and system prompts.
 
+### Client State Management
+
+- **`lib/query-client.ts`** - TanStack Query client configuration. Provides factory functions for QueryClient creation with optimized defaults: 5-minute stale time, 10-minute cache time, 3-retry exponential backoff, refetch on window focus and reconnect. Includes `getQueryClient()` with browser caching for Next.js 14 compatibility.
+
+- **`lib/hooks/use-document-download.ts`** - Custom hook for document downloads using TanStack Query mutation.
+
+- **`components/Providers.tsx`** - Client-side provider component wrapping the application with QueryClientProvider and ReactQueryDevtools.
+
 ### API Routes (`app/api/`)
 
 - **`chat/route.js`** - POST handles chat messages, validates queries, calls `executeQuery()` with streaming support, returns response with formatted sources. Supports both chat engines (with conversation history) and query engines (backward compatibility). GET returns chat status.
@@ -59,10 +67,21 @@ User submits question → POST /api/chat → executeQuery()
 
 ### Components (`components/`)
 
-- **`Chat.jsx`** - Main chat interface with message history, input handling, and auto-scroll.
-- **`Upload.jsx`** - Drag-and-drop file upload interface.
-- **`MessageList.jsx`** - Display of user and assistant messages with source citations.
-- **`DocumentList.jsx`** - List of uploaded documents with metadata.
+Components are organized in subdirectories with TypeScript (`.tsx`) and module CSS:
+
+- **`Chat/Chat.tsx`** - Main chat interface with message history, input handling, and auto-scroll. Maintains custom SSE streaming implementation for real-time responses.
+
+- **`Upload/Upload.tsx`** - Drag-and-drop file upload interface. Uses `useMutation` for uploads with progress tracking and automatic query invalidation.
+
+- **`UploadWrapper.tsx`** (in `app/`) - Wraps Upload component and fetches supported formats using `useQuery`.
+
+- **`DocumentList/DocumentList.tsx`** - List of uploaded documents with metadata. Uses `useQuery` for stats/list fetching and `useMutation` for document deletion with optimistic updates.
+
+- **`MessageList/MessageList.tsx`** - Display of user and assistant messages with source citations.
+
+- **`Modal/Modal.tsx`** - Reusable modal component for confirmations and dialogs.
+
+- **`shared/`** - Shared UI components (e.g., Button).
 
 ## Architecture & Design Decisions
 
@@ -101,13 +120,44 @@ Chat engines are prioritized over query engines when `chatEngineType` is provide
 - Engine caching by session key for performance
 - Support for both single queries and streaming responses
 
+### TanStack Query Architecture
+
+Client-side state management uses TanStack Query v5 for server state:
+
+- **Query Keys**: Standardized query keys for cache management:
+  - `['documents-stats']` - Document statistics and supported formats
+  - `['documents-list']` - List of uploaded documents
+  - `['documents-formats']` - Supported file formats
+  - `['upload-document']` - Document upload mutations
+  - `['delete-document']` - Document deletion mutations
+  - `['download-document']` - Document download mutations
+
+- **Query Configuration**: Default QueryClient settings in `lib/query-client.ts`:
+  - Stale time: 5 minutes (data remains fresh for 5 min)
+  - Cache time: 10 minutes (data kept in cache for 10 min)
+  - Retry: 3 attempts with exponential backoff
+  - Refetch on window focus: true
+  - Refetch on reconnect: true
+
+- **Optimistic Updates**: Document deletion uses optimistic updates with automatic rollback on error, improving perceived performance.
+
+- **Query Invalidation**: Mutations automatically invalidate related queries to keep UI in sync with server state.
+
+- **Provider Pattern**: QueryClient is created in a client-side `Providers` component to avoid issues with passing instances from Server to Client Components in Next.js 14.
+
+- **Minimal Abstraction**: Components use `useQuery` and `useMutation` hooks directly rather than a complex abstraction layer, keeping code maintainable.
+
+- **SSE Streaming Preservation**: Chat component maintains custom fetch with ReadableStream for streaming responses as TanStack Query does not natively support streaming.
+
 ### Design Patterns
 
 - **Factory Pattern**: Used for creating query engines and chat engines with different strategies
-- **Global Caching**: Index instances cached in `global.indexCache` for performance across requests
-- **Lazy Initialization**: ChromaDB client initialized on first use with fallback to in-memory
-- **Fallback Mechanisms**: Index rebuilt from Chroma when cache empty, in-memory Chroma fallback when server unavailable
+- **QueryClient Pattern**: TanStack Query client created in client-side provider component to avoid issues with Server/Client Component boundaries in Next.js 14
+- **Global Caching**: Index instances cached in `global.indexCache` for performance across requests; TanStack Query provides additional query caching
+- **Lazy Initialization**: ChromaDB client initialized on first use with fallback to in-memory; QueryClient cached in browser
+- **Fallback Mechanisms**: Index rebuilt from Chroma when cache empty, in-memory Chroma fallback when server unavailable, automatic retry for failed queries
 - **Error Handling**: Graceful degradation with helpful messages for expected conditions (no documents, server unavailable)
+- **Optimistic Updates**: Document deletion updates cache immediately with rollback on error for improved perceived performance
 
 ## Environment Variables
 
@@ -132,6 +182,11 @@ Optional configuration:
 - `VERBOSE` - Default: `false` (enables verbose logging for router engine)
 - `CONTEXT_WINDOW` - Default: `128000` (context window size for the LLM - varies by model)
 
+**TanStack Query Configuration**:
+- No additional environment variables required
+- Default configuration set in `lib/query-client.ts`
+- React Query DevTools available in development mode
+
 ## Code Conventions
 
 Project conventions are enforced via Hookify rules in `.claude/` directory:
@@ -154,6 +209,8 @@ Project conventions are enforced via Hookify rules in `.claude/` directory:
 - LlamaIndex.TS settings initialized via `initializeLlamaIndex()` in API routes on module load
 - ChromaDB client initialized lazily on first use with fallback to in-memory if server unavailable
 - Global index cache initialized as `global.indexCache` for performance
+- TanStack Query client initialized in client-side `Providers` component with browser caching via `getQueryClient()`
+- React Query DevTools enabled in development mode
 
 ## Important Notes
 
@@ -161,7 +218,11 @@ Project conventions are enforced via Hookify rules in `.claude/` directory:
 - Document metadata includes: `file_name`, `file_path`, `file_type`, `upload_date`, `file_url`, `stored_file_path`
 - VectorStoreIndex handles automatic embedding creation and similarity scoring internally
 - Index is cached in global scope for performance across requests
+- TanStack Query provides automatic caching, deduplication, and refetching for all client-side data
+- Query invalidation happens automatically after upload and delete mutations to keep UI in sync
 - Chat engines support conversation history with format conversion
 - Query engines and chat engines provide streaming support for real-time responses
+- SSE streaming in Chat component uses custom fetch implementation (TanStack Query doesn't support streaming natively)
 - Multiple query strategies available via `queryEngineType` parameter
 - Multiple chat strategies available via `chatEngineType` parameter
+- Document deletion uses optimistic updates with automatic rollback on error

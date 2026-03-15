@@ -1,19 +1,89 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import styles from './Upload.module.css';
 import type { UploadProps } from '../../lib/types/components';
+import type { DocumentUploadResponse as APIUploadResponse } from '../../lib/types/api';
 import {
   getSupportedExtensions,
 } from './Upload.utils';
 
 export default function Upload({ onUploadSuccess, supportedFormats }: UploadProps): JSX.Element {
+  const queryClient = useQueryClient();
   const [isDragging, setIsDragging] = useState<boolean>(false);
-  const [isUploading, setIsUploading] = useState<boolean>(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ message: string; filename: string; chunksProcessed?: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const uploadMutation = useMutation({
+    mutationFn: async (file: File): Promise<APIUploadResponse> => {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/documents', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Upload failed');
+      }
+
+      return response.json();
+    },
+    onMutate: (file) => {
+      setError(null);
+      setSuccess(null);
+      setUploadProgress(0);
+
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 200);
+
+      return { progressInterval };
+    },
+    onSuccess: (data, file, context) => {
+      if (context?.progressInterval) {
+        clearInterval(context.progressInterval);
+      }
+      setUploadProgress(100);
+
+      setSuccess({
+        message: data.message,
+        filename: data.filename,
+        chunksProcessed: data.chunksProcessed,
+      });
+
+      setTimeout(() => setSuccess(null), 3000);
+
+      if (onUploadSuccess) {
+        onUploadSuccess(data);
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['documents-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['documents-list'] });
+
+      window.dispatchEvent(new CustomEvent('documentUploaded', { detail: data }));
+    },
+    onError: (error) => {
+      setUploadProgress(0);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setError(errorMessage);
+      setTimeout(() => setError(null), 5000);
+    },
+    onSettled: () => {
+      setUploadProgress(0);
+    },
+  });
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>): void => {
     e.preventDefault();
@@ -42,82 +112,35 @@ export default function Upload({ onUploadSuccess, supportedFormats }: UploadProp
     }
   };
 
-  const handleFileUpload = async (file: File): Promise<void> => {
-    setError(null);
-    setSuccess(null);
-    setUploadProgress(0);
-    setIsUploading(true);
+  const handleFileUpload = (file: File): void => {
+    const ext = file.name.split('.').pop()?.toLowerCase() || '';
+    const formatsToCheck = getSupportedExtensions(supportedFormats);
 
-    try {
-      const ext = file.name.split('.').pop()?.toLowerCase() || '';
-      const formatsToCheck = getSupportedExtensions(supportedFormats);
-
-      if (!formatsToCheck.includes(ext)) {
-        throw new Error(
-          `Unsupported file format. Supported formats: ${supportedFormats && supportedFormats.length > 0
-            ? supportedFormats.join(', ')
-            : 'PDF, TEXT, MARKDOWN, DOCX'}`
-        );
-      }
-
-      const maxSizeMB = 10;
-      const maxSizeBytes = maxSizeMB * 1024 * 1024;
-      if (file.size > maxSizeBytes) {
-        throw new Error(
-          `File size exceeds ${maxSizeMB}MB limit. Your file is ${(
-            file.size /
-            1024 /
-            1024
-          ).toFixed(2)}MB`
-        );
-      }
-
-      const progressInterval = setInterval(() => {
-        setUploadProgress((prev) => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return 90;
-          }
-          return prev + 10;
-        });
-      }, 200);
-
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const response = await fetch('/api/documents', {
-        method: 'POST',
-        body: formData,
-      });
-
-      clearInterval(progressInterval);
-      setUploadProgress(100);
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Upload failed');
-      }
-
-      setSuccess({
-        message: data.message,
-        filename: data.filename,
-        chunksProcessed: data.chunksProcessed,
-      });
-
-      setTimeout(() => setSuccess(null), 3000);
-
-      if (onUploadSuccess) {
-        onUploadSuccess(data);
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      setError(errorMessage);
+    if (!formatsToCheck.includes(ext)) {
+      setError(
+        `Unsupported file format. Supported formats: ${supportedFormats && supportedFormats.length > 0
+          ? supportedFormats.join(', ')
+          : 'PDF, TEXT, MARKDOWN, DOCX'}`
+      );
       setTimeout(() => setError(null), 5000);
-    } finally {
-      setIsUploading(false);
-      setUploadProgress(0);
+      return;
     }
+
+    const maxSizeMB = 10;
+    const maxSizeBytes = maxSizeMB * 1024 * 1024;
+    if (file.size > maxSizeBytes) {
+      setError(
+        `File size exceeds ${maxSizeMB}MB limit. Your file is ${(
+          file.size /
+          1024 /
+          1024
+        ).toFixed(2)}MB`
+      );
+      setTimeout(() => setError(null), 5000);
+      return;
+    }
+
+    uploadMutation.mutate(file);
 
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -132,7 +155,7 @@ export default function Upload({ onUploadSuccess, supportedFormats }: UploadProp
     <div className={styles.uploadContainer}>
       <div
         className={`${styles.uploadZone} ${isDragging ? styles.dragging : ''} ${
-          isUploading ? styles.uploading : ''
+          uploadMutation.isPending ? styles.uploading : ''
         }`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -145,10 +168,10 @@ export default function Upload({ onUploadSuccess, supportedFormats }: UploadProp
           onChange={handleFileSelect}
           className={styles.fileInput}
           accept={getSupportedExtensions(supportedFormats).map(f => `.${f}`).join(',')}
-          disabled={isUploading}
+          disabled={uploadMutation.isPending}
         />
 
-        {isUploading ? (
+        {uploadMutation.isPending ? (
           <div className={styles.uploadProgress}>
             <div className={styles.progressSpinner} />
             <p>Uploading and indexing...</p>

@@ -4,6 +4,13 @@ import { useState, useRef } from "react";
 import styles from "./Upload.module.css";
 import type { UploadProps } from "@/lib/types/components";
 
+const FORMAT_NAME_TO_EXTENSIONS: Record<string, string[]> = {
+  PDF: ["pdf"],
+  TEXT: ["txt"],
+  MARKDOWN: ["md", "markdown"],
+  DOCX: ["docx"],
+};
+
 export default function Upload({ onUploadSuccess, supportedFormats }: UploadProps): JSX.Element {
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [isUploading, setIsUploading] = useState<boolean>(false);
@@ -11,6 +18,20 @@ export default function Upload({ onUploadSuccess, supportedFormats }: UploadProp
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ message: string; filename: string; chunksProcessed?: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const getSupportedExtensions = (): string[] => {
+    if (!supportedFormats || supportedFormats.length === 0) {
+      return ["pdf", "txt", "md", "markdown", "docx"];
+    }
+    const extensions: string[] = [];
+    for (const formatName of supportedFormats) {
+      const formatExts = FORMAT_NAME_TO_EXTENSIONS[formatName];
+      if (formatExts) {
+        extensions.push(...formatExts);
+      }
+    }
+    return extensions.length > 0 ? extensions : ["pdf", "txt", "md", "markdown", "docx"];
+  };
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>): void => {
     e.preventDefault();
@@ -47,19 +68,13 @@ export default function Upload({ onUploadSuccess, supportedFormats }: UploadProp
 
     try {
       const ext = file.name.split(".").pop()?.toLowerCase() || "";
-      const supportedExtensions = [
-        "pdf",
-        "txt",
-        "md",
-        "markdown",
-        "docx",
-      ];
+      const formatsToCheck = getSupportedExtensions();
 
-      if (!supportedExtensions.includes(ext)) {
+      if (!formatsToCheck.includes(ext)) {
         throw new Error(
-          `Unsupported file format. Supported formats: ${supportedExtensions.join(
-            ", "
-          )}`
+          `Unsupported file format. Supported formats: ${supportedFormats && supportedFormats.length > 0
+            ? supportedFormats.join(", ")
+            : "PDF, TEXT, MARKDOWN, DOCX"}`
         );
       }
 
@@ -155,7 +170,7 @@ export default function Upload({ onUploadSuccess, supportedFormats }: UploadProp
           type="file"
           onChange={handleFileSelect}
           className={styles.fileInput}
-          accept=".pdf,.txt,.md,.markdown,.docx"
+          accept={getSupportedExtensions().map(f => `.${f}`).join(",")}
           disabled={isUploading}
         />
 
@@ -178,7 +193,9 @@ export default function Upload({ onUploadSuccess, supportedFormats }: UploadProp
               Drag and drop a file here, or click to browse
             </p>
             <p className={styles.uploadHint}>
-              Supported formats: PDF, TXT, MD, DOCX (max 10MB)
+              Supported formats: {supportedFormats && supportedFormats.length > 0
+                ? supportedFormats.join(", ")
+                : "PDF, TEXT, MARKDOWN, DOCX"} (max 10MB)
             </p>
           </>
         )}

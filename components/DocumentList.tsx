@@ -28,39 +28,48 @@ interface DocumentData {
 
 export default function DocumentList(): JSX.Element {
   const [stats, setStats] = useState<DocumentStats | null>(null);
-  const [supportedFormats, setSupportedFormats] = useState<SupportedFormat[]>([]);
+  const [supportedFormats, setSupportedFormats] = useState<SupportedFormat[]>(
+    [],
+  );
   const [documents, setDocuments] = useState<DocumentData[]>([]);
   const [initialLoading, setInitialLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [listLoading, setListLoading] = useState<boolean>(false);
-  const [selectedDocument, setSelectedDocument] = useState<DocumentData | null>(null);
+  const [selectedDocument, setSelectedDocument] = useState<DocumentData | null>(
+    null,
+  );
   const [showDetails, setShowDetails] = useState<boolean>(false);
   const [showPreview, setShowPreview] = useState<boolean>(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
-  const [documentToDelete, setDocumentToDelete] = useState<DocumentData | null>(null);
+  const [documentToDelete, setDocumentToDelete] = useState<DocumentData | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
 
-  const fetchDocumentStats = useCallback(async (isRefresh: boolean = false): Promise<void> => {
-    try {
-      if (isRefresh) {
-        setRefreshing(true);
+  const fetchDocumentStats = useCallback(
+    async (isRefresh: boolean = false): Promise<void> => {
+      try {
+        if (isRefresh) {
+          setRefreshing(true);
+        }
+        const response = await fetch("/api/documents");
+        const data = await response.json();
+        setStats(data.stats);
+        setSupportedFormats(data.supportedFormats || []);
+        setError(null);
+      } catch (error) {
+        console.error("Error fetching document stats:", error);
+        setError("Failed to load document stats");
+      } finally {
+        if (isRefresh) {
+          setRefreshing(false);
+        } else {
+          setInitialLoading(false);
+        }
       }
-      const response = await fetch("/api/documents");
-      const data = await response.json();
-      setStats(data.stats);
-      setSupportedFormats(data.supportedFormats || []);
-      setError(null);
-    } catch (error) {
-      console.error("Error fetching document stats:", error);
-      setError("Failed to load document stats");
-    } finally {
-      if (isRefresh) {
-        setRefreshing(false);
-      } else {
-        setInitialLoading(false);
-      }
-    }
-  }, []);
+    },
+    [],
+  );
 
   const fetchDocumentList = useCallback(async (): Promise<void> => {
     try {
@@ -77,9 +86,12 @@ export default function DocumentList(): JSX.Element {
     }
   }, []);
 
-  const fetchData = useCallback(async (isRefresh: boolean = false): Promise<void> => {
-    await Promise.all([fetchDocumentStats(isRefresh), fetchDocumentList()]);
-  }, [fetchDocumentStats, fetchDocumentList]);
+  const fetchData = useCallback(
+    async (isRefresh: boolean = false): Promise<void> => {
+      await Promise.all([fetchDocumentStats(isRefresh), fetchDocumentList()]);
+    },
+    [fetchDocumentStats, fetchDocumentList],
+  );
 
   useEffect(() => {
     fetchData(false);
@@ -88,10 +100,10 @@ export default function DocumentList(): JSX.Element {
       fetchData(true);
     };
 
-    window.addEventListener('documentUploaded', handleDocumentUploaded);
+    window.addEventListener("documentUploaded", handleDocumentUploaded);
 
     return (): void => {
-      window.removeEventListener('documentUploaded', handleDocumentUploaded);
+      window.removeEventListener("documentUploaded", handleDocumentUploaded);
     };
   }, [fetchData]);
 
@@ -112,14 +124,15 @@ export default function DocumentList(): JSX.Element {
       await fetchData(true);
     } catch (error) {
       console.error("Error deleting document:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to delete document";
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to delete document";
       alert(errorMessage);
     }
   };
 
   const handleDownload = (doc: DocumentData): void => {
     if (doc.file_url) {
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = doc.file_url;
       link.download = doc.file_name;
       document.body.appendChild(link);
@@ -215,13 +228,17 @@ export default function DocumentList(): JSX.Element {
             <div className={styles.statIcon}>📊</div>
             <div className={styles.statInfo}>
               <div className={styles.statValue}>{stats.count} Chunks</div>
-              <div className={styles.statLabel}>From {documents.length} documents</div>
+              <div className={styles.statLabel}>
+                From {documents.length} documents
+              </div>
             </div>
           </div>
           <div className={styles.statItem}>
             <div className={styles.statIcon}>🗂️</div>
             <div className={styles.statInfo}>
-              <div className={styles.statValue}>{stats.collectionName || "documents"}</div>
+              <div className={styles.statValue}>
+                {stats.collectionName || "documents"}
+              </div>
               <div className={styles.statLabel}>Active collection</div>
             </div>
           </div>
@@ -249,13 +266,16 @@ export default function DocumentList(): JSX.Element {
                     <div className={styles.documentInfo}>
                       <div className={styles.documentName}>{doc.file_name}</div>
                       <div className={styles.documentMeta}>
-                        <span className={styles.documentType}>{doc.file_type}</span>
+                        <span className={styles.documentType}>
+                          {doc.file_type}
+                        </span>
                         <span className={styles.documentDate}>
                           {formatDate(doc.upload_date)}
                         </span>
                         {doc.chunk_count > 0 && (
                           <span className={styles.documentChunks}>
-                            {doc.chunk_count} chunk{doc.chunk_count !== 1 ? "s" : ""}
+                            {doc.chunk_count} chunk
+                            {doc.chunk_count !== 1 ? "s" : ""}
                           </span>
                         )}
                       </div>
@@ -320,21 +340,34 @@ export default function DocumentList(): JSX.Element {
 
       {showDetails && selectedDocument && (
         <div className={styles.modalOverlay} onClick={closeDetails}>
-          <div className={styles.modal} onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}>
+          <div
+            className={styles.modal}
+            onClick={(e: React.MouseEvent<HTMLDivElement>) =>
+              e.stopPropagation()
+            }
+          >
             <div className={styles.modalHeader}>
               <h3>Document Details</h3>
-              <button onClick={closeDetails} className={styles.closeButton} type="button">
+              <button
+                onClick={closeDetails}
+                className={styles.closeButton}
+                type="button"
+              >
                 ✕
               </button>
             </div>
             <div className={styles.modalBody}>
               <div className={styles.detailRow}>
                 <span className={styles.detailLabel}>File Name:</span>
-                <span className={styles.detailValue}>{selectedDocument.file_name}</span>
+                <span className={styles.detailValue}>
+                  {selectedDocument.file_name}
+                </span>
               </div>
               <div className={styles.detailRow}>
                 <span className={styles.detailLabel}>File Type:</span>
-                <span className={styles.detailValue}>{selectedDocument.file_type}</span>
+                <span className={styles.detailValue}>
+                  {selectedDocument.file_type}
+                </span>
               </div>
               <div className={styles.detailRow}>
                 <span className={styles.detailLabel}>Upload Date:</span>
@@ -344,12 +377,16 @@ export default function DocumentList(): JSX.Element {
               </div>
               <div className={styles.detailRow}>
                 <span className={styles.detailLabel}>Chunks:</span>
-                <span className={styles.detailValue}>{selectedDocument.chunk_count}</span>
+                <span className={styles.detailValue}>
+                  {selectedDocument.chunk_count}
+                </span>
               </div>
               {selectedDocument.file_size && (
                 <div className={styles.detailRow}>
                   <span className={styles.detailLabel}>File Size:</span>
-                  <span className={styles.detailValue}>{selectedDocument.file_size}</span>
+                  <span className={styles.detailValue}>
+                    {selectedDocument.file_size}
+                  </span>
                 </div>
               )}
               {selectedDocument.file_url && (
@@ -371,22 +408,35 @@ export default function DocumentList(): JSX.Element {
 
       {showPreview && selectedDocument && (
         <div className={styles.modalOverlay} onClick={closePreview}>
-          <div className={`${styles.modal} ${styles.largeModal}`} onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}>
+          <div
+            className={`${styles.modal} ${styles.largeModal}`}
+            onClick={(e: React.MouseEvent<HTMLDivElement>) =>
+              e.stopPropagation()
+            }
+          >
             <div className={styles.modalHeader}>
               <h3>Document Preview</h3>
-              <button onClick={closePreview} className={styles.closeButton} type="button">
+              <button
+                onClick={closePreview}
+                className={styles.closeButton}
+                type="button"
+              >
                 ✕
               </button>
             </div>
             <div className={styles.modalBody}>
-              <p className={styles.previewFileName}>{selectedDocument.file_name}</p>
+              <p className={styles.previewFileName}>
+                {selectedDocument.file_name}
+              </p>
               <div className={styles.previewContent}>
                 {selectedDocument.content ? (
                   <pre className={styles.previewText}>
                     {selectedDocument.content}
                   </pre>
                 ) : (
-                  <p className={styles.noPreview}>No content available for preview</p>
+                  <p className={styles.noPreview}>
+                    No content available for preview
+                  </p>
                 )}
               </div>
             </div>
@@ -396,21 +446,36 @@ export default function DocumentList(): JSX.Element {
 
       {showDeleteConfirm && documentToDelete && (
         <div className={styles.modalOverlay} onClick={cancelDelete}>
-          <div className={`${styles.modal} ${styles.confirmModal}`} onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}>
+          <div
+            className={`${styles.modal} ${styles.confirmModal}`}
+            onClick={(e: React.MouseEvent<HTMLDivElement>) =>
+              e.stopPropagation()
+            }
+          >
             <div className={styles.modalHeader}>
               <h3>Confirm Delete</h3>
-              <button onClick={cancelDelete} className={styles.closeButton} type="button">
+              <button
+                onClick={cancelDelete}
+                className={styles.closeButton}
+                type="button"
+              >
                 ✕
               </button>
             </div>
             <div className={styles.modalBody}>
               <p>Are you sure you want to delete this document?</p>
-              <p className={styles.confirmFileName}>{documentToDelete.file_name}</p>
+              <p className={styles.confirmFileName}>
+                {documentToDelete.file_name}
+              </p>
               <p className={styles.confirmWarning}>
                 This action cannot be undone.
               </p>
               <div className={styles.confirmActions}>
-                <button onClick={cancelDelete} className={styles.cancelButton} type="button">
+                <button
+                  onClick={cancelDelete}
+                  className={styles.cancelButton}
+                  type="button"
+                >
                   Cancel
                 </button>
                 <button

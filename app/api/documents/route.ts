@@ -109,7 +109,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         collectionName: stats.collectionName,
         count: stats.count,
       },
-      supportedFormats: formats.map(f => f.extensions.replace(/, /g, "").trim()),
+      supportedFormats: formats,
     };
 
     return NextResponse.json(response);

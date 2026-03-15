@@ -1,3 +1,15 @@
+import { ChatMessage } from "llamaindex";
+import {
+  AgentType,
+  ChatEngineType,
+  DocumentListEntry,
+  IndexStats,
+  QueryEngineType,
+  SourceInfo,
+} from "./llamaindex";
+import { NextRequest, NextResponse } from "next/server";
+
+export interface ChatRequest {
   message: string;
   conversationHistory?: ChatMessage[];
   streaming?: boolean;
@@ -8,6 +20,7 @@
   systemPrompt?: string | null;
 }
 
+export interface ChatResponse {
   response: string;
   sources: SourceInfo[];
 }
@@ -52,9 +65,14 @@ export interface DocumentInfoResponse {
   message: string;
 }
 
+export interface SupportedFormat {
+  type: string;
+  extensions: string;
+}
+
 export interface DocumentsGetResponse {
   stats: IndexStats;
-  supportedFormats: string[];
+  supportedFormats: SupportedFormat[];
 }
 
 export interface ErrorResponse {
@@ -66,9 +84,7 @@ export interface ErrorResponse {
 /**
  * API endpoint handler
  */
-export type APIHandler = (
-  request: NextRequest
-) => Promise<NextResponse>;
+export type APIHandler = (request: NextRequest) => Promise<NextResponse>;
 
 export interface ValidationErrorResponse extends ErrorResponse {
   field?: string;
@@ -88,7 +104,7 @@ export interface PaginationParams {
 
 export interface SortParams {
   sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
+  sortOrder?: "asc" | "desc";
 }
 
 export interface FilterParams {
@@ -98,8 +114,9 @@ export interface FilterParams {
 /**
  * Query parameters for document listing
  */
-export interface DocumentListQueryParams extends PaginationParams, SortParams, FilterParams {
-  action?: 'list' | 'stats' | 'formats';
+export interface DocumentListQueryParams
+  extends PaginationParams, SortParams, FilterParams {
+  action?: "list" | "stats" | "formats";
 }
 
 export enum HttpStatus {
@@ -112,7 +129,7 @@ export enum HttpStatus {
   INTERNAL_SERVER_ERROR = 500,
 }
 
-export type APIMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS';
+export type APIMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH" | "OPTIONS";
 
 /**
  * CORS configuration
@@ -147,7 +164,7 @@ export interface StreamOptions {
  */
 export type APIMiddleware = (
   request: NextRequest,
-  response?: NextResponse
+  response?: NextResponse,
 ) => Promise<NextResponse | void>;
 
 /**

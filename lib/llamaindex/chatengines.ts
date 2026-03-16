@@ -1,28 +1,22 @@
-import {
-  CondenseQuestionChatEngine,
-  ContextChatEngine,
-} from "llamaindex";
-import { Settings } from "@llamaindex/core/global";
-import type { ChatMessage, ChatEngineType, IndexType, ChatEngineReturnType } from "../types";
+import { CondenseQuestionChatEngine, ContextChatEngine } from "llamaindex";
+import type {
+  ChatMessage,
+  ChatEngineType,
+  IndexType,
+  ChatEngineReturnType,
+} from "../types/core.types";
 
 const topK = parseInt(process.env.TOP_K_RESULTS || "3", 10);
 
-export function convertToChatMessages(history: unknown[]): ChatMessage[] {
+export function convertToChatMessages(history: ChatMessage[]): ChatMessage[] {
   if (!Array.isArray(history)) {
     return [];
   }
 
-  return history.map((msg) => {
-    if (!msg || typeof msg !== 'object') {
-      return {
-        role: 'user',
-        content: '',
-      };
-    }
-
-    const message = msg as Record<string, unknown>;
-    const role = typeof message.role === 'string' ? message.role.toLowerCase() : 'user';
-    const content = typeof message.content === 'string' ? message.content : '';
+  return history.map((message) => {
+    const role =
+      typeof message.role === "string" ? message.role.toLowerCase() : "user";
+    const content = typeof message.content === "string" ? message.content : "";
 
     let messageRole: "user" | "assistant" | "system";
     if (role === "user" || role === "human") {
@@ -45,7 +39,7 @@ export function convertToChatMessages(history: unknown[]): ChatMessage[] {
 export function createCondenseChatEngine(
   index: IndexType,
   chatHistory: ChatMessage[] = [],
-  systemPrompt: string | null = null
+  systemPrompt: string | null = null,
 ): ChatEngineReturnType {
   const queryEngine = index.asQueryEngine({
     retriever: index.asRetriever({
@@ -53,15 +47,18 @@ export function createCondenseChatEngine(
     }),
   });
 
-  // Prepend system message if provided
-  const historyWithSystem = systemPrompt
-    ? [{ role: "system", content: systemPrompt }, ...chatHistory]
+  // Create system message with proper typing
+  const systemMessage = systemPrompt
+    ? ({ role: "system", content: systemPrompt } as const)
+    : null;
+
+  const historyWithSystem = systemMessage
+    ? [systemMessage, ...chatHistory]
     : chatHistory;
 
-  // @ts-ignore - LlamaIndex.TS ChatMessage type compatibility
   const result = new CondenseQuestionChatEngine({
     queryEngine,
-    chatHistory: historyWithSystem as any,
+    chatHistory: historyWithSystem,
   });
   return result as unknown as ChatEngineReturnType;
 }
@@ -69,17 +66,21 @@ export function createCondenseChatEngine(
 export function createContextChatEngine(
   index: IndexType,
   chatHistory: ChatMessage[] = [],
-  systemPrompt: string | null = null
+  systemPrompt: string | null = null,
 ): ChatEngineReturnType {
-  const historyWithSystem = systemPrompt
-    ? [{ role: "system", content: systemPrompt }, ...chatHistory]
+  const systemMessage = systemPrompt
+    ? ({ role: "system", content: systemPrompt } as const)
+    : null;
+
+  const historyWithSystem = systemMessage
+    ? [systemMessage, ...chatHistory]
     : chatHistory;
 
   const result = new ContextChatEngine({
     retriever: index.asRetriever({
       similarityTopK: topK,
     }),
-    chatHistory: historyWithSystem as any,
+    chatHistory: historyWithSystem,
   });
   return result as unknown as ChatEngineReturnType;
 }
@@ -91,12 +92,10 @@ export async function getChatEngine(
   type: ChatEngineType = "condense",
   chatHistory: ChatMessage[] = [],
   sessionKey: string = "default",
-  systemPrompt?: string | null
+  systemPrompt?: string | null,
 ): Promise<ChatEngineReturnType> {
   const cacheKey = `${sessionKey}-${type}`;
 
-  // For condense engine with history, we create fresh each time
-  // For context engine, we create fresh each time to ensure correct context
   if (type === "condense" && chatHistory.length > 0) {
     return createCondenseChatEngine(index, chatHistory, systemPrompt);
   }

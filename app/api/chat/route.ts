@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initializeLlamaIndex } from '@/lib/core/llamaindex/core.utils';
 import { validateQuery } from '@/lib/validators/query.validators';
-import { formatSources } from '@/lib/utils/format.utils';
 import { executeQuery } from '@/lib/llamaindex/index';
 import { hasDocuments } from '@/lib/llamaindex/vectorstore';
-import { getSystemPrompt } from '@/lib/llamaindex/prompts';
+import { MetadataMode } from "llamaindex";
 import type {
   ChatRequest,
   ChatResponse,
-  ChatStatusResponse,
-  ChatStreamChunk,
-  ErrorResponse
+  ChatStatusResponse
 } from '@/lib/types/api';
 import type { SourceInfo, QueryChunk, SourceNode } from '@/lib/types/core.types';
 
@@ -125,7 +122,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (streaming) {
       const encoder = new TextEncoder();
-      const decoder = new TextDecoder();
 
       const stream = new ReadableStream({
         async start(controller) {
@@ -173,14 +169,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                 if (sourceNodes && Array.isArray(sourceNodes)) {
                   const chunkSources = sourceNodes.map((nodeWithScore: SourceNode) => {
                     const { node } = nodeWithScore;
-                    const { metadata } = node || {};
+                    const { metadata } = node;
                     const { score } = nodeWithScore;
 
                     return {
                       filename: metadata?.file_name || "Unknown",
                       fileType: metadata?.file_type || "Unknown",
                       score: score !== undefined ? parseFloat(score.toFixed(3)) : 0,
-                      preview: node.getContent().substring(0, 200) + "...",
+                      preview: node.getContent(MetadataMode.NONE).substring(0, 200) + "...",
                       metadata,
                     };
                   });
@@ -232,7 +228,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 }
 
-export async function GET(_request: NextRequest): Promise<NextResponse> {
+export async function GET(): Promise<NextResponse> {
   try {
     const docsExist = await hasDocuments();
 

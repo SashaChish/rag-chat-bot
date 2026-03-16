@@ -3,8 +3,8 @@
  * Type definitions for React components in RAG chatbot
  */
 
-import type { ReactNode, CSSProperties } from 'react';
-import type { SourceInfo, ChatMessage, ChatEngineType, AgentType, DocumentListEntry } from './core.types';
+import type { ReactNode } from 'react';
+import type { SourceInfo, ChatMessage, DocumentListEntry } from './core.types';
 import type { DocumentUploadResponse } from './api';
 
 /**

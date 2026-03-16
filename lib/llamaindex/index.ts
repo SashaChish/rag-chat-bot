@@ -1,5 +1,10 @@
 import { Document } from "@llamaindex/core/schema";
-import { VectorStoreIndex } from "llamaindex";
+import {
+  VectorStoreIndex,
+  CondenseQuestionChatEngine,
+  ContextChatEngine,
+  MetadataMode,
+} from "llamaindex";
 import { Settings } from "@llamaindex/core/global";
 import type {
   SourceInfo,
@@ -10,9 +15,12 @@ import type {
   AgentType,
   IndexStats,
   IndexType,
-  RAGDocument
-} from "../types";
-import type { ChromaCollection, ChromaMetadata } from "../types/chromadb-compatibility";
+  RAGDocument,
+  SourceNode,
+  QueryChunk,
+  DocumentMetadata,
+} from "../types/core.types";
+import type { Collection, Metadata } from "chromadb";
 import { getChromaClient } from "./vectorstore";
 import { getQueryEngine } from "./queryengines";
 import { getChatEngine, convertToChatMessages } from "./chatengines";
@@ -22,6 +30,7 @@ import { getSystemPrompt } from "./prompts";
 
 // Global cache for VectorStoreIndex instances
 declare global {
+  // eslint-disable-next-line no-var
   var indexCache: Record<string, IndexType> | undefined;
 }
 
@@ -46,12 +55,18 @@ interface ClearIndexResult {
   error?: string;
 }
 
-async function getChromaCollection(collectionName: string = "documents"): Promise<ChromaCollection> {
+async function getChromaCollection(
+  collectionName: string = "documents",
+): Promise<Collection> {
   const client = await getChromaClient();
-  return await client.getCollection({ name: collectionName }) as unknown as ChromaCollection;
+  return (await client.getCollection({
+    name: collectionName,
+  })) as Collection;
 }
 
-export async function getIndexStats(collectionName: string = "documents"): Promise<IndexStats> {
+export async function getIndexStats(
+  collectionName: string = "documents",
+): Promise<IndexStats> {
   try {
     const collection = await getChromaCollection(collectionName);
     const count = await collection.count();
@@ -61,7 +76,7 @@ export async function getIndexStats(collectionName: string = "documents"): Promi
       collectionName,
       count,
     };
-  } catch (error) {
+  } catch (_error) {
     return {
       exists: false,
       collectionName,
@@ -70,12 +85,14 @@ export async function getIndexStats(collectionName: string = "documents"): Promi
   }
 }
 
-export async function deleteDocument(_documentId: string, collectionName: string = "documents"): Promise<DeleteDocumentResult> {
+export async function deleteDocument(
+  _documentId: string,
+  collectionName: string = "documents",
+): Promise<DeleteDocumentResult> {
   try {
     const coll = await getChromaCollection(collectionName);
 
     // Query for all chunks with this file_name
-    // @ts-ignore - ChromaDB get() API compatibility
     const results = await coll.get();
 
     if (!results.ids || results.ids.length === 0) {
@@ -102,17 +119,23 @@ export async function deleteDocument(_documentId: string, collectionName: string
   }
 }
 
-export async function clearIndex(collectionName: string = "documents"): Promise<ClearIndexResult> {
+export async function clearIndex(
+  collectionName: string = "documents",
+): Promise<ClearIndexResult> {
   try {
     const client = await getChromaClient();
 
-    console.log(`[clearIndex] Starting clear for collection: ${collectionName}`);
+    console.log(
+      `[clearIndex] Starting clear for collection: ${collectionName}`,
+    );
 
     try {
       await client.deleteCollection({ name: collectionName });
       console.log(`[clearIndex] Deleted collection: ${collectionName}`);
-    } catch (e) {
-      console.log(`[clearIndex] Collection didn't exist or already deleted: ${collectionName}`);
+    } catch (_e) {
+      console.log(
+        `[clearIndex] Collection didn't exist or already deleted: ${collectionName}`,
+      );
     }
 
     if (global.indexCache) {
@@ -137,10 +160,13 @@ export async function clearIndex(collectionName: string = "documents"): Promise<
   }
 }
 
-export async function addDocuments(documents: RAGDocument[], collectionName: string = "documents"): Promise<AddDocumentsResult> {
+export async function addDocuments(
+  documents: RAGDocument[],
+  collectionName: string = "documents",
+): Promise<AddDocumentsResult> {
   const llamaDocuments = documents.map(({ text, metadata }) => {
-    const fileName = metadata.file_name || (metadata as any).filename || "Unknown";
-    const fileType = metadata.file_type || (metadata as any).type || "Unknown";
+    const fileName = metadata.file_name || metadata.filename || "Unknown";
+    const fileType = metadata.file_type || metadata.type || "Unknown";
     const uploadDate = metadata.upload_date || new Date().toISOString();
 
     return new Document({
@@ -175,7 +201,10 @@ export async function addDocuments(documents: RAGDocument[], collectionName: str
 /**
  * Store document metadata in ChromaDB for document list
  */
-async function storeDocumentsInChroma(documents: Document[], collectionName: string = "documents"): Promise<void> {
+async function storeDocumentsInChroma(
+  documents: Document[],
+  collectionName: string = "documents",
+): Promise<void> {
   try {
     // Ensure settings are initialized
     if (!Settings.embedModel) {
@@ -190,7 +219,7 @@ async function storeDocumentsInChroma(documents: Document[], collectionName: str
 
     // Extract document data for ChromaDB
     const ids: string[] = [];
-    const metadatas: ChromaMetadata[] = [];
+    const metadatas: Metadata[] = [];
     const docs: string[] = [];
     const texts: string[] = [];
 
@@ -206,13 +235,13 @@ async function storeDocumentsInChroma(documents: Document[], collectionName: str
     const embeddings = await Settings.embedModel.getTextEmbeddings(texts);
 
     // Add documents to ChromaDB with embeddings
-    // @ts-ignore - ChromaDB metadata type compatibility
-    await collection.add({
-      ids: ids,
-      embeddings: embeddings,
-      metadatas: metadatas as any,
+    const addParams = {
+      ids,
+      embeddings,
+      metadatas,
       documents: docs,
-    });
+    };
+    await (collection as Collection).add(addParams);
 
     console.log(`Stored ${documents.length} documents in ChromaDB`);
   } catch (error) {
@@ -255,18 +284,18 @@ export async function executeQuery(
       try {
         // Load documents from Chroma and create index
         const chromaCollection = await getChromaCollection(collectionName);
-        // @ts-ignore - ChromaDB get() API compatibility
         const results = await chromaCollection.get();
 
         if (results.documents && results.documents.length > 0) {
-          // Create documents from Chroma data
-          const documents = results.documents.map((text: string, i: number) => {
-            const metadata = results.metadatas?.[i] || {};
-            return new Document({
-              text: text,
-              metadata: metadata,
+          const documents = results.documents
+            .filter((text: string | null): text is string => text !== null)
+            .map((text: string, i: number) => {
+              const metadata = results.metadatas?.[i] || {};
+              return new Document({
+                text: text,
+                metadata: metadata,
+              });
             });
-          });
 
           // Create index from documents (using default vector store)
           index = await VectorStoreIndex.fromDocuments(documents);
@@ -277,7 +306,9 @@ export async function executeQuery(
           }
           global.indexCache[collectionName] = index;
 
-          console.log(`Rebuilt index from Chroma: ${documents.length} documents`);
+          console.log(
+            `Rebuilt index from Chroma: ${documents.length} documents`,
+          );
         } else {
           // No documents in Chroma
           return {
@@ -303,12 +334,14 @@ export async function executeQuery(
     if (agentType) {
       try {
         const agent = await getAgent(index, agentType, sessionKey, {
-          systemPrompt: systemPrompt || getSystemPrompt(),
+          systemPrompt,
         });
 
         if (streaming) {
-          // @ts-ignore - Agent streaming type compatibility
-          const response = await (agent as any).chat({ message: query, stream: true });
+          const response = (await agent.chat({
+            message: query,
+            stream: true,
+          })) as ReadableStream<QueryChunk>;
 
           return {
             response: response,
@@ -318,8 +351,7 @@ export async function executeQuery(
           };
         }
 
-        // @ts-ignore - Agent response type compatibility
-        const response = await (agent as any).chat({ message: query });
+        const response = await agent.chat({ message: query });
 
         return {
           response: response.response || response.toString(),
@@ -338,13 +370,30 @@ export async function executeQuery(
       const chatMessages = convertToChatMessages(conversationHistory);
 
       try {
-        const finalSystemPrompt: string | undefined = (systemPrompt || getSystemPrompt()) || undefined;
-        // @ts-ignore - TypeScript issue with null vs undefined handling
-        const chatEngine = await getChatEngine(index, chatEngineType, chatMessages, sessionKey, finalSystemPrompt);
+        const finalSystemPrompt: string | undefined =
+          systemPrompt || getSystemPrompt() || undefined;
+        const chatEngine = await getChatEngine(
+          index,
+          chatEngineType,
+          chatMessages,
+          sessionKey || "default",
+          finalSystemPrompt,
+        );
 
         if (streaming) {
-          // @ts-ignore - Chat engine type compatibility
-          const response = await (chatEngine as any).chat({ message: query, stream: true });
+          const response = (await (
+            chatEngine as
+              | CondenseQuestionChatEngine
+              | (ContextChatEngine & {
+                  chat: (options: {
+                    message: string;
+                    stream: boolean;
+                  }) => AsyncIterable<unknown>;
+                })
+          ).chat({
+            message: query,
+            stream: true,
+          })) as AsyncGenerator<QueryChunk>;
 
           return {
             response: response,
@@ -353,24 +402,37 @@ export async function executeQuery(
           };
         }
 
-        // @ts-ignore - Chat engine type compatibility
-        const response = await (chatEngine as any).chat({ message: query });
+        const response = await (
+          chatEngine as
+            | CondenseQuestionChatEngine
+            | (ContextChatEngine & {
+                chat: (options: { message: string }) => {
+                  response?: string;
+                  sourceNodes?: SourceNode[];
+                };
+              })
+        ).chat({ message: query });
 
         const sources: SourceInfo[] = [];
         if (response.sourceNodes) {
-          for (const node of response.sourceNodes) {
-            const { node: { metadata = {}, getContent } = {}, score } = node;
-            const fileName = metadata?.file_name || "Unknown";
-            const fileType = metadata?.file_type || "Unknown";
+          for (const nodeWithScore of response.sourceNodes) {
+            const { node, score } = nodeWithScore;
+            const metadata = node.metadata as Partial<DocumentMetadata>;
+            const fileName = metadata.file_name || "Unknown";
+            const fileType = metadata.file_type || "Unknown";
             const scoreValue = score ? parseFloat(score.toFixed(3)) : 0;
-            const preview = getContent().substring(0, 200) + "...";
+            const content =
+              typeof node.getContent === "function"
+                ? node.getContent(MetadataMode.NONE)
+                : "";
+            const preview = content.substring(0, 200) + "...";
 
             sources.push({
               filename: fileName,
               fileType,
               score: scoreValue,
               text: preview,
-              metadata,
+              metadata: metadata as DocumentMetadata,
             });
           }
         }
@@ -386,7 +448,10 @@ export async function executeQuery(
           queryLength: query.length,
           conversationHistoryLength: chatMessages.length,
           errorMessage: (chatError as Error).message,
-          errorStack: (chatError as Error).stack?.split('\n').slice(0, 3).join('\n'),
+          errorStack: (chatError as Error).stack
+            ?.split("\n")
+            .slice(0, 3)
+            .join("\n"),
         });
         throw chatError;
       }
@@ -398,8 +463,17 @@ export async function executeQuery(
     const queryEngine = await getQueryEngine(index, queryEngineType);
 
     if (streaming && queryEngineType === "default") {
-      // @ts-ignore - Query engine type compatibility
-      const response = await (queryEngine as any).query({ query, stream: true });
+      const response = (await (
+        queryEngine as {
+          query: (options: {
+            query: string;
+            stream: boolean;
+          }) => ReadableStream<unknown>;
+        }
+      ).query({
+        query,
+        stream: true,
+      })) as ReadableStream<QueryChunk>;
 
       return {
         response: response,
@@ -408,24 +482,35 @@ export async function executeQuery(
       };
     }
 
-    // @ts-ignore - Query engine type compatibility
-    const response = await (queryEngine as any).query({ query });
+    const response = await (
+      queryEngine as {
+        query: (options: { query: string }) => {
+          response?: string;
+          sourceNodes?: SourceNode[];
+        };
+      }
+    ).query({ query });
 
     const sources: SourceInfo[] = [];
     if (response.sourceNodes) {
-      for (const node of response.sourceNodes) {
-        const { node: { metadata = {}, getContent } = {}, score } = node;
-        const fileName = metadata?.file_name || "Unknown";
-        const fileType = metadata?.file_type || "Unknown";
+      for (const nodeWithScore of response.sourceNodes) {
+        const { node, score } = nodeWithScore;
+        const metadata = node.metadata as Partial<DocumentMetadata>;
+        const fileName = metadata.file_name || "Unknown";
+        const fileType = metadata.file_type || "Unknown";
         const scoreValue = score ? parseFloat(score.toFixed(3)) : 0;
-        const preview = getContent().substring(0, 200) + "...";
+        const content =
+          typeof node.getContent === "function"
+            ? node.getContent(MetadataMode.NONE)
+            : "";
+        const preview = content.substring(0, 200) + "...";
 
         sources.push({
           filename: fileName,
           fileType,
           score: scoreValue,
           text: preview,
-          metadata,
+          metadata: metadata as DocumentMetadata,
         });
       }
     }
@@ -438,7 +523,7 @@ export async function executeQuery(
   } catch (error) {
     console.error("Error executing query:", {
       message: (error as Error).message,
-      stack: (error as Error).stack?.split('\n').slice(0, 5).join('\n'),
+      stack: (error as Error).stack?.split("\n").slice(0, 5).join("\n"),
       queryLength: query?.length,
       queryEngineType,
       chatEngineType,

@@ -1,4 +1,5 @@
 import { ChromaClient } from "chromadb";
+import type { ChromaDocumentSummary } from "../types/core.types";
 
 let chromaClient: ChromaClient | null = null;
 let initialized: boolean = false;
@@ -20,17 +21,23 @@ export async function initChroma(): Promise<ChromaClient> {
     await chromaClient.listCollections();
 
     initialized = true;
-    console.log(`Chroma initialized connecting to http://${chromaHost}:${chromaPort}`);
+    console.log(
+      `Chroma initialized connecting to http://${chromaHost}:${chromaPort}`,
+    );
     return chromaClient;
   } catch (error) {
     console.error("Failed to initialize Chroma:", error);
     console.warn("\n" + "=".repeat(60));
     console.warn("ChromaDB server not found!");
     console.warn("Please run: docker run -p 8000:8000 chromadb/chroma");
-    console.warn("Or install locally: https://docs.trychroma.com/deployment/local");
+    console.warn(
+      "Or install locally: https://docs.trychroma.com/deployment/local",
+    );
     console.warn("=".repeat(60));
 
-    console.warn("Falling back to in-memory Chroma (data will not persist after restart)");
+    console.warn(
+      "Falling back to in-memory Chroma (data will not persist after restart)",
+    );
     chromaClient = new ChromaClient();
 
     initialized = true;
@@ -52,7 +59,7 @@ export async function getChromaClient(): Promise<ChromaClient> {
   return await getVectorStore();
 }
 
-export async function getCollection(collectionName: string = "documents"): Promise<any> {
+export async function getCollection(collectionName: string = "documents") {
   const client = await getChromaClient();
 
   try {
@@ -68,7 +75,9 @@ export async function getCollection(collectionName: string = "documents"): Promi
   }
 }
 
-export async function hasDocuments(collectionName: string = "documents"): Promise<boolean> {
+export async function hasDocuments(
+  collectionName: string = "documents",
+): Promise<boolean> {
   try {
     const client = await getChromaClient();
     const coll = await client.getCollection({ name: collectionName });
@@ -81,14 +90,15 @@ export async function hasDocuments(collectionName: string = "documents"): Promis
   }
 }
 
-export async function clearCollection(collectionName: string = "documents"): Promise<{ success: boolean; error?: string }> {
+export async function clearCollection(
+  collectionName: string = "documents",
+): Promise<{ success: boolean; error?: string }> {
   try {
     const client = await getChromaClient();
 
     try {
       await client.deleteCollection({ name: collectionName });
-    } catch (e) {
-    }
+    } catch (_e) {}
 
     await client.createCollection({
       name: collectionName,
@@ -105,7 +115,10 @@ export async function clearCollection(collectionName: string = "documents"): Pro
   }
 }
 
-export async function deleteDocument(id: string, collectionName: string = "documents"): Promise<{ success: boolean; chunksDeleted?: number; error?: string }> {
+export async function deleteDocument(
+  id: string,
+  collectionName: string = "documents",
+): Promise<{ success: boolean; chunksDeleted?: number; error?: string }> {
   try {
     const coll = await getCollection(collectionName);
 
@@ -132,7 +145,9 @@ export async function deleteDocument(id: string, collectionName: string = "docum
   }
 }
 
-export async function getCollectionStats(collectionName: string = "documents"): Promise<{ exists: boolean; collectionName: string; count: number }> {
+export async function getCollectionStats(
+  collectionName: string = "documents",
+): Promise<{ exists: boolean; collectionName: string; count: number }> {
   try {
     const client = await getChromaClient();
     const coll = await client.getCollection({ name: collectionName });
@@ -143,7 +158,7 @@ export async function getCollectionStats(collectionName: string = "documents"): 
       collectionName,
       count,
     };
-  } catch (error) {
+  } catch (_error) {
     return {
       exists: false,
       collectionName,
@@ -152,7 +167,10 @@ export async function getCollectionStats(collectionName: string = "documents"): 
   }
 }
 
-export async function getAllDocuments(): Promise<{ documents: any[]; total_chunks: number }> {
+export async function getAllDocuments(): Promise<{
+  documents: ChromaDocumentSummary[];
+  total_chunks: number;
+}> {
   try {
     const coll = await getCollection();
 
@@ -163,23 +181,38 @@ export async function getAllDocuments(): Promise<{ documents: any[]; total_chunk
     }
 
     // Group by file_name to get unique documents
-    const documents: Record<string, any> = {};
-    results.metadatas.forEach((metadata: any) => {
-      const fileName = metadata.file_name || "unknown";
+    const documents: Record<string, ChromaDocumentSummary> = {};
+
+    // Filter out null metadata values and process each document
+    for (let i = 0; i < results.metadatas.length; i++) {
+      const metadata = results.metadatas[i];
+      if (!metadata) continue;
+
+      const fileName =
+        typeof metadata.file_name === "string" ? metadata.file_name : "unknown";
 
       if (!documents[fileName]) {
         documents[fileName] = {
           file_name: fileName,
-          file_type: metadata.file_type || "unknown",
+          file_type:
+            typeof metadata.file_type === "string"
+              ? metadata.file_type
+              : "unknown",
           chunk_count: 0,
-          upload_date: metadata.upload_date || null,
-          stored_file_path: metadata.stored_file_path || null,
-          first_chunk_id: results.ids[results.metadatas.indexOf(metadata)],
+          upload_date:
+            typeof metadata.upload_date === "string"
+              ? metadata.upload_date
+              : null,
+          stored_file_path:
+            typeof metadata.stored_file_path === "string"
+              ? metadata.stored_file_path
+              : null,
+          first_chunk_id: results.ids[i],
         };
       }
 
       documents[fileName].chunk_count++;
-    });
+    }
 
     const documentList = Object.values(documents).sort((a, b) => {
       const dateA = a.upload_date ? new Date(a.upload_date).getTime() : 0;
@@ -193,7 +226,9 @@ export async function getAllDocuments(): Promise<{ documents: any[]; total_chunk
     };
   } catch (error) {
     console.error("Error getting all documents:", error);
-    throw new Error(`Failed to retrieve documents: ${(error as Error).message}`);
+    throw new Error(
+      `Failed to retrieve documents: ${(error as Error).message}`,
+    );
   }
 }
 

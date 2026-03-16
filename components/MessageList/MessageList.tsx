@@ -88,7 +88,9 @@ export default function MessageList({
             )}
             <span
               dangerouslySetInnerHTML={{
-                __html: formatContent(message.content),
+                __html: formatContent(
+                  typeof message.content === 'string' ? message.content : JSON.stringify(message.content)
+                ),
               }}
             />
           </div>

@@ -8,7 +8,7 @@
  * to use an OpenAI provider, not through a separate OpenAIAgent class.
  */
 
-import { ReActAgent, QueryEngineTool } from "llamaindex";
+import { ReActAgent, QueryEngineTool, type ReACTAgentParams } from "llamaindex";
 import { Settings } from "@llamaindex/core/global";
 import type {
   AgentType,
@@ -53,30 +53,18 @@ export function createSummaryTool(index: IndexType): unknown {
 
 export function createReActAgent(
   index: IndexType,
-  tools: unknown[] = [],
   options: AgentOptions = {},
 ): AgentEngineType {
-  const defaultTools = [createDocumentSearchTool(index)];
-  const agentTools = [...defaultTools, ...tools];
+  const documentSearchTool = createDocumentSearchTool(index);
 
-  const agentConfig: any = {
-    toolRetriever: index.asRetriever({
-      similarityTopK: topK,
-    }),
+  const { systemPrompt: _excludedSystemPrompt, ...otherOptions } = options;
+
+  const agentConfig: ReACTAgentParams = {
+    tools: [documentSearchTool],
     llm: Settings.llm,
     verbose: options.verbose || process.env.VERBOSE === "true",
-    systemPrompt: options.systemPrompt,
-    // @ts-ignore - Additional properties for flexibility
-    ...options,
+    ...otherOptions,
   };
-
-  if (options.contextWindow) {
-    agentConfig.contextWindow = options.contextWindow;
-  }
-
-  if (options.systemPrompt) {
-    agentConfig.systemPrompt = options.systemPrompt;
-  }
 
   return new ReActAgent(agentConfig);
 }
@@ -99,7 +87,7 @@ export async function getAgent(
     case "openai":
     case "react":
     default:
-      agent = createReActAgent(index, [], options);
+      agent = createReActAgent(index, options);
       break;
   }
 

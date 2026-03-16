@@ -3,8 +3,6 @@
  * Type definitions specific to the MessageList component
  */
 
-import type { SourceInfo } from '../../lib/types/core.types';
-
 /**
  * Similarity bar component props
  */

@@ -2,7 +2,42 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Common Commands
+## Quick Start
+
+### Prerequisites
+- Node.js 18+ installed
+- OpenAI API key (required for embeddings)
+- Optional: Anthropic, Groq, or Ollama for alternative LLM providers
+
+### First-Time Setup
+```bash
+npm install
+cp .env.example .env
+# Edit .env with your API keys
+npm run dev
+```
+
+The application runs on `http://localhost:3000` with ChromaDB automatically initialized in local storage.
+
+## Architecture Overview
+
+This is a RAG (Retrieval-Augmented Generation) chatbot built with Next.js 14, LlamaIndex.TS, ChromaDB, and TanStack Query v5. The system supports multiple LLM providers (OpenAI, Anthropic, Groq, Ollama), agent-based querying with ReAct pattern, and multi-strategy retrieval engines.
+
+**Core Technologies:**
+- **LlamaIndex.TS**: Document loading, embedding, and RAG orchestration
+- **ChromaDB**: Local vector storage with SQLite backend
+- **TanStack Query v5**: Client-side state management and caching
+- **Next.js 14**: Full-stack framework with API routes and React components
+
+**Key Features:**
+- Multi-provider LLM support (OpenAI, Anthropic, Groq, Ollama)
+- ReAct agents with streaming support
+- Multiple query strategies (default, router, subquestion)
+- Chat engines with conversation history
+- Document indexing with automatic chunking and embedding
+- Source citations for retrieved content
+
+## Development Commands
 
 ```bash
 npm run dev              # Start development server (http://localhost:3000)
@@ -10,217 +45,404 @@ npm run build            # Build for production
 npm start                # Start production server (after build)
 npm run lint             # Run ESLint
 npm run lint -- --fix    # Auto-fix ESLint issues
+npm run type-check       # TypeScript type checking
 ```
 
-## Architecture Overview
+## Project Structure
 
-This is a RAG (Retrieval-Augmented Generation) chatbot built with Next.js 14, LlamaIndex.TS, ChromaDB, and TanStack Query v5. The system allows users to upload documents (PDF, TXT, MD, DOCX) which are chunked, embedded, and stored in a local Chroma vector store. Users can then ask questions and receive AI-generated answers with source citations. TanStack Query provides robust server state management, caching, and automatic refetching for all client-side data fetching.
-
-### Document Upload Flow
 ```
-User uploads file → POST /api/documents → saveUploadedFile() → loadDocument()
-→ LlamaIndex.TS File Readers (PDFReader/DocxReader/MarkdownReader/TextFileReader) → addDocuments()
-→ VectorStoreIndex.fromDocuments() → Automatic embedding creation & storage [Chroma]
+rag-chatbot/
+├── app/
+│   ├── api/
+│   │   ├── chat/route.ts              # Chat API with streaming support
+│   │   └── documents/
+│   │       ├── route.ts               # Document upload and listing
+│   │       └── [id]/route.ts         # Document deletion
+│   └── page.tsx                       # Main application page
+├── components/
+│   ├── Chat/                          # Chat interface with streaming
+│   ├── Upload/                        # File upload with TanStack Query
+│   ├── DocumentList/                   # Document management UI
+│   ├── MessageList/                    # Message display with citations
+│   └── Modal/                         # Reusable modal component
+├── lib/
+│   ├── llamaindex/
+│   │   ├── index.ts                   # Core orchestration (add, query, delete)
+│   │   ├── agents.ts                  # ReAct agent factory with tools
+│   │   ├── queryengines.ts            # Query engine strategies
+│   │   ├── chatengines.ts            # Chat engine factory
+│   │   ├── vectorstore.ts            # ChromaDB connection & management
+│   │   ├── settings.ts               # Multi-provider LLM configuration
+│   │   ├── loaders.ts                # Document reader factory
+│   │   ├── prompts.ts                # System prompt templates
+│   │   └── utils.ts                 # Validation & helpers
+│   ├── query-client.ts                # TanStack Query configuration
+│   ├── types/                        # TypeScript type definitions
+│   └── hooks/                        # Custom React hooks
+└── data/
+    └── chroma/                       # ChromaDB SQLite storage (auto-created)
 ```
-
-### Query Flow
-```
-User submits question → POST /api/chat → executeQuery()
-→ Chat Engine Routing (if chatEngineType provided) → Chat Engine with conversation history
-→ Query Engine Fallback (if no chat engine) → Query Engine with selected strategy (default/router/subquestion)
-→ Retrieval & Synthesis → Response with sources
-```
-
-## Key Modules
-
-### `lib/llamaindex/` - Core RAG Implementation
-
-- **`index.js`** - Document indexing and query orchestration. Manages global index caching, document addition via `VectorStoreIndex.fromDocuments()`, and query execution with chat engine support. Handles index rebuilding from Chroma when cache is empty. Key functions: `addDocuments()`, `executeQuery()`, `getIndexStats()`, `deleteDocument()`, `clearIndex()`.
-
-- **`queryengines.js`** - Query engine factory providing multiple retrieval strategies. Implements factory pattern for engine creation with default vector search, router-based selection, and subquestion decomposition. Functions: `createQueryEngine()`, `createRouterQueryEngine()`, `createSubQuestionEngine()`, `getQueryEngine()`. Supports different query engine types via `queryEngineType` parameter.
-
-- **`chatengines.js`** - Chat engine factory for conversation history support. Provides two strategies: CondenseQuestionChatEngine (condenses history into standalone query) and ContextChatEngine (provides retrieved context directly). Includes history format conversion and engine caching. Functions: `convertToChatMessages()`, `createCondenseChatEngine()`, `createContextChatEngine()`, `getChatEngine()`, `clearChatEngineCache()`.
-
-- **`vectorstore.js`** - ChromaDB connection and collection management. Uses ChromaDB v3.x with local server or in-memory fallback. Provides metadata-only operations: collection retrieval, document counting, clearing, and deletion. Embedding storage is handled by LlamaIndex.TS VectorStoreIndex. Functions: `initChroma()`, `getVectorStore()`, `getChromaClient()`, `getCollection()`, `hasDocuments()`, `clearCollection()`, `deleteDocument()`, `getCollectionStats()`.
-
-- **`settings.js`** - LLM and embedding model configuration via `llamaindex.Settings`. Supports OpenAI and Anthropic providers via environment variables. Initializes global settings for LLM and embedding model access.
-
-- **`loaders.js`** - Document loading using LlamaIndex.TS specialized file readers. Supports PDF (PDFReader), DOCX (DocxReader), Markdown (MarkdownReader), TXT (TextFileReader). Validates file size and type. Key function: `loadDocument()`.
-
-- **`utils.js`** - Utility functions for query validation, input sanitization, source formatting, and environment-based configuration (chunk size, overlap, top-k). Provides helper functions for document ID generation, file size formatting, and system prompts.
-
-### Client State Management
-
-- **`lib/query-client.ts`** - TanStack Query client configuration. Provides factory functions for QueryClient creation with optimized defaults: 5-minute stale time, 10-minute cache time, 3-retry exponential backoff, refetch on window focus and reconnect. Includes `getQueryClient()` with browser caching for Next.js 14 compatibility.
-
-- **`lib/hooks/use-document-download.ts`** - Custom hook for document downloads using TanStack Query mutation.
-
-- **`components/Providers.tsx`** - Client-side provider component wrapping the application with QueryClientProvider and ReactQueryDevtools.
-
-### API Routes (`app/api/`)
-
-- **`chat/route.js`** - POST handles chat messages, validates queries, calls `executeQuery()` with streaming support, returns response with formatted sources. Supports both chat engines (with conversation history) and query engines (backward compatibility). GET returns chat status.
-
-- **`documents/route.js`** - POST handles file uploads, validates files, loads documents, adds to index via `VectorStoreIndex`. GET returns index stats and supported formats. Includes CORS preflight handling.
-
-- **`documents/[id]/route.js`** - DELETE handler for removing documents from the index.
-
-### Components (`components/`)
-
-Components are organized in subdirectories with TypeScript (`.tsx`) and module CSS:
-
-- **`Chat/Chat.tsx`** - Main chat interface with message history, input handling, and auto-scroll. Maintains custom SSE streaming implementation for real-time responses.
-
-- **`Upload/Upload.tsx`** - Drag-and-drop file upload interface. Uses `useMutation` for uploads with progress tracking and automatic query invalidation.
-
-- **`UploadWrapper.tsx`** (in `app/`) - Wraps Upload component and fetches supported formats using `useQuery`.
-
-- **`DocumentList/DocumentList.tsx`** - List of uploaded documents with metadata. Uses `useQuery` for stats/list fetching and `useMutation` for document deletion with optimistic updates.
-
-- **`MessageList/MessageList.tsx`** - Display of user and assistant messages with source citations.
-
-- **`Modal/Modal.tsx`** - Reusable modal component for confirmations and dialogs.
-
-- **`shared/`** - Shared UI components (e.g., Button).
-
-## Architecture & Design Decisions
-
-### Vector Store Architecture
-
-The system uses native LlamaIndex.TS `VectorStoreIndex` for all vector operations, replacing manual ChromaDB embedding management. This approach provides:
-
-- Automatic embedding creation via configured embedding model
-- Automatic document chunking with environment-configurable size and overlap
-- Automatic persistence to ChromaDB collection
-- Global index caching in `global.indexCache` for performance
-- Index rebuilding from Chroma when cache is empty
-
-ChromaDB is used exclusively for persistent storage and metadata operations. The vectorstore.js module provides a compatibility layer for direct Chroma operations when needed for collection management.
-
-### Query Engine Architecture
-
-Multiple query strategies are available through the factory pattern in `queryengines.js`:
-
-- **Default Query Engine**: Direct vector search with configurable retrieval mode, response mode, and top-k results. Supports streaming.
-- **Router Query Engine**: Uses LLM-based selector to route queries to appropriate tools. Provides verbose logging for debugging.
-- **Sub-Question Query Engine**: Decomposes complex queries into sub-questions for comprehensive retrieval.
-
-Query engines are selected via the `queryEngineType` parameter and created on demand. The default engine supports streaming responses.
-
-### Chat Engine Architecture
-
-Conversation history support is provided through chat engines in `chatengines.js`:
-
-- **CondenseQuestionChatEngine**: Condenses conversation history into a standalone query, then retrieves relevant documents. Suitable for maintaining context while keeping queries focused.
-- **ContextChatEngine**: Retrieves relevant documents and provides them as context to the LLM along with the conversation history. Suitable for when context needs to be explicit.
-
-Chat engines are prioritized over query engines when `chatEngineType` is provided. They include:
-
-- Conversation history format conversion from client to LlamaIndex ChatMessage format
-- Engine caching by session key for performance
-- Support for both single queries and streaming responses
-
-### TanStack Query Architecture
-
-Client-side state management uses TanStack Query v5 for server state:
-
-- **Query Keys**: Standardized query keys for cache management:
-  - `['documents-stats']` - Document statistics and supported formats
-  - `['documents-list']` - List of uploaded documents
-  - `['documents-formats']` - Supported file formats
-  - `['upload-document']` - Document upload mutations
-  - `['delete-document']` - Document deletion mutations
-  - `['download-document']` - Document download mutations
-
-- **Query Configuration**: Default QueryClient settings in `lib/query-client.ts`:
-  - Stale time: 5 minutes (data remains fresh for 5 min)
-  - Cache time: 10 minutes (data kept in cache for 10 min)
-  - Retry: 3 attempts with exponential backoff
-  - Refetch on window focus: true
-  - Refetch on reconnect: true
-
-- **Optimistic Updates**: Document deletion uses optimistic updates with automatic rollback on error, improving perceived performance.
-
-- **Query Invalidation**: Mutations automatically invalidate related queries to keep UI in sync with server state.
-
-- **Provider Pattern**: QueryClient is created in a client-side `Providers` component to avoid issues with passing instances from Server to Client Components in Next.js 14.
-
-- **Minimal Abstraction**: Components use `useQuery` and `useMutation` hooks directly rather than a complex abstraction layer, keeping code maintainable.
-
-- **Destructuring Pattern**: Hook return values are always destructured at the call site for clarity and to eliminate repetitive property access.
-
-- **SSE Streaming Preservation**: Chat component maintains custom fetch with ReadableStream for streaming responses as TanStack Query does not natively support streaming.
-
-### Design Patterns
-
-- **Factory Pattern**: Used for creating query engines and chat engines with different strategies
-- **QueryClient Pattern**: TanStack Query client created in client-side provider component to avoid issues with Server/Client Component boundaries in Next.js 14
-- **Destructuring Pattern**: All object properties and hook return values are destructured at the call site for improved readability and maintainability.
-- **Global Caching**: Index instances cached in `global.indexCache` for performance across requests; TanStack Query provides additional query caching
-- **Lazy Initialization**: ChromaDB client initialized on first use with fallback to in-memory; QueryClient cached in browser
-- **Fallback Mechanisms**: Index rebuilt from Chroma when cache empty, in-memory Chroma fallback when server unavailable, automatic retry for failed queries
-- **Error Handling**: Graceful degradation with helpful messages for expected conditions (no documents, server unavailable)
-- **Optimistic Updates**: Document deletion updates cache immediately with rollback on error for improved perceived performance
-
-## Environment Variables
-
-Required in `.env`:
-
-- `OPENAI_API_KEY` - Required for embeddings and OpenAI LLM provider
-
-Optional configuration:
-
-- `ANTHROPIC_API_KEY` - For Anthropic LLM provider
-- `LLM_PROVIDER` - Default: `openai` (also supports `anthropic`)
-- `LLM_MODEL` - Default: `gpt-4o-mini`
-- `EMBEDDING_MODEL` - Default: `text-embedding-3-small`
-- `CHROMA_HOST` - Default: `localhost` (ChromaDB server host)
-- `CHROMA_PORT` - Default: `8000` (ChromaDB server port)
-- `MAX_FILE_SIZE_MB` - Default: `10`
-- `CHUNK_SIZE` - Default: `1000` (document chunking size)
-- `CHUNK_OVERLAP` - Default: `200` (document chunking overlap)
-- `TOP_K_RESULTS` - Default: `3` (number of results to retrieve)
-- `QUERY_ENGINE_TYPE` - Default: `default` (also supports `router`, `subquestion`)
-- `CHAT_ENGINE_TYPE` - Default: `condense` (also supports `context`)
-- `VERBOSE` - Default: `false` (enables verbose logging for router engine)
-- `CONTEXT_WINDOW` - Default: `128000` (context window size for the LLM - varies by model)
-
-**TanStack Query Configuration**: Default configuration set in `lib/query-client.ts`. React Query DevTools available in development mode. ESLint configured with `prefer-destructuring` and `no-unsafe-optional-chaining` rules to enforce destructuring patterns throughout the codebase.
 
 ## Code Conventions
 
-Project conventions are enforced via Hookify rules in `.claude/` directory:
+### TypeScript Patterns
+- **File Extensions**: Components use `.tsx`, library modules use `.ts`, API routes use `route.ts`
+- **No `any` Types**: Use proper type definitions or `unknown` when type cannot be determined
+- **Type Imports**: Use `import type { ... }` for type-only imports
+- **Interface Definitions**: Define interfaces in `lib/types/` for shared types
+- **Generics**: Use generics with proper constraints where applicable
 
-- **File naming**: Enforced by `hookify.file-naming.local.md`
-- **Code commenting**: Enforced by `hookify.code-commenting.local.md`
-- **Code refactoring**: Enforced by `hookify.code-refactoring.local.md`
-- **Styling**: Enforced by `hookify.styling.local.md`
+### Code Style
+- **No Comments**: Use descriptive variable and function names instead
+- **Exports**: Use `export function` and `export const` for named exports
+- **Destructuring**: Always destructure at call site (props, hook returns, mutation results)
+- **Optional Chaining**: Use with fallback objects for potentially undefined properties
+- **Remove Unused Code**: Always remove old implementations, unused functions, and dead code. Never leave unused code in the codebase.
 
-**File Naming**: Components use PascalCase (`.jsx`), library modules use lowercase (`.js`), API routes use `route.js`
+### React Patterns
+- **Components**: Function components with TypeScript props interfaces
+- **Hooks**: Custom hooks in `lib/hooks/` following `use-*.ts` naming
+- **State Management**: Use TanStack Query `useQuery` and `useMutation` hooks
+- **Event Handlers**: Define inline or as memoized callbacks for performance
 
-**Exports**: Use `export function` for named exports
+## Environment Configuration
 
-**No `any` Types**: Do not use the `any` type. Use proper type definitions or `unknown` when the type cannot be determined at compile time.
+### Required Variables
 
-**Descriptive Names Over Comments**: When adding new functionality or fixing issues, do not add explanatory comments to code unless truly necessary. Use descriptive variable and function names instead to make code self-documenting.
+| Variable | Description | Example |
+|-----------|-------------|----------|
+| `OPENAI_API_KEY` | OpenAI API key for embeddings (required) | `sk-...` |
 
-**Destructuring**: Always destructure object properties and hook return values at the call site, avoiding repetitive property access. Destructure component props in function signature, TanStack Query hook return values (data, isLoading, error, refetch), mutation return values (mutate, isPending), and query result properties. Use optional chaining with fallback objects for potentially undefined properties.
+### Optional Variables - LLM Providers
 
-## Initialization
+| Variable | Description | Default |
+|-----------|-------------|----------|
+| `LLM_PROVIDER` | LLM provider (`openai`, `anthropic`, `groq`, `ollama`) | `openai` |
+| `ANTHROPIC_API_KEY` | Anthropic API key | - |
+| `GROQ_API_KEY` | Groq API key | - |
+| `OLLAMA_BASE_URL` | Ollama API base URL | `http://localhost:11434/v1` |
+| `LLM_MODEL` | Model name for selected provider | `gpt-4o-mini` |
+| `EMBEDDING_MODEL` | Embedding model name | `text-embedding-3-small` |
+| `CONTEXT_WINDOW` | Context window size for LLM | `128000` |
 
-LlamaIndex.TS settings initialized via `initializeLlamaIndex()` in API routes on module load. ChromaDB client initialized lazily on first use with fallback to in-memory if server unavailable. Global index cache initialized as `global.indexCache` for performance. TanStack Query client initialized in client-side `Providers` component with browser caching via `getQueryClient()`. React Query DevTools enabled in development mode. ESLint configured with `prefer-destructuring` and `no-unsafe-optional-chaining` rules to enforce destructuring patterns.
+### Optional Variables - RAG Configuration
 
-## Important Notes
+| Variable | Description | Default |
+|-----------|-------------|----------|
+| `CHUNK_SIZE` | Document chunk size in characters | `1000` |
+| `CHUNK_OVERLAP` | Chunk overlap in characters | `200` |
+| `TOP_K_RESULTS` | Number of chunks to retrieve | `3` |
+| `QUERY_ENGINE_TYPE` | Query strategy (`default`, `router`, `subquestion`) | `default` |
+| `CHAT_ENGINE_TYPE` | Chat strategy (`condense`, `context`) | `condense` |
 
-- LlamaIndex.TS uses `Settings.llm` global for LLM access and `Settings.embedModel` for embeddings
-- Document metadata includes: `file_name`, `file_path`, `file_type`, `upload_date`, `file_url`, `stored_file_path`
-- VectorStoreIndex handles automatic embedding creation and similarity scoring internally
-- Index is cached in global scope for performance across requests
-- TanStack Query provides automatic caching, deduplication, and refetching for all client-side data
-- Query invalidation happens automatically after upload and delete mutations to keep UI in sync
-- Chat engines support conversation history with format conversion
-- Query engines and chat engines provide streaming support for real-time responses
-- SSE streaming in Chat component uses custom fetch implementation (TanStack Query doesn't support streaming natively)
-- Multiple query strategies available via `queryEngineType` parameter
-- Multiple chat strategies available via `chatEngineType` parameter
-- Document deletion uses optimistic updates with automatic rollback on error
+### Optional Variables - Agent Configuration
+
+| Variable | Description | Default |
+|-----------|-------------|----------|
+| `ENABLE_AGENT` | Enable ReAct agents | `false` |
+| `DEFAULT_AGENT_TYPE` | Agent type (`react`) | `react` |
+| `AGENT_MAX_ITERATIONS` | Maximum agent iterations | `10` |
+| `AGENT_VERBOSE` | Enable agent logging | `false` |
+
+### Optional Variables - System Configuration
+
+| Variable | Description | Default |
+|-----------|-------------|----------|
+| `CHROMA_PERSIST_DIR` | ChromaDB storage directory | `./data/chroma` |
+| `MAX_FILE_SIZE_MB` | Maximum upload file size | `10` |
+| `VERBOSE` | Enable verbose logging | `false` |
+| `LLM_TIMEOUT` | LLM request timeout (ms) | `60000` |
+| `EMBEDDING_TIMEOUT` | Embedding request timeout (ms) | `60000` |
+
+## Key Patterns & Modules
+
+### RAG Pipeline (`lib/llamaindex/`)
+
+#### `index.ts` - Core Orchestration
+Manages document indexing, query execution, and global index caching. Handles index rebuilding from Chroma when cache is empty.
+
+**Key Functions:**
+- `addDocuments()`: Add documents to vector index
+- `executeQuery()`: Execute queries with chat/agent/agent engines
+- `deleteDocument()`: Remove document by ID
+- `clearIndex()`: Clear all indexed documents
+- `getIndexStats()`: Get index statistics
+
+#### `settings.ts` - Multi-Provider LLM Configuration
+Configures LLM and embedding models via LlamaIndex.TS `Settings`. Supports runtime provider switching.
+
+**Key Functions:**
+- `initializeSettings()`: Initialize global LLM and embedding settings
+- `configureLLM()`: Configure LLM based on provider
+- `configureEmbedding()`: Configure embedding model
+- `updateLLMProvider()`: Switch LLM provider at runtime
+
+**Supported Providers:**
+- OpenAI (GPT models)
+- Anthropic (Claude models)
+- Groq (Llama models)
+- Ollama (local models)
+
+#### `agents.ts` - ReAct Agent Factory
+Creates ReAct (Reasoning + Acting) agents with document search tools and streaming support.
+
+**Key Functions:**
+- `createReActAgent()`: Create ReAct agent with document search tool
+- `createDocumentSearchTool()`: Create search tool for agent use
+- `getAgent()`: Get cached agent by type and session
+- `clearAgentCache()`: Clear agent cache
+
+**Agent Types:**
+- ReAct: Reasoning and acting with iterative tool use
+- Streaming: Real-time response streaming
+
+#### `queryengines.ts` - Query Engine Strategies
+Factory for creating query engines with different retrieval strategies.
+
+**Key Functions:**
+- `createQueryEngine()`: Create default vector search engine
+- `createRouterQueryEngine()`: Create LLM-based routing engine
+- `createSubQuestionEngine()`: Create sub-question decomposition engine
+- `getQueryEngine()`: Get cached engine by type
+
+**Engine Types:**
+- Default: Direct vector search with configurable retrieval
+- Router: LLM-based routing to appropriate tools
+- SubQuestion: Decompose complex queries into sub-questions
+
+#### `chatengines.ts` - Chat Engine Factory
+Creates chat engines for conversation history support with streaming.
+
+**Key Functions:**
+- `createCondenseChatEngine()`: Condense history into standalone query
+- `createContextChatEngine()`: Provide retrieved context explicitly
+- `getChatEngine()`: Get cached chat engine
+- `convertToChatMessages()`: Convert client format to LlamaIndex format
+
+**Engine Types:**
+- Condense: Condenses history, retrieves, then answers
+- Context: Retrieves context first, provides to LLM with history
+
+#### `vectorstore.ts` - ChromaDB Management
+ChromaDB connection and collection management using v3.x with local SQLite.
+
+**Key Functions:**
+- `initChroma()`: Initialize ChromaDB client
+- `getVectorStore()`: Get LlamaIndex Chroma vector store
+- `getCollection()`: Get Chroma collection for metadata operations
+- `hasDocuments()`: Check if documents exist
+- `clearCollection()`: Clear all documents
+- `deleteDocument()`: Delete document by ID
+- `getCollectionStats()`: Get collection statistics
+
+#### `loaders.ts` - Document Loader Factory
+Factory for selecting appropriate LlamaIndex.TS file readers.
+
+**Supported Formats:**
+- PDF: `PDFReader`
+- DOCX: `DocxReader`
+- Markdown: `MarkdownReader`
+- TXT: `TextFileReader`
+
+**Key Functions:**
+- `loadDocument()`: Load document with validation
+- `getLoaderForFile()`: Select loader by file type
+
+#### `prompts.ts` - System Prompt Templates
+Provides customizable system prompt templates for different use cases.
+
+**Templates:**
+- RAG system prompt for document-based queries
+- Custom prompt support via environment variable
+
+#### `utils.ts` - Utilities
+Helper functions for validation, sanitization, and configuration.
+
+**Key Functions:**
+- `validateQuery()`: Query validation
+- `sanitizeInput()`: Input sanitization
+- `formatSources()`: Source formatting for display
+- `getChunkConfig()`: Get chunking configuration from environment
+
+### State Management
+
+#### TanStack Query Configuration (`lib/query-client.ts`)
+
+**Default QueryClient Settings:**
+- Stale time: 5 minutes
+- Cache time: 10 minutes
+- Retry: 3 attempts with exponential backoff
+- Refetch on window focus: enabled
+- Refetch on reconnect: enabled
+
+**Query Keys:**
+- `['documents-stats']`: Document statistics and supported formats
+- `['documents-list']`: List of uploaded documents
+- `['upload-document']`: Document upload mutation
+- `['delete-document']`: Document deletion mutation
+- `['download-document']`: Document download mutation
+
+**Patterns:**
+- Always destructure hook returns: `const { data, isLoading, error } = useQuery(...)`
+- Use `useMutation` with `invalidateQueries` for cache updates
+- Optimistic updates for deletions with automatic rollback
+
+### API Routes
+
+| Route | Methods | Purpose |
+|-------|----------|---------|
+| `/api/chat` | POST, GET | Handle chat messages with streaming |
+| `/api/documents` | POST, GET | Upload documents, get stats |
+| `/api/documents/[id]` | DELETE | Delete document by ID |
+
+**Chat API Features:**
+- Streaming responses via SSE
+- Multi-engine support (query, chat, agent)
+- Source citations in response
+- Conversation history support
+
+### Components
+
+| Component | Purpose | Location |
+|-----------|---------|----------|
+| `Chat` | Main chat interface with streaming | `components/Chat/` |
+| `Upload` | Drag-and-drop file upload | `components/Upload/` |
+| `DocumentList` | List uploaded documents with actions | `components/DocumentList/` |
+| `MessageList` | Display messages with citations | `components/MessageList/` |
+| `Modal` | Reusable modal component | `components/Modal/` |
+| `Providers` | Query client provider wrapper | `components/Providers.tsx` |
+
+**Component Patterns:**
+- Each component directory contains: `.tsx`, `.types.ts`, `.utils.ts`, `.module.css`
+- TanStack Query hooks for data fetching
+- TypeScript props interfaces in `.types.ts` files
+- Utility functions in `.utils.ts` files
+
+## Common Tasks
+
+### Adding a New Document Reader
+
+1. Add reader import to `lib/llamaindex/loaders.ts`
+2. Update `getLoaderForFile()` function to handle new extension
+3. Update supported formats in `.env.example` and API documentation
+
+### Implementing a New Query Engine
+
+1. Add factory function to `lib/llamaindex/queryengines.ts`
+2. Export from `lib/llamaindex/index.ts`
+3. Add to `QUERY_ENGINE_TYPE` options in documentation
+
+### Switching LLM Provider
+
+**Runtime:**
+```typescript
+import { updateLLMProvider } from '@/lib/llamaindex/settings';
+updateLLMProvider('anthropic', 'claude-3-5-sonnet-20241022');
+```
+
+**Environment:**
+```bash
+# In .env
+LLM_PROVIDER=ollama
+LLM_MODEL=llama3.2
+OLLAMA_BASE_URL=http://localhost:11434/v1
+```
+
+### Debugging Query Issues
+
+1. **No documents found**: Check ChromaDB connection and document indexing
+2. **Empty response**: Verify LLM API key and model configuration
+3. **Slow queries**: Adjust `TOP_K_RESULTS` or enable streaming
+4. **Citation errors**: Check document metadata in `vectorstore.ts`
+
+### Configuring ReAct Agents
+
+1. Set `ENABLE_AGENT=true` in `.env`
+2. Optionally configure `AGENT_MAX_ITERATIONS` and `AGENT_VERBOSE`
+3. Agents use document search tool automatically for retrieval
+
+## Troubleshooting
+
+### ChromaDB Connection Issues
+
+**Symptom:** "Failed to initialize ChromaDB" error
+
+**Solution:**
+- Check `CHROMA_PERSIST_DIR` is writable
+- Verify ChromaDB is not running on conflicting port
+- System falls back to in-memory storage automatically
+
+### Document Upload Fails
+
+**Symptom:** File upload rejected or fails processing
+
+**Solution:**
+- Check file size < `MAX_FILE_SIZE_MB` (default 10MB)
+- Verify file format is supported (PDF, TXT, MD, DOCX)
+- Check LlamaIndex.TS reader for file type
+- Review server logs for parsing errors
+
+### No Query Results
+
+**Symptom:** Query returns "no relevant documents found"
+
+**Solution:**
+- Verify documents are indexed: Check `/api/documents` stats
+- Adjust `CHUNK_SIZE` and `CHUNK_OVERLAP` for better retrieval
+- Increase `TOP_K_RESULTS` for more candidates
+- Try different query engine types
+
+### LLM API Errors
+
+**Symptom:** "API key invalid" or "rate limit exceeded"
+
+**Solution:**
+- Verify API key in `.env` is correct
+- Check provider status page for outages
+- Switch to alternative provider using `updateLLMProvider()`
+- Configure appropriate timeouts: `LLM_TIMEOUT`, `EMBEDDING_TIMEOUT`
+
+### TypeScript Build Errors
+
+**Symptom:** Type errors in build
+
+**Solution:**
+- Run `npm run type-check` for detailed error messages
+- Check imports use correct file extensions (`.ts`, `.tsx`)
+- Verify all interfaces are properly defined
+- Run `npm run lint -- --fix` for auto-fixable issues
+
+## Performance Notes
+
+### Index Caching
+- Global index cache (`global.indexCache`) for performance
+- Rebuilt from Chroma on server restart
+- Chat engines cached by session key
+- Query engines cached by type
+
+### Streaming
+- Chat API supports SSE streaming for real-time responses
+- ReAct agents support streaming responses
+- TanStack Query does not support streaming (custom fetch in Chat component)
+
+### Optimizations
+- Automatic query deduplication via TanStack Query
+- Optimistic updates for immediate UI feedback
+- Refetch on window focus for fresh data
+- Configurable chunking for optimal retrieval
+
+### ChromaDB Performance
+- Local SQLite backend for fast queries
+- Metadata-only operations for document management
+- Automatic persistence to disk
+
+## Design Patterns
+
+- **Factory Pattern**: Query engines, chat engines, agents created via factory functions
+- **Global Caching**: Index and engine instances cached for performance
+- **Provider Pattern**: TanStack Query client created in client-side provider
+- **Destructuring Pattern**: All object properties and hook returns destructured at call site
+- **Lazy Initialization**: ChromaDB and QueryClient initialized on first use
+- **Fallback Mechanisms**: In-memory Chroma fallback, automatic retry for failed queries
+- **Error Handling**: Graceful degradation with helpful messages
+- **Optimistic Updates**: Document deletion updates cache immediately with rollback on error

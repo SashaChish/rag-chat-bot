@@ -64,3 +64,6 @@ Thumbs.db
 .turbo/
 
 /documents
+
+# specs directory
+/specs

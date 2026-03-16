@@ -57,6 +57,7 @@ export function getSystemPrompt(options: SystemPromptOptions = {}): string {
 
   return DEFAULT_SYSTEM_PROMPT;
 }
+
 export function getDefaultSystemPrompt(): string {
   return DEFAULT_SYSTEM_PROMPT;
 }

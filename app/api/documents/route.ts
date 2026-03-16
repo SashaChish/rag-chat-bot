@@ -1,11 +1,20 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { saveUploadedFile, deleteUploadedFile } from '@/lib/core/upload/upload';
-import { loadDocument, validateFile, getSupportedFormatsList } from '@/lib/llamaindex/loaders';
-import { addDocuments, getIndexStats } from '@/lib/llamaindex/index';
-import { generateDocumentId } from '@/lib/core/llamaindex/core.utils';
-import { formatFileSize } from '@/lib/utils/format.utils';
-import { initializeSettings } from '@/lib/llamaindex/settings';
-import type { DocumentUploadResponse, DocumentsGetResponse, DocumentListResponse } from '@/lib/types/api';
+import { NextRequest, NextResponse } from "next/server";
+import { saveUploadedFile, deleteUploadedFile } from "@/lib/core/upload/upload";
+import type { RAGDocument } from "@/lib/types/core.types";
+import {
+  loadDocument,
+  validateFile,
+  getSupportedFormatsList,
+} from "@/lib/llamaindex/loaders";
+import { addDocuments, getIndexStats } from "@/lib/llamaindex/index";
+import { generateDocumentId } from "@/lib/core/llamaindex/core.utils";
+import { formatFileSize } from "@/lib/utils/format.utils";
+import { initializeSettings } from "@/lib/llamaindex/settings";
+import type {
+  DocumentUploadResponse,
+  DocumentsGetResponse,
+  DocumentListResponse,
+} from "@/lib/types/api";
 
 interface DocumentEntry {
   id: string;
@@ -26,10 +35,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const file = formData.get("file");
 
     if (!file || !(file instanceof File)) {
-      return NextResponse.json(
-        { error: "No file provided" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
     try {
@@ -37,7 +43,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     } catch (error) {
       return NextResponse.json(
         { error: (error as Error).message },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -50,14 +56,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         throw new Error("No content could be extracted from file");
       }
 
-      const documentsWithMetadata = documents.map(doc => ({
-        ...doc,
+      const documentsWithMetadata: RAGDocument[] = documents.map((doc) => ({
+        text: doc.text,
         metadata: {
           ...(doc.metadata || {}),
           file_name: file.name,
           file_url: `/uploads/${savedFile.filename}`,
           stored_file_path: savedFile.path,
-        }
+        },
       }));
 
       await addDocuments(documentsWithMetadata);
@@ -86,7 +92,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       {
         error: (error as Error).message || "Failed to upload document",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -118,16 +124,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     console.error("Error getting documents:", error);
     return NextResponse.json(
       { error: "Failed to retrieve document information" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 async function getDocumentList(): Promise<NextResponse> {
   try {
-    const { getChromaClient } = await import('@/lib/llamaindex/vectorstore');
-    const { getFileInfo } = await import('@/lib/core/upload/upload');
-    const { formatFileSize } = await import('@/lib/utils/format.utils');
+    const { getChromaClient } = await import("@/lib/llamaindex/vectorstore");
+    const { getFileInfo } = await import("@/lib/core/upload/upload");
+    const { formatFileSize } = await import("@/lib/utils/format.utils");
 
     const client = await getChromaClient();
     const collection = await client.getCollection({ name: "documents" });
@@ -148,26 +154,25 @@ async function getDocumentList(): Promise<NextResponse> {
 
     for (let i = 0; i < result.metadatas.length; i++) {
       const metadata = result.metadatas[i];
-      const document = result.documents[i];
-      const { file_name: fileName } = metadata || {};
+      const document = result.documents?.[i];
+      const fileName = typeof metadata?.file_name === "string" ? metadata.file_name : null;
 
       if (!fileName) continue;
 
-      // @ts-ignore
       if (!documentMap.has(fileName)) {
-        // Initialize document entry
-        // @ts-ignore - Type inference issue with ChromaDB result handling
-        documentMap.set(fileName, {
+        // Initialize document entry with proper type casting
+        const newEntry: DocumentEntry = {
           id: fileName,
           file_name: fileName,
-          file_type: metadata?.file_type ?? "UNKNOWN",
-          upload_date: metadata?.upload_date ?? new Date().toISOString(),
-          file_url: metadata?.file_url ?? null,
-          stored_file_path: metadata?.stored_file_path ?? null,
+          file_type: typeof metadata?.file_type === "string" ? metadata.file_type : "UNKNOWN",
+          upload_date: typeof metadata?.upload_date === "string" ? metadata.upload_date : new Date().toISOString(),
+          file_url: typeof metadata?.file_url === "string" ? metadata.file_url : null,
+          stored_file_path: typeof metadata?.stored_file_path === "string" ? metadata.stored_file_path : null,
           chunk_count: 0,
           content: "",
           file_size: null,
-        } as DocumentEntry);
+        };
+        documentMap.set(fileName, newEntry);
       }
 
       // Increment chunk count
@@ -176,7 +181,7 @@ async function getDocumentList(): Promise<NextResponse> {
         docEntry.chunk_count++;
       }
 
-      if (document && docEntry) {
+      if (document && docEntry && typeof document === "string") {
         docEntry.content += document;
       }
     }
@@ -192,7 +197,10 @@ async function getDocumentList(): Promise<NextResponse> {
       }
     }
 
-    documents.sort((a, b) => new Date(b.upload_date).getTime() - new Date(a.upload_date).getTime());
+    documents.sort(
+      (a, b) =>
+        new Date(b.upload_date).getTime() - new Date(a.upload_date).getTime(),
+    );
 
     const response: DocumentListResponse = {
       documents,
@@ -203,12 +211,12 @@ async function getDocumentList(): Promise<NextResponse> {
     console.error("Error getting document list:", error);
     return NextResponse.json(
       { error: "Failed to retrieve document list" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
-export async function OPTIONS(_request: NextRequest): Promise<NextResponse> {
+export async function OPTIONS(): Promise<NextResponse> {
   return new NextResponse(null, {
     status: 200,
     headers: {

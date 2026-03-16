@@ -4,16 +4,10 @@ import { useState, useRef, useEffect } from "react";
 import MessageList from '../MessageList/MessageList';
 import Modal from '../Modal/Modal';
 import styles from './Chat.module.css';
-import type {
-  ChatProps,
-} from '../../lib/types/components';
-import type { ChatUIMessage, LoadingPhase } from './Chat.types';
 import type { SourceInfo } from '../../lib/types/core.types';
+import type { ChatUIMessage } from './Chat.types';
 
-export default function Chat({
-  onSendMessage,
-  supportedFormats,
-}: ChatProps): JSX.Element {
+export default function Chat(): JSX.Element {
   const [messages, setMessages] = useState<ChatUIMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);

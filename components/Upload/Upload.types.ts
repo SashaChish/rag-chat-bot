@@ -3,8 +3,6 @@
  * Type definitions specific to the Upload component
  */
 
-import type { DocumentUploadResponse } from '@/lib/types/api';
-
 /**
  * Upload component state interface
  */

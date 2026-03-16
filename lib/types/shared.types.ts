@@ -24,8 +24,6 @@ export interface PaginatedResponse<T> {
   hasPrevious: boolean;
 }
 
-
-
 /**
  * Search parameters
  */
@@ -39,46 +37,6 @@ export interface SearchParams {
   };
   sort?: {
     sortBy?: string;
-    sortOrder?: 'asc' | 'desc';
+    sortOrder?: "asc" | "desc";
   };
 }
-
-/**
- * File metadata
- */
-export interface FileMetadata {
-  name: string;
-  size: number;
-  type: string;
-  lastModified: number;
-  extension: string;
-}
-
-/**
- * Processing status
- */
-export type ProcessingStatus = 'pending' | 'processing' | 'completed' | 'failed';
-
-/**
- * Processing result
- */
-export interface ProcessingResult {
-  status: ProcessingStatus;
-  message?: string;
-  timestamp: string;
-  duration?: number;
-}
-
-
-
-/**
- * Configuration option
- */
-export interface ConfigOption<T = unknown> {
-  key: string;
-  value: T;
-  label?: string;
-  description?: string;
-}
-
-

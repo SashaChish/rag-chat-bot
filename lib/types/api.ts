@@ -6,7 +6,7 @@ import {
   IndexStats,
   QueryEngineType,
   SourceInfo,
-} from "./llamaindex";
+} from "./core.types";
 import { NextRequest, NextResponse } from "next/server";
 
 export interface ChatRequest {
@@ -117,16 +117,6 @@ export interface FilterParams {
 export interface DocumentListQueryParams
   extends PaginationParams, SortParams, FilterParams {
   action?: "list" | "stats" | "formats";
-}
-
-export enum HttpStatus {
-  OK = 200,
-  CREATED = 201,
-  BAD_REQUEST = 400,
-  UNAUTHORIZED = 401,
-  FORBIDDEN = 403,
-  NOT_FOUND = 404,
-  INTERNAL_SERVER_ERROR = 500,
 }
 
 export type APIMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH" | "OPTIONS";

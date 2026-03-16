@@ -4,4 +4,4 @@
  */
 
 // Re-export SourceInfo for components
-export type { SourceInfo } from './llamaindex';
+export type { SourceInfo } from './core.types';

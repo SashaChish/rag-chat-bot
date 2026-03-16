@@ -3,7 +3,7 @@ import { OpenAI, OpenAIEmbedding } from "@llamaindex/openai";
 import { Anthropic } from "@llamaindex/anthropic";
 import { Groq } from "@llamaindex/groq";
 import { Ollama, OllamaEmbedding } from "@llamaindex/ollama";
-import type { LLMType, EmbeddingModelType } from "../types";
+import type { EmbeddingModelType } from "../types";
 
 export type LLMProvider = 'openai' | 'anthropic' | 'groq' | 'ollama';
 

@@ -1,5 +1,5 @@
 import Chat from '@/components/Chat/Chat';
-import UploadWrapper from './UploadWrapper';
+import UploadWrapper from '@/components/Upload/UploadWrapper';
 import DocumentList from '@/components/DocumentList/DocumentList';
 import styles from './page.module.css';
 
@@ -22,7 +22,7 @@ export default function Home(): JSX.Element {
         </aside>
 
         <section className={styles.mainContent}>
-          <Chat onSendMessage={undefined} />
+          <Chat />
         </section>
       </div>
 

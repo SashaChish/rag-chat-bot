@@ -1,19 +1,24 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { deleteDocument } from '@/lib/llamaindex/index';
-import { getChromaClient } from '@/lib/llamaindex/vectorstore';
-import fs from 'fs';
-import path from 'path';
-import type { ErrorResponse } from '@/lib/types/api';
-import type { ChromaCollection } from '@/lib/types/chromadb-compatibility';
+import { NextRequest, NextResponse } from "next/server";
+import { deleteDocument } from "@/lib/llamaindex/index";
+import { getChromaClient } from "@/lib/llamaindex/vectorstore";
+import fs from "fs";
+import type {
+  Collection,
+  GetResult,
+  Metadata,
+} from "chromadb";
 
-async function getChromaCollection(): Promise<ChromaCollection> {
+async function getChromaCollection(): Promise<Collection> {
   const client = await getChromaClient();
-  return await client.getCollection({ name: "documents" }) as unknown as ChromaCollection;
+  const collection = await client.getCollection({
+    name: "documents",
+  });
+  return collection as Collection;
 }
 
 export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  { params }: { params: { id: string } },
 ): Promise<NextResponse> {
   try {
     const { id } = params;
@@ -21,7 +26,7 @@ export async function DELETE(
     if (!id) {
       return NextResponse.json(
         { error: "Document ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -46,7 +51,7 @@ export async function DELETE(
     } else {
       return NextResponse.json(
         { error: deleteResult.error || "Failed to delete document" },
-        { status: 500 }
+        { status: 500 },
       );
     }
   } catch (error) {
@@ -55,68 +60,75 @@ export async function DELETE(
       {
         error: (error as Error).message || "Failed to delete document",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } },
 ): Promise<NextResponse> {
   try {
     const { id } = params;
     const { searchParams } = new URL(request.url);
-    const action = searchParams.get('action');
+    const action = searchParams.get("action");
 
     if (!id) {
       return NextResponse.json(
         { error: "Document ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    if (action === 'download') {
+    if (action === "download") {
       const coll = await getChromaCollection();
-      const results = await coll.get();
+      const results: GetResult<Metadata> = await coll.get();
 
       const { metadatas } = results || {};
       if (!metadatas || metadatas.length === 0) {
         return NextResponse.json(
           { error: "Document not found" },
-          { status: 404 }
+          { status: 404 },
         );
       }
 
-      const { stored_file_path: filePath, file_name, file_type } = metadatas[0] || {};
+      const {
+        stored_file_path: filePath,
+        file_name,
+        file_type,
+      } = metadatas[0] || {};
       const fileName = file_name || id;
-      const fileType = file_type || 'application/octet-stream';
+      const fileType = file_type || "application/octet-stream";
 
       if (!fs.existsSync(filePath as string)) {
         return NextResponse.json(
           { error: "File not found on disk" },
-          { status: 404 }
+          { status: 404 },
         );
       }
 
       const fileBuffer = fs.readFileSync(filePath as string);
       const response = new NextResponse(fileBuffer);
 
-      response.headers.set('Content-Type', fileType as string);
-      response.headers.set('Content-Disposition', `attachment; filename="${fileName as string}"`);
-      response.headers.set('Content-Length', fileBuffer.length.toString());
+      response.headers.set("Content-Type", fileType as string);
+      response.headers.set(
+        "Content-Disposition",
+        `attachment; filename="${fileName as string}"`,
+      );
+      response.headers.set("Content-Length", fileBuffer.length.toString());
 
       return response;
     }
 
     const coll = await getChromaCollection();
-    const results = await coll.get();
+    const results: GetResult<Metadata> = await coll.get();
 
     const { metadatas } = results || {};
     if (!metadatas || metadatas.length === 0) {
       return NextResponse.json(
         { error: "Document not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -134,7 +146,7 @@ export async function GET(
     console.error("Error getting document:", error);
     return NextResponse.json(
       { error: "Failed to retrieve document information" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

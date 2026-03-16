@@ -34,7 +34,7 @@ export default function Upload({ onUploadSuccess, supportedFormats }: UploadProp
 
       return response.json();
     },
-    onMutate: (file) => {
+    onMutate: () => {
       setError(null);
       setSuccess(null);
       setUploadProgress(0);
@@ -51,7 +51,7 @@ export default function Upload({ onUploadSuccess, supportedFormats }: UploadProp
 
       return { progressInterval };
     },
-    onSuccess: (data, file, context) => {
+    onSuccess: (data, _file, context) => {
       if (context?.progressInterval) {
         clearInterval(context.progressInterval);
       }

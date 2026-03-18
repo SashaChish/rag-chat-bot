@@ -1,86 +1,45 @@
-import { ChromaClient } from "chromadb";
+import { ChromaVectorStore } from "@llamaindex/chroma";
+import { IncludeEnum } from "chromadb";
+import { storageContextFromDefaults } from "llamaindex";
 import type { ChromaDocumentSummary } from "../types/core.types";
 
-let chromaClient: ChromaClient | null = null;
-let initialized: boolean = false;
+const STORAGE_DIR = process.env.STORAGE_DIR || "./data/llamaindex";
 
-export async function initChroma(): Promise<ChromaClient> {
-  if (initialized && chromaClient) {
-    return chromaClient;
-  }
-
-  const chromaHost = process.env.CHROMA_HOST || "localhost";
-  const chromaPort = parseInt(process.env.CHROMA_PORT || "8000", 10);
-
-  try {
-    chromaClient = new ChromaClient({
-      host: chromaHost,
-      port: chromaPort,
-    });
-
-    await chromaClient.listCollections();
-
-    initialized = true;
-    console.log(
-      `Chroma initialized connecting to http://${chromaHost}:${chromaPort}`,
-    );
-    return chromaClient;
-  } catch (error) {
-    console.error("Failed to initialize Chroma:", error);
-    console.warn("\n" + "=".repeat(60));
-    console.warn("ChromaDB server not found!");
-    console.warn("Please run: docker run -p 8000:8000 chromadb/chroma");
-    console.warn(
-      "Or install locally: https://docs.trychroma.com/deployment/local",
-    );
-    console.warn("=".repeat(60));
-
-    console.warn(
-      "Falling back to in-memory Chroma (data will not persist after restart)",
-    );
-    chromaClient = new ChromaClient();
-
-    initialized = true;
-    return chromaClient;
-  }
-}
-
-export async function getVectorStore(): Promise<ChromaClient> {
-  if (!initialized) {
-    await initChroma();
-  }
-  return chromaClient as ChromaClient;
+/**
+ * Get StorageContext with proper three-tier architecture:
+ * - docStore: SimpleDocumentStore (full documents with binary data)
+ * - indexStore: KVIndexStore (document-to-chunk mappings)
+ * - vectorStores: ChromaVectorStore (chunks for search)
+ */
+export async function getStorageContext() {
+  const vectorStore = await getChromaVectorStore();
+  return await storageContextFromDefaults({
+    persistDir: STORAGE_DIR,
+    vectorStores: {
+      TEXT: vectorStore,
+    },
+  });
 }
 
 /**
- * Get Chroma client instance
+ * Get ChromaVectorStore for LlamaIndex.TS integration
+ * ChromaVectorStore creates and manages its own ChromaClient internally
  */
-export async function getChromaClient(): Promise<ChromaClient> {
-  return await getVectorStore();
+export async function getChromaVectorStore(): Promise<ChromaVectorStore> {
+  return new ChromaVectorStore({
+    collectionName: "documents",
+  });
 }
 
-export async function getCollection(collectionName: string = "documents") {
-  const client = await getChromaClient();
-
-  try {
-    const collection = await client.getOrCreateCollection({
-      name: collectionName,
-      metadata: { description: "RAG Chatbot documents" },
-    });
-
-    return collection;
-  } catch (error) {
-    console.error("Error getting collection:", error);
-    throw error;
-  }
+export async function getCollection() {
+  const vectorStore = await getChromaVectorStore();
+  return await vectorStore.getCollection();
 }
 
-export async function hasDocuments(
-  collectionName: string = "documents",
-): Promise<boolean> {
+export async function hasDocuments(): Promise<boolean> {
   try {
-    const client = await getChromaClient();
-    const coll = await client.getCollection({ name: collectionName });
+    const vectorStore = await getChromaVectorStore();
+    const coll = await vectorStore.getCollection();
     const count = await coll.count();
 
     return count > 0;
@@ -90,20 +49,19 @@ export async function hasDocuments(
   }
 }
 
-export async function clearCollection(
-  collectionName: string = "documents",
-): Promise<{ success: boolean; error?: string }> {
+export async function clearCollection(): Promise<{
+  success: boolean;
+  error?: string;
+}> {
   try {
-    const client = await getChromaClient();
+    const vectorStore = await getChromaVectorStore();
+    const coll = await vectorStore.getCollection();
 
-    try {
-      await client.deleteCollection({ name: collectionName });
-    } catch (_e) {}
+    const ids = await coll.get({ include: [IncludeEnum.Documents] });
 
-    await client.createCollection({
-      name: collectionName,
-      metadata: { description: "RAG Chatbot documents" },
-    });
+    if (ids.ids && ids.ids.length > 0) {
+      await coll.delete({ ids: ids.ids });
+    }
 
     return { success: true };
   } catch (error) {
@@ -117,10 +75,9 @@ export async function clearCollection(
 
 export async function deleteDocument(
   id: string,
-  collectionName: string = "documents",
 ): Promise<{ success: boolean; chunksDeleted?: number; error?: string }> {
   try {
-    const coll = await getCollection(collectionName);
+    const coll = await getCollection();
 
     const results = await coll.get({
       where: { file_name: id },
@@ -130,7 +87,6 @@ export async function deleteDocument(
       return { success: true, chunksDeleted: 0 };
     }
 
-    // Delete all chunks with their actual IDs
     await coll.delete({
       ids: results.ids,
     });
@@ -147,22 +103,24 @@ export async function deleteDocument(
 
 export async function getCollectionStats(
   collectionName: string = "documents",
-): Promise<{ exists: boolean; collectionName: string; count: number }> {
+): Promise<{ exists: boolean; collectionName: string; count: number; documentCount: number }> {
   try {
-    const client = await getChromaClient();
-    const coll = await client.getCollection({ name: collectionName });
+    const vectorStore = await getChromaVectorStore();
+    const coll = await vectorStore.getCollection();
     const count = await coll.count();
 
     return {
       exists: true,
       collectionName,
       count,
+      documentCount: 0,
     };
   } catch (_error) {
     return {
       exists: false,
       collectionName,
       count: 0,
+      documentCount: 0,
     };
   }
 }
@@ -180,10 +138,8 @@ export async function getAllDocuments(): Promise<{
       return { documents: [], total_chunks: 0 };
     }
 
-    // Group by file_name to get unique documents
     const documents: Record<string, ChromaDocumentSummary> = {};
 
-    // Filter out null metadata values and process each document
     for (let i = 0; i < results.metadatas.length; i++) {
       const metadata = results.metadatas[i];
       if (!metadata) continue;
@@ -202,10 +158,6 @@ export async function getAllDocuments(): Promise<{
           upload_date:
             typeof metadata.upload_date === "string"
               ? metadata.upload_date
-              : null,
-          stored_file_path:
-            typeof metadata.stored_file_path === "string"
-              ? metadata.stored_file_path
               : null,
           first_chunk_id: results.ids[i],
         };
@@ -244,7 +196,6 @@ export async function deleteDocumentByName(fileName: string): Promise<number> {
       return 0;
     }
 
-    // Delete all chunks with their actual IDs
     await coll.delete({ ids: results.ids });
 
     return results.ids.length;

@@ -1,6 +1,6 @@
 /**
  * Engine Constants
- * Constants related to query, chat, and agent engines
+ * Constants related to query and chat engines
  */
 
 /**
@@ -14,11 +14,6 @@ export const QUERY_ENGINE_TYPES = ['default', 'router', 'subquestion'] as const;
 export const CHAT_ENGINE_TYPES = ['condense', 'context'] as const;
 
 /**
- * Agent types
- */
-export const AGENT_TYPES = ['react', 'openai', null] as const;
-
-/**
  * Default query engine type
  */
 export const DEFAULT_QUERY_ENGINE = 'default' as const;
@@ -27,11 +22,6 @@ export const DEFAULT_QUERY_ENGINE = 'default' as const;
  * Default chat engine type
  */
 export const DEFAULT_CHAT_ENGINE = 'condense' as const;
-
-/**
- * Default agent type
- */
-export const DEFAULT_AGENT_TYPE = null;
 
 /**
  * Query engine descriptions

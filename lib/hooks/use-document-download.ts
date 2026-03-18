@@ -4,22 +4,30 @@ import type { DocumentData } from '@/components/DocumentList/DocumentList.types'
 export function useDocumentDownload() {
   return useMutation({
     mutationKey: ['download-document'],
-    mutationFn: (doc: DocumentData): Promise<DocumentData> => {
-      const { file_url, file_name } = doc;
+    mutationFn: async (doc: DocumentData): Promise<DocumentData> => {
+      const { id, file_name, can_download } = doc;
 
-      if (!file_url) {
-        throw new Error('No file URL available for download');
+      if (!can_download) {
+        throw new Error('Download not available for this document');
       }
 
-      return new Promise((resolve) => {
-        const link = document.createElement('a');
-        link.href = file_url;
-        link.download = file_name;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        resolve(doc);
-      });
+      const response = await fetch(`/api/documents/${id}?action=download`);
+
+      if (!response.ok) {
+        throw new Error('Failed to download document');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = file_name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      return doc;
     },
   });
 }

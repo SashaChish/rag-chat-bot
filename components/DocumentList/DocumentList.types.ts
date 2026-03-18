@@ -30,7 +30,7 @@ export interface DocumentData {
   upload_date: string;
   chunk_count: number;
   file_size?: string;
-  file_url?: string;
+  can_download: boolean;
   content?: string;
 }
 

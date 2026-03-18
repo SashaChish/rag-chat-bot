@@ -1,15 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { initializeLlamaIndex } from '@/lib/core/llamaindex/core.utils';
-import { validateQuery } from '@/lib/validators/query.validators';
-import { executeQuery } from '@/lib/llamaindex/index';
-import { hasDocuments } from '@/lib/llamaindex/vectorstore';
-import { MetadataMode } from "llamaindex";
-import type {
-  ChatRequest,
-  ChatResponse,
-  ChatStatusResponse
-} from '@/lib/types/api';
-import type { SourceInfo, QueryChunk, SourceNode } from '@/lib/types/core.types';
+import { type NextRequest, NextResponse } from "next/server";
+import { initializeLlamaIndex } from "@/lib/llamaindex/utils";
+import { validateQuery } from "@/lib/validators/query.validators";
+import { executeQuery } from "@/lib/llamaindex/index";
+import { hasDocuments } from "@/lib/llamaindex/vectorstore";
+import type { ChatRequest, ChatStatusResponse } from "@/lib/types/api";
+import type { QueryChunk } from "@/lib/types/core.types";
 
 initializeLlamaIndex();
 
@@ -19,22 +14,22 @@ initializeLlamaIndex();
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const body = await request.json() as ChatRequest;
+    const body = (await request.json()) as ChatRequest;
     const {
       message,
       conversationHistory = [],
       streaming = false,
-      queryEngineType = "default",
-      chatEngineType = "condense",
-      agentType = null,
+      chatEngineType,
       sessionKey = null,
       systemPrompt = null,
     } = body;
 
+    const finalChatEngineType = chatEngineType || "condense";
+
     if (!message) {
       return NextResponse.json(
         { error: "Message is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -43,26 +38,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     } catch (error) {
       return NextResponse.json(
         { error: (error as Error).message },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    if (chatEngineType !== null && chatEngineType !== undefined) {
+    if (finalChatEngineType !== null && finalChatEngineType !== undefined) {
       const validChatEngineTypes = ["condense", "context"];
-      if (!validChatEngineTypes.includes(chatEngineType)) {
+      if (!validChatEngineTypes.includes(finalChatEngineType)) {
         return NextResponse.json(
-          { error: `Invalid chat engine type: ${chatEngineType}. Must be one of: ${validChatEngineTypes.join(", ")}` },
-          { status: 400 }
-        );
-      }
-    }
-
-    if (agentType !== null && agentType !== undefined) {
-      const validAgentTypes = ["react", "openai"];
-      if (!validAgentTypes.includes(agentType)) {
-        return NextResponse.json(
-          { error: `Invalid agent type: ${agentType}. Must be one of: ${validAgentTypes.join(", ")}` },
-          { status: 400 }
+          {
+            error: `Invalid chat engine type: ${finalChatEngineType}. Must be one of: ${validChatEngineTypes.join(", ")}`,
+          },
+          { status: 400 },
         );
       }
     }
@@ -72,12 +59,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       if (streaming) {
         return new NextResponse(
           JSON.stringify({
-            response: "I don't have any documents to search through yet. Please upload some documents first, and then I can help answer your questions!",
+            response:
+              "I don't have any documents to search through yet. Please upload some documents first, and then I can help answer your questions!",
             sources: [],
           }),
           {
             headers: { "Content-Type": "application/json" },
-          }
+          },
         );
       } else {
         return NextResponse.json({
@@ -91,32 +79,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const result = await executeQuery(
       message,
       streaming,
-      "documents",
-      queryEngineType,
       conversationHistory,
-      chatEngineType,
-      agentType,
+      finalChatEngineType,
       sessionKey,
       systemPrompt,
     );
 
     if (result.error) {
-      const errorMsg = typeof result.error === 'string' ? result.error : 'An error occurred';
+      const errorMsg =
+        typeof result.error === "string" ? result.error : "An error occurred";
       console.error("Query error:", errorMsg);
 
       if (streaming) {
-        return new NextResponse(
-          JSON.stringify({ error: errorMsg }),
-          {
-            status: 500,
-            headers: { "Content-Type": "application/json" },
-          }
-        );
+        return new NextResponse(JSON.stringify({ error: errorMsg }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
       } else {
-        return NextResponse.json(
-          { error: errorMsg },
-          { status: 500 }
-        );
+        return NextResponse.json({ error: errorMsg }, { status: 500 });
       }
     }
 
@@ -126,10 +106,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const stream = new ReadableStream({
         async start(controller) {
           try {
-            let collectedSources: SourceInfo[] = [];
-
             if (result.streaming && result.response) {
-              const responseStream = result.response as AsyncGenerator<QueryChunk>;
+              const responseStream =
+                result.response as AsyncGenerator<QueryChunk>;
 
               for await (const chunk of responseStream) {
                 let text = "";
@@ -137,63 +116,38 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                 if (typeof chunk === "string") {
                   text = chunk;
                 } else if (chunk && typeof chunk === "object") {
-                  const { message } = chunk;
-                  const { content } = message || {};
-                  const { delta, response: chunkResponse, content: chunkContent, value, text: chunkText } = chunk;
+                  const { message, delta, content } = chunk;
 
-                  if (content) {
-                    text = typeof content === "string"
-                      ? content
-                      : String(content);
-                  } else {
-                    text = delta || chunkResponse || chunkContent || value || chunkText || "";
-                  }
-
-                  if (!text && typeof chunk.toString === "function") {
-                    const str = chunk.toString();
-                    if (str && str !== "[object Object]") {
-                      text = str;
-                    }
+                  if (message?.content) {
+                    text = String(message.content);
+                  } else if (delta) {
+                    text = delta;
+                  } else if (content) {
+                    text =
+                      typeof content === "string" ? content : String(content);
                   }
                 }
 
-                const { message: message2 } = chunk || {};
-                const { content: content2 } = message2 || {};
-                if (content2) {
-                  text = typeof content2 === 'string'
-                    ? content2
-                    : JSON.stringify(content2);
-                }
-
-                const { sourceNodes } = chunk || {};
-                if (sourceNodes && Array.isArray(sourceNodes)) {
-                  const chunkSources = sourceNodes.map((nodeWithScore: SourceNode) => {
-                    const { node } = nodeWithScore;
-                    const { metadata } = node;
-                    const { score } = nodeWithScore;
-
-                    return {
-                      filename: metadata?.file_name || "Unknown",
-                      fileType: metadata?.file_type || "Unknown",
-                      score: score !== undefined ? parseFloat(score.toFixed(3)) : 0,
-                      preview: node.getContent(MetadataMode.NONE).substring(0, 200) + "...",
-                      metadata,
-                    };
-                  });
-
-                  if (chunkSources.length > 0) {
-                    collectedSources = chunkSources;
-                  }
-                }
-
-                if (text && typeof text === "string" && text.length > 0) {
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ chunk: text })}\n\n`));
+                if (text && text.length > 0) {
+                  controller.enqueue(
+                    encoder.encode(
+                      `data: ${JSON.stringify({ chunk: text })}\n\n`,
+                    ),
+                  );
                 }
               }
 
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, sources: collectedSources })}\n\n`));
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({ done: true, sources: [] })}\n\n`,
+                ),
+              );
             } else {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ response: result.response, sources: result.sources })}\n\n`));
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({ response: result.response, sources: result.sources })}\n\n`,
+                ),
+              );
             }
 
             controller.close();
@@ -208,11 +162,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         headers: {
           "Content-Type": "text/event-stream",
           "Cache-Control": "no-cache",
-          "Connection": "keep-alive",
+          Connection: "keep-alive",
         },
       });
     } else {
-      const response: ChatResponse = {
+      const response = {
         response: result.response as string,
         sources: result.sources,
       };
@@ -223,7 +177,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     console.error("Error in chat API:", error);
     return NextResponse.json(
       { error: "Failed to process your request. Please try again." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -244,7 +198,7 @@ export async function GET(): Promise<NextResponse> {
     console.error("Error in chat status check:", error);
     return NextResponse.json(
       { error: "Failed to check status" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

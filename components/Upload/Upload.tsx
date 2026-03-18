@@ -199,14 +199,14 @@ export default function Upload({ onUploadSuccess, supportedFormats }: UploadProp
       </div>
 
       {error && (
-        <div className={`${styles.uploadMessage} ${styles.uploadError}`}>
+        <div className={`${styles.uploadMessage} ${styles.uploadError}`} data-testid="upload-error">
           <span className={styles.messageIcon}>❌</span>
           {error}
         </div>
       )}
 
       {success && (
-        <div className={`${styles.uploadMessage} ${styles.uploadSuccess}`}>
+        <div className={`${styles.uploadMessage} ${styles.uploadSuccess}`} data-testid="upload-success">
           <span className={styles.messageIcon}>✅</span>
           {success.message}
           {success.chunksProcessed && (

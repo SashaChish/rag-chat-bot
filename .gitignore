@@ -7,6 +7,8 @@
 # testing
 /coverage
 .nyc_output/
+/test-results/
+playwright-report/
 
 # next.js
 /.next/
@@ -39,8 +41,9 @@ lerna-debug.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# data directory (chroma persistence)
-/data/chroma
+# data directories (generated storage)
+/data/
+.playwright-mcp/
 
 # temp upload directory
 /public/uploads

@@ -210,7 +210,7 @@ export default function DocumentList(): JSX.Element {
       )}
 
       {documents && documents.length > 0 && (
-        <div className={styles.documentListContainer}>
+        <div className={styles.documentListContainer} data-testid="document-list">
           {isFetching && !isLoading ? (
             <div className={styles.loadingState}>Refreshing...</div>
           ) : (
@@ -256,7 +256,7 @@ export default function DocumentList(): JSX.Element {
                     >
                       👁️
                     </button>
-                    {doc.file_url && (
+                    {doc.can_download && (
                       <button
                         onClick={() => handleDownload(doc)}
                         className={styles.actionButton}
@@ -271,6 +271,8 @@ export default function DocumentList(): JSX.Element {
                       className={`${styles.actionButton} ${styles.deleteButton}`}
                       title="Delete document"
                       type="button"
+                      data-testid="delete-document-button"
+                      aria-label={`Delete ${doc.file_name}`}
                     >
                       🗑️
                     </button>
@@ -347,16 +349,16 @@ export default function DocumentList(): JSX.Element {
                   </span>
                 </div>
               )}
-              {selectedDocument.file_url && (
+              {selectedDocument.can_download && (
                 <div className={styles.detailRow}>
                   <span className={styles.detailLabel}>Download:</span>
-                  <a
-                    href={selectedDocument.file_url}
-                    download={selectedDocument.file_name}
+                  <button
+                    onClick={() => handleDownload(selectedDocument)}
                     className={styles.detailLink}
+                    type="button"
                   >
                     Download file
-                  </a>
+                  </button>
                 </div>
               )}
             </div>

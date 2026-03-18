@@ -3,10 +3,8 @@ import { OpenAI, OpenAIEmbedding } from "@llamaindex/openai";
 import { Anthropic } from "@llamaindex/anthropic";
 import { Groq } from "@llamaindex/groq";
 import { Ollama, OllamaEmbedding } from "@llamaindex/ollama";
-import type { EmbeddingModelType } from "../types";
 
 export type LLMProvider = 'openai' | 'anthropic' | 'groq' | 'ollama';
-
 export type EmbeddingProvider = 'openai' | 'ollama';
 
 export interface LLMConfig {
@@ -29,36 +27,32 @@ export function configureLLM(): unknown {
         timeout: parseInt(process.env.LLM_TIMEOUT || "60000", 10),
       });
       break;
-
     case "anthropic":
       if (!process.env.ANTHROPIC_API_KEY) {
         throw new Error("ANTHROPIC_API_KEY is required when using Anthropic provider");
       }
       Settings.llm = new Anthropic({
         apiKey: process.env.ANTHROPIC_API_KEY,
-        model: model || "claude-3-haiku-20240307",
+        model: model || "claude-3-5-sonnet-20241022",
         timeout: parseInt(process.env.LLM_TIMEOUT || "60000", 10),
       });
       break;
-
     case "groq":
       if (!process.env.GROQ_API_KEY) {
         throw new Error("GROQ_API_KEY is required when using Groq provider");
       }
       Settings.llm = new Groq({
         apiKey: process.env.GROQ_API_KEY,
-        model: model || "llama-3.3-70b-versatile",
+        model: model || "llama-3.1-8b-versatile",
         timeout: parseInt(process.env.LLM_TIMEOUT || "60000", 10),
       });
       break;
-
     case "ollama":
-      const ollamaModel = process.env.OLLAMA_MODEL || model || "llama2";
+      const ollamaModel = process.env.OLLAMA_MODEL || model || "llama3.2";
       Settings.llm = new Ollama({
         model: ollamaModel,
       });
       break;
-
     default:
       throw new Error(`Unsupported LLM provider: ${provider}. Supported providers: openai, anthropic, groq, ollama`);
   }
@@ -66,7 +60,7 @@ export function configureLLM(): unknown {
   return Settings.llm;
 }
 
-export function configureEmbedding(): EmbeddingModelType {
+export function configureEmbedding(): unknown {
   const embeddingProvider = (process.env.EMBEDDING_PROVIDER || "openai") as EmbeddingProvider;
   const embeddingModel = process.env.EMBEDDING_MODEL || "text-embedding-3-small";
 
@@ -81,14 +75,12 @@ export function configureEmbedding(): EmbeddingModelType {
         timeout: parseInt(process.env.EMBEDDING_TIMEOUT || "60000", 10),
       });
       break;
-
     case "ollama":
       const ollamaEmbeddingModel = process.env.OLLAMA_EMBEDDING_MODEL || embeddingModel;
       Settings.embedModel = new OllamaEmbedding({
         model: ollamaEmbeddingModel,
       });
       break;
-
     default:
       throw new Error(`Unsupported embedding provider: ${embeddingProvider}. Supported providers: openai, ollama`);
   }

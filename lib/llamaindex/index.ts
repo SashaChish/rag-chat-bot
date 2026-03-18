@@ -1,42 +1,27 @@
 import { Document } from "@llamaindex/core/schema";
 import {
   VectorStoreIndex,
-  CondenseQuestionChatEngine,
-  ContextChatEngine,
-  MetadataMode,
+  type CondenseQuestionChatEngine,
+  type ContextChatEngine,
 } from "llamaindex";
-import { Settings } from "@llamaindex/core/global";
+import { IncludeEnum } from "chromadb";
 import type {
-  SourceInfo,
+  SourceNode,
   QueryResponse,
   ChatMessage,
-  QueryEngineType,
   ChatEngineType,
-  AgentType,
   IndexStats,
-  IndexType,
   RAGDocument,
-  SourceNode,
   QueryChunk,
-  DocumentMetadata,
 } from "../types/core.types";
-import type { Collection, Metadata } from "chromadb";
-import { getChromaClient } from "./vectorstore";
-import { getQueryEngine } from "./queryengines";
+import { getChromaVectorStore, getStorageContext } from "./vectorstore";
 import { getChatEngine, convertToChatMessages } from "./chatengines";
-import { getAgent } from "./agents";
-import { initializeSettings } from "./settings";
 import { getSystemPrompt } from "./prompts";
+import { extractSources } from "./sources";
 
-// Global cache for VectorStoreIndex instances
-declare global {
-  // eslint-disable-next-line no-var
-  var indexCache: Record<string, IndexType> | undefined;
-}
-
-if (typeof global !== "undefined" && !global.indexCache) {
-  global.indexCache = {};
-}
+let cachedIndex: VectorStoreIndex | null = null;
+let indexCacheTimestamp: number = 0;
+const INDEX_CACHE_TTL = 5 * 60 * 1000; // 5 minutes TTL
 
 interface AddDocumentsResult {
   success: boolean;
@@ -55,45 +40,62 @@ interface ClearIndexResult {
   error?: string;
 }
 
-async function getChromaCollection(
-  collectionName: string = "documents",
-): Promise<Collection> {
-  const client = await getChromaClient();
-  return (await client.getCollection({
-    name: collectionName,
-  })) as Collection;
+async function getChromaCollection() {
+  const vectorStore = await getChromaVectorStore();
+  return await vectorStore.getCollection();
+}
+
+async function getOrCreateIndex(): Promise<VectorStoreIndex> {
+  const now = Date.now();
+
+  if (cachedIndex && now - indexCacheTimestamp < INDEX_CACHE_TTL) {
+    return cachedIndex;
+  }
+
+  const vectorStore = await getChromaVectorStore();
+  cachedIndex = await VectorStoreIndex.fromVectorStore(vectorStore);
+  indexCacheTimestamp = now;
+  return cachedIndex;
+}
+
+export function clearIndexCache(): void {
+  cachedIndex = null;
+  indexCacheTimestamp = 0;
 }
 
 export async function getIndexStats(
   collectionName: string = "documents",
 ): Promise<IndexStats> {
   try {
-    const collection = await getChromaCollection(collectionName);
+    const collection = await getChromaCollection();
     const count = await collection.count();
 
     return {
       exists: true,
       collectionName,
       count,
+      documentCount: 0,
     };
   } catch (_error) {
     return {
       exists: false,
       collectionName,
       count: 0,
+      documentCount: 0,
     };
   }
 }
 
 export async function deleteDocument(
-  _documentId: string,
-  collectionName: string = "documents",
+  documentId: string,
 ): Promise<DeleteDocumentResult> {
   try {
-    const coll = await getChromaCollection(collectionName);
+    const coll = await getChromaCollection();
 
     // Query for all chunks with this file_name
-    const results = await coll.get();
+    const results = await coll.get({
+      where: { file_name: documentId },
+    });
 
     if (!results.ids || results.ids.length === 0) {
       return { success: true, chunksDeleted: 0 };
@@ -103,11 +105,6 @@ export async function deleteDocument(
     await coll.delete({
       ids: results.ids,
     });
-
-    // Clear the index cache so it will be rebuilt
-    if (global.indexCache) {
-      delete global.indexCache[collectionName];
-    }
 
     return { success: true, chunksDeleted: results.ids.length };
   } catch (error) {
@@ -123,32 +120,23 @@ export async function clearIndex(
   collectionName: string = "documents",
 ): Promise<ClearIndexResult> {
   try {
-    const client = await getChromaClient();
+    const vectorStore = await getChromaVectorStore();
+    const coll = await vectorStore.getCollection();
 
     console.log(
       `[clearIndex] Starting clear for collection: ${collectionName}`,
     );
 
-    try {
-      await client.deleteCollection({ name: collectionName });
-      console.log(`[clearIndex] Deleted collection: ${collectionName}`);
-    } catch (_e) {
-      console.log(
-        `[clearIndex] Collection didn't exist or already deleted: ${collectionName}`,
-      );
+    const ids = await coll.get({ include: [IncludeEnum.Documents] });
+
+    if (ids.ids && ids.ids.length > 0) {
+      await coll.delete({ ids: ids.ids });
+      console.log(`[clearIndex] Deleted ${ids.ids.length} documents`);
+    } else {
+      console.log(`[clearIndex] No documents to delete`);
     }
 
-    if (global.indexCache) {
-      delete global.indexCache[collectionName];
-      console.log(`[clearIndex] Cleared cache for: ${collectionName}`);
-    }
-
-    // Recreate empty collection with metadata
-    await client.createCollection({
-      name: collectionName,
-      metadata: { description: "RAG Chatbot documents" },
-    });
-    console.log(`[clearIndex] Recreated collection: ${collectionName}`);
+    clearIndexCache();
 
     return { success: true };
   } catch (error) {
@@ -162,7 +150,6 @@ export async function clearIndex(
 
 export async function addDocuments(
   documents: RAGDocument[],
-  collectionName: string = "documents",
 ): Promise<AddDocumentsResult> {
   const llamaDocuments = documents.map(({ text, metadata }) => {
     const fileName = metadata.file_name || metadata.filename || "Unknown";
@@ -180,16 +167,16 @@ export async function addDocuments(
     });
   });
 
-  // Store document metadata in ChromaDB for document list functionality
-  await storeDocumentsInChroma(llamaDocuments, collectionName);
+  const storageContext = await getStorageContext();
 
-  // Use default vector store (SimpleVectorStore) for in-memory indexing
-  const index = await VectorStoreIndex.fromDocuments(llamaDocuments);
+  await VectorStoreIndex.fromDocuments(llamaDocuments, {
+    storageContext,
+    vectorStores: {
+      TEXT: storageContext.vectorStores.TEXT,
+    },
+  });
 
-  if (global.indexCache === undefined) {
-    global.indexCache = {};
-  }
-  global.indexCache[collectionName] = index;
+  clearIndexCache();
 
   return {
     success: true,
@@ -198,174 +185,18 @@ export async function addDocuments(
   };
 }
 
-/**
- * Store document metadata in ChromaDB for document list
- */
-async function storeDocumentsInChroma(
-  documents: Document[],
-  collectionName: string = "documents",
-): Promise<void> {
-  try {
-    // Ensure settings are initialized
-    if (!Settings.embedModel) {
-      initializeSettings();
-    }
-
-    const client = await getChromaClient();
-    const collection = await client.getOrCreateCollection({
-      name: collectionName,
-      metadata: { description: "RAG Chatbot documents" },
-    });
-
-    // Extract document data for ChromaDB
-    const ids: string[] = [];
-    const metadatas: Metadata[] = [];
-    const docs: string[] = [];
-    const texts: string[] = [];
-
-    for (const doc of documents) {
-      const id = `${doc.metadata.file_name}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-      ids.push(id);
-      metadatas.push(doc.metadata);
-      docs.push(doc.text);
-      texts.push(doc.text);
-    }
-
-    // Generate embeddings using LlamaIndex.TS
-    const embeddings = await Settings.embedModel.getTextEmbeddings(texts);
-
-    // Add documents to ChromaDB with embeddings
-    const addParams = {
-      ids,
-      embeddings,
-      metadatas,
-      documents: docs,
-    };
-    await (collection as Collection).add(addParams);
-
-    console.log(`Stored ${documents.length} documents in ChromaDB`);
-  } catch (error) {
-    console.error("Error storing documents in ChromaDB:", error);
-    // Don't throw - allow the upload to continue even if ChromaDB fails
-  }
-}
-
-/**
- * Execute a query against the index
- */
 export async function executeQuery(
   query: string,
   streaming: boolean = false,
-  collectionName: string = "documents",
-  queryEngineType: QueryEngineType = "default",
   conversationHistory: ChatMessage[] = [],
   chatEngineType: ChatEngineType | null = null,
-  agentType: AgentType = null,
   sessionKey: string | null = null,
   systemPrompt: string | null = null,
 ): Promise<QueryResponse> {
   try {
-    let index = global.indexCache?.[collectionName];
+    const index = await getOrCreateIndex();
 
-    // If index is not in cache but documents exist, rebuild from Chroma
-    if (!index) {
-      const stats = await getIndexStats(collectionName);
-      if (stats.count === 0) {
-        // No documents - return success with helpful message (not an error)
-        return {
-          response:
-            "I don't have any documents to search through yet. Please upload some documents first.",
-          sources: [],
-          streaming: false,
-        };
-      }
-
-      // Documents exist but index not cached - need to rebuild
-      try {
-        // Load documents from Chroma and create index
-        const chromaCollection = await getChromaCollection(collectionName);
-        const results = await chromaCollection.get();
-
-        if (results.documents && results.documents.length > 0) {
-          const documents = results.documents
-            .filter((text: string | null): text is string => text !== null)
-            .map((text: string, i: number) => {
-              const metadata = results.metadatas?.[i] || {};
-              return new Document({
-                text: text,
-                metadata: metadata,
-              });
-            });
-
-          // Create index from documents (using default vector store)
-          index = await VectorStoreIndex.fromDocuments(documents);
-
-          // Cache index
-          if (global.indexCache === undefined) {
-            global.indexCache = {};
-          }
-          global.indexCache[collectionName] = index;
-
-          console.log(
-            `Rebuilt index from Chroma: ${documents.length} documents`,
-          );
-        } else {
-          // No documents in Chroma
-          return {
-            response:
-              "I don't have any documents to search through yet. Please upload some documents first.",
-            sources: [],
-            streaming: false,
-          };
-        }
-      } catch (rebuildError) {
-        console.error("Failed to rebuild index from Chroma:", rebuildError);
-        return {
-          response:
-            "I encountered an error while trying to access your documents. Please try again.",
-          sources: [],
-          error: "Index not available",
-          streaming: false,
-        };
-      }
-    }
-
-    // Agent Routing - HIGHEST PRIORITY
-    if (agentType) {
-      try {
-        const agent = await getAgent(index, agentType, sessionKey, {
-          systemPrompt,
-        });
-
-        if (streaming) {
-          const response = (await agent.chat({
-            message: query,
-            stream: true,
-          })) as ReadableStream<QueryChunk>;
-
-          return {
-            response: response,
-            sources: [],
-            streaming: true,
-            agent: true,
-          };
-        }
-
-        const response = await agent.chat({ message: query });
-
-        return {
-          response: response.response || response.toString(),
-          sources: [], // Agents may provide different source format
-          streaming: false,
-          agent: true,
-        };
-      } catch (agentError) {
-        console.error("Agent error:", agentError);
-        throw agentError;
-      }
-    }
-
-    // Chat Engine Routing - prioritized over query engines when chatEngineType is provided
+    // Chat Engine Routing - handles all query use cases including conversation history
     if (chatEngineType) {
       const chatMessages = convertToChatMessages(conversationHistory);
 
@@ -382,64 +213,26 @@ export async function executeQuery(
 
         if (streaming) {
           const response = (await (
-            chatEngine as
-              | CondenseQuestionChatEngine
-              | (ContextChatEngine & {
-                  chat: (options: {
-                    message: string;
-                    stream: boolean;
-                  }) => AsyncIterable<unknown>;
-                })
+            chatEngine as CondenseQuestionChatEngine | ContextChatEngine
           ).chat({
             message: query,
             stream: true,
-          })) as AsyncGenerator<QueryChunk>;
+          })) as AsyncIterable<unknown>;
 
           return {
-            response: response,
+            response: response as AsyncGenerator<QueryChunk>,
             sources: [],
             streaming: true,
           };
         }
 
         const response = await (
-          chatEngine as
-            | CondenseQuestionChatEngine
-            | (ContextChatEngine & {
-                chat: (options: { message: string }) => {
-                  response?: string;
-                  sourceNodes?: SourceNode[];
-                };
-              })
+          chatEngine as CondenseQuestionChatEngine | ContextChatEngine
         ).chat({ message: query });
-
-        const sources: SourceInfo[] = [];
-        if (response.sourceNodes) {
-          for (const nodeWithScore of response.sourceNodes) {
-            const { node, score } = nodeWithScore;
-            const metadata = node.metadata as Partial<DocumentMetadata>;
-            const fileName = metadata.file_name || "Unknown";
-            const fileType = metadata.file_type || "Unknown";
-            const scoreValue = score ? parseFloat(score.toFixed(3)) : 0;
-            const content =
-              typeof node.getContent === "function"
-                ? node.getContent(MetadataMode.NONE)
-                : "";
-            const preview = content.substring(0, 200) + "...";
-
-            sources.push({
-              filename: fileName,
-              fileType,
-              score: scoreValue,
-              text: preview,
-              metadata: metadata as DocumentMetadata,
-            });
-          }
-        }
 
         return {
           response: response.response || response.toString(),
-          sources: sources,
+          sources: extractSources(response.sourceNodes as SourceNode[]),
           streaming: false,
         };
       } catch (chatError) {
@@ -457,67 +250,10 @@ export async function executeQuery(
       }
     }
 
-    // Query Engine Routing - for backward compatibility
-    // Note: Query engines in LlamaIndex.TS don't directly support system messages.
-    // For explicit system prompt control, use chat engines instead (via chatEngineType parameter).
-    const queryEngine = await getQueryEngine(index, queryEngineType);
-
-    if (streaming && queryEngineType === "default") {
-      const response = (await (
-        queryEngine as {
-          query: (options: {
-            query: string;
-            stream: boolean;
-          }) => ReadableStream<unknown>;
-        }
-      ).query({
-        query,
-        stream: true,
-      })) as ReadableStream<QueryChunk>;
-
-      return {
-        response: response,
-        sources: [],
-        streaming: true,
-      };
-    }
-
-    const response = await (
-      queryEngine as {
-        query: (options: { query: string }) => {
-          response?: string;
-          sourceNodes?: SourceNode[];
-        };
-      }
-    ).query({ query });
-
-    const sources: SourceInfo[] = [];
-    if (response.sourceNodes) {
-      for (const nodeWithScore of response.sourceNodes) {
-        const { node, score } = nodeWithScore;
-        const metadata = node.metadata as Partial<DocumentMetadata>;
-        const fileName = metadata.file_name || "Unknown";
-        const fileType = metadata.file_type || "Unknown";
-        const scoreValue = score ? parseFloat(score.toFixed(3)) : 0;
-        const content =
-          typeof node.getContent === "function"
-            ? node.getContent(MetadataMode.NONE)
-            : "";
-        const preview = content.substring(0, 200) + "...";
-
-        sources.push({
-          filename: fileName,
-          fileType,
-          score: scoreValue,
-          text: preview,
-          metadata: metadata as DocumentMetadata,
-        });
-      }
-    }
-
     return {
-      response: response.response || response.toString(),
-      sources: sources,
+      response: "",
+      sources: [],
+      error: "No chat engine type specified",
       streaming: false,
     };
   } catch (error) {
@@ -525,7 +261,6 @@ export async function executeQuery(
       message: (error as Error).message,
       stack: (error as Error).stack?.split("\n").slice(0, 5).join("\n"),
       queryLength: query?.length,
-      queryEngineType,
       chatEngineType,
       conversationHistoryLength: conversationHistory?.length,
     });

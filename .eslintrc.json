@@ -1,13 +1,15 @@
 {
-  "extends": [
-    "next/core-web-vitals",
-    "plugin:@typescript-eslint/recommended"
-  ],
+  "extends": ["next/core-web-vitals", "plugin:@typescript-eslint/recommended"],
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
     "project": "./tsconfig.json"
   },
   "rules": {
+    "@typescript-eslint/no-explicit-any": "error",
+    "@typescript-eslint/consistent-type-imports": [
+      "error",
+      { "prefer": "type-imports" }
+    ],
     "prefer-destructuring": [
       "error",
       {
@@ -35,5 +37,18 @@
         "ignoreRestSiblings": true
       }
     ]
-  }
+  },
+  "overrides": [
+    {
+      "files": [
+        "__tests__/**/*.ts",
+        "__tests__/**/*.tsx",
+        "**/*.test.ts",
+        "**/*.spec.ts"
+      ],
+      "rules": {
+        "@typescript-eslint/no-explicit-any": "error"
+      }
+    }
+  ]
 }

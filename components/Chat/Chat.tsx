@@ -15,7 +15,6 @@ export default function Chat(): JSX.Element {
   const [chatEngineType, setChatEngineType] = useState<"condense" | "context">(
     "condense",
   );
-  const [agentType, setAgentType] = useState<"react" | "openai" | null>(null);
   const [showClearModal, setShowClearModal] = useState(false);
   const [sessionKey] = useState<string>(
     `session-${Date.now()}-${Math.random().toString(36).substring(7)}`,
@@ -78,7 +77,6 @@ export default function Chat(): JSX.Element {
           streaming: true,
           conversationHistory: history,
           chatEngineType: chatEngineType,
-          agentType: agentType,
           sessionKey: sessionKey,
         }),
       });
@@ -193,7 +191,6 @@ export default function Chat(): JSX.Element {
   const handleConfirmClear = (): void => {
     setMessages([]);
     setChatEngineType("condense");
-    setAgentType(null);
     setShowClearModal(false);
   };
 
@@ -208,31 +205,26 @@ export default function Chat(): JSX.Element {
           <h2>Chat with Your Documents</h2>
           <div className={styles.headerControls}>
             <select
-              value={agentType || chatEngineType}
+              value={chatEngineType}
               onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
                 const { value } = e.target;
-                if (value === "react" || value === "openai") {
-                  setAgentType(value as "react" | "openai");
-                } else {
-                  setAgentType(null);
-                  if (value === "condense" || value === "context") {
-                    setChatEngineType(value);
-                  }
+                if (value === "condense" || value === "context") {
+                  setChatEngineType(value);
                 }
               }}
               className={styles.engineSelector}
               disabled={isLoading}
+              data-testid="engine-selector"
             >
               <option value="condense">Condense Question</option>
               <option value="context">Context Engine</option>
-              <option value="react">ReAct Agent</option>
-              <option value="openai">OpenAI Agent</option>
             </select>
             {messages.length > 0 && (
               <button
                 onClick={handleClearChat}
                 className={styles.clearChatButton}
                 type="button"
+                data-testid="clear-chat-button"
               >
                 Clear Chat
               </button>
@@ -240,13 +232,9 @@ export default function Chat(): JSX.Element {
           </div>
         </div>
         <p className={styles.engineDescription}>
-          {agentType === "react"
-            ? "ReAct Agent uses reasoning + action patterns to autonomously search documents and answer complex, multi-step questions."
-            : agentType === "openai"
-              ? "OpenAI Agent uses function calling to intelligently select and use tools for document search and answering."
-              : chatEngineType === "condense"
-                ? "Condenses conversation history into a standalone query before retrieving relevant documents. Maintains context while keeping queries focused."
-                : "Retrieves relevant documents and provides them as context to LLM along with your conversation history. Explicit context for comprehensive answers."}
+          {chatEngineType === "condense"
+            ? "Condenses conversation history into a standalone query before retrieving relevant documents. Maintains context while keeping queries focused."
+            : "Retrieves relevant documents and provides them as context to LLM along with your conversation history. Explicit context for comprehensive answers."}
         </p>
       </div>
 
@@ -274,7 +262,7 @@ export default function Chat(): JSX.Element {
         </button>
       </div>
 
-      {inputError && <div className={styles.inputError}>{inputError}</div>}
+      {inputError && <div className={styles.inputError} data-testid="input-error">{inputError}</div>}
 
       <Modal
         isOpen={showClearModal}

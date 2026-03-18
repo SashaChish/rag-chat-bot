@@ -1,0 +1,146 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { renderHook, act } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { createElement, type ReactNode } from 'react';
+
+interface DocumentData {
+  id: string;
+  file_name: string;
+  file_type: string;
+  upload_date: string;
+  chunk_count: number;
+  content: string;
+  file_size?: string;
+  can_download: boolean;
+}
+
+const createWrapper = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      mutations: {
+        retry: false,
+      },
+    },
+  });
+
+  const Wrapper = ({ children }: { children: ReactNode }) =>
+    createElement(QueryClientProvider, { client: queryClient }, children);
+
+  return { Wrapper, queryClient };
+};
+
+const createMockDocument = (overrides: Partial<DocumentData> = {}): DocumentData => ({
+  id: 'test-doc',
+  file_name: 'test.txt',
+  file_type: 'TEXT',
+  upload_date: '2024-01-01T00:00:00Z',
+  chunk_count: 1,
+  content: '',
+  file_size: undefined,
+  can_download: true,
+  ...overrides,
+});
+
+describe('useDocumentDownload', () => {
+  const originalFetch = global.fetch;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    vi.restoreAllMocks();
+  });
+
+  it('should be defined', async () => {
+    const { useDocumentDownload } = await import('@/lib/hooks/use-document-download');
+    expect(useDocumentDownload).toBeDefined();
+    expect(typeof useDocumentDownload).toBe('function');
+  });
+
+  it('should return mutation functions', async () => {
+    const { Wrapper } = createWrapper();
+    const { useDocumentDownload } = await import('@/lib/hooks/use-document-download');
+    const { result } = renderHook(() => useDocumentDownload(), { wrapper: Wrapper });
+
+    expect(result.current.mutate).toBeDefined();
+    expect(result.current.mutateAsync).toBeDefined();
+    expect(result.current.isPending).toBeDefined();
+  });
+
+  it('should throw error when can_download is false', async () => {
+    const { Wrapper } = createWrapper();
+    const { useDocumentDownload } = await import('@/lib/hooks/use-document-download');
+    const { result } = renderHook(() => useDocumentDownload(), { wrapper: Wrapper });
+
+    const doc = createMockDocument({ can_download: false });
+
+    await act(async () => {
+      try {
+        await result.current.mutateAsync(doc);
+        // Should not reach here
+        expect(true).toBe(false);
+      } catch (error) {
+        expect((error as Error).message).toBe('Download not available for this document');
+      }
+    });
+  });
+
+  it('should throw error when fetch fails', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+    });
+
+    const { Wrapper } = createWrapper();
+    const { useDocumentDownload } = await import('@/lib/hooks/use-document-download');
+    const { result } = renderHook(() => useDocumentDownload(), { wrapper: Wrapper });
+
+    const doc = createMockDocument();
+
+    await act(async () => {
+      try {
+        await result.current.mutateAsync(doc);
+        // Should not reach here
+        expect(true).toBe(false);
+      } catch (error) {
+        expect((error as Error).message).toBe('Failed to download document');
+      }
+    });
+  });
+
+  it('should call fetch with correct URL', async () => {
+    const mockBlob = new Blob(['test content'], { type: 'text/plain' });
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      blob: () => Promise.resolve(mockBlob),
+    });
+    global.fetch = mockFetch;
+
+    // Mock URL.createObjectURL and revokeObjectURL to avoid actual blob URL creation
+    const mockCreateObjectURL = vi.fn(() => 'blob:test-url');
+    const mockRevokeObjectURL = vi.fn();
+    const originalCreateObjectURL = window.URL.createObjectURL;
+    const originalRevokeObjectURL = window.URL.revokeObjectURL;
+    window.URL.createObjectURL = mockCreateObjectURL;
+    window.URL.revokeObjectURL = mockRevokeObjectURL;
+
+    const { Wrapper } = createWrapper();
+    const { useDocumentDownload } = await import('@/lib/hooks/use-document-download');
+    const { result } = renderHook(() => useDocumentDownload(), { wrapper: Wrapper });
+
+    const doc = createMockDocument({ file_name: 'custom-file.pdf' });
+
+    await act(async () => {
+      await result.current.mutateAsync(doc);
+    });
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/documents/test-doc?action=download');
+    expect(mockCreateObjectURL).toHaveBeenCalledWith(mockBlob);
+    expect(mockRevokeObjectURL).toHaveBeenCalledWith('blob:test-url');
+
+    // Restore
+    window.URL.createObjectURL = originalCreateObjectURL;
+    window.URL.revokeObjectURL = originalRevokeObjectURL;
+  });
+});

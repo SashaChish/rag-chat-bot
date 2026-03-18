@@ -6,18 +6,18 @@
 
 // Import LlamaIndex built-in types
 import type {
-  BaseNode,
   NodeWithScore,
   ChatMessage as LlamaIndexChatMessage,
-  EngineResponse as LlamaIndexEngineResponse,
   VectorStoreIndex,
+  CondenseQuestionChatEngine,
+  ContextChatEngine,
 } from "llamaindex";
 
 // Re-export VectorStoreIndex as IndexType for backward compatibility
 export type IndexType = VectorStoreIndex;
 
-// Chat engine return type - uses unknown for flexibility with different engine types
-export type ChatEngineReturnType = unknown;
+// Chat engine return type - union of supported chat engine types
+export type ChatEngineReturnType = CondenseQuestionChatEngine | ContextChatEngine;
 
 /**
  * Use LlamaIndex's ChatMessage type for compatibility
@@ -33,8 +33,8 @@ export interface DocumentMetadata {
   file_path?: string;
   file_type: string;
   upload_date: string;
-  file_url?: string;
-  stored_file_path?: string;
+  original_file_base64?: string;
+  can_download?: boolean;
   page_label?: string;
   title?: string;
   author?: string;
@@ -50,15 +50,7 @@ export interface RAGDocument {
   metadata: DocumentMetadata;
 }
 
-/**
- * Source node with score using LlamaIndex's NodeWithScore with custom metadata
- */
 export type SourceNode = NodeWithScore<DocumentMetadata>;
-
-/**
- * Document node type using LlamaIndex's BaseNode with custom metadata
- */
-export type DocumentNode = BaseNode<DocumentMetadata>;
 
 /**
  * Source information extracted from query results (application-specific for UI display)
@@ -80,7 +72,6 @@ export interface QueryResponse {
   sources: SourceInfo[];
   streaming: boolean;
   error?: string;
-  agent?: boolean;
 }
 
 /**
@@ -99,6 +90,7 @@ export interface QueryChunk {
 
 /**
  * Query engine type options
+ * @deprecated Use ChatEngineType instead - chat engines provide all query engine functionality plus conversation history
  */
 export type QueryEngineType = "default" | "router" | "subquestion";
 
@@ -106,11 +98,6 @@ export type QueryEngineType = "default" | "router" | "subquestion";
  * Chat engine type options
  */
 export type ChatEngineType = "condense" | "context";
-
-/**
- * Agent type options
- */
-export type AgentType = "react" | "openai" | null;
 
 /**
  * LLM provider options
@@ -124,6 +111,7 @@ export interface IndexStats {
   exists: boolean;
   collectionName: string;
   count: number;
+  documentCount: number;
 }
 
 /**
@@ -134,11 +122,10 @@ export interface DocumentListEntry {
   file_name: string;
   file_type: string;
   upload_date: string;
-  file_url: string | null;
-  stored_file_path: string | null;
   chunk_count: number;
   content: string;
   file_size: string | null;
+  can_download: boolean;
   deleted_chunks?: number;
   error?: string;
   success?: boolean;
@@ -149,53 +136,5 @@ export interface ChromaDocumentSummary {
   file_type: string;
   chunk_count: number;
   upload_date: string | null;
-  stored_file_path: string | null;
   first_chunk_id: string;
-}
-
-/**
- * Engine response structure - re-export LlamaIndex's EngineResponse
- */
-export type EngineResponse = LlamaIndexEngineResponse;
-
-/**
- * Query execution options
- */
-export interface QueryOptions {
-  streaming: boolean;
-  queryEngineType: QueryEngineType;
-  conversationHistory: ChatMessage[];
-  chatEngineType: ChatEngineType;
-  agentType: AgentType;
-  sessionKey: string | null;
-  systemPrompt: string | null;
-}
-
-/**
- * Document processing result
- */
-export interface DocumentProcessingResult {
-  documents: RAGDocument[];
-  chunksProcessed: number;
-  filename: string;
-}
-
-/**
- * Error types for LlamaIndex operations
- */
-export class LlamaIndexError extends Error {
-  constructor(message: string, _code?: string) {
-    super(message);
-    this.name = "LlamaIndexError";
-  }
-}
-
-/**
- * Validation error types
- */
-export class LlamaIndexValidationError extends Error {
-  constructor(message: string, _field?: string) {
-    super(message);
-    this.name = "ValidationError";
-  }
 }

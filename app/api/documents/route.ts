@@ -1,13 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
-import { saveUploadedFile, deleteUploadedFile } from "@/lib/core/upload/upload";
-import type { RAGDocument } from "@/lib/types/core.types";
+import { type NextRequest, NextResponse } from "next/server";
+import { Document } from "@llamaindex/core/schema";
+import { VectorStoreIndex } from "llamaindex";
 import {
-  loadDocument,
+  loadDocumentFromBuffer,
   validateFile,
   getSupportedFormatsList,
 } from "@/lib/llamaindex/loaders";
-import { addDocuments, getIndexStats } from "@/lib/llamaindex/index";
-import { generateDocumentId } from "@/lib/core/llamaindex/core.utils";
+import { getChromaVectorStore, getStorageContext, getCollectionStats, getAllDocuments } from "@/lib/llamaindex/vectorstore";
+import { generateDocumentId } from "@/lib/llamaindex/utils";
 import { formatFileSize } from "@/lib/utils/format.utils";
 import { initializeSettings } from "@/lib/llamaindex/settings";
 import type {
@@ -15,18 +15,6 @@ import type {
   DocumentsGetResponse,
   DocumentListResponse,
 } from "@/lib/types/api";
-
-interface DocumentEntry {
-  id: string;
-  file_name: string;
-  file_type: string;
-  upload_date: string;
-  file_url: string | null;
-  stored_file_path: string | null;
-  chunk_count: number;
-  content: string;
-  file_size: string | null;
-}
 
 initializeSettings();
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -47,45 +35,63 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const savedFile = await saveUploadedFile(file);
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const { documents } = await loadDocumentFromBuffer(buffer, file.name);
 
-    try {
-      const documents = await loadDocument(savedFile.path);
-
-      if (documents.length === 0) {
-        throw new Error("No content could be extracted from file");
-      }
-
-      const documentsWithMetadata: RAGDocument[] = documents.map((doc) => ({
-        text: doc.text,
-        metadata: {
-          ...(doc.metadata || {}),
-          file_name: file.name,
-          file_url: `/uploads/${savedFile.filename}`,
-          stored_file_path: savedFile.path,
-        },
-      }));
-
-      await addDocuments(documentsWithMetadata);
-
-      const documentId = generateDocumentId(file.name);
-
-      const response: DocumentUploadResponse = {
-        success: true,
-        id: documentId,
-        filename: file.name,
-        originalName: file.name,
-        size: formatFileSize(file.size),
-        type: file.type,
-        chunksProcessed: documents.length,
-        message: "Document uploaded and indexed successfully",
-      };
-
-      return NextResponse.json(response);
-    } catch (error) {
-      deleteUploadedFile(savedFile.path);
-      throw error;
+    if (documents.length === 0) {
+      throw new Error("No content could be extracted from file");
     }
+
+    const uploadDate = new Date().toISOString();
+
+    const storageContext = await getStorageContext();
+
+    const documentDocId = `doc_${Date.now()}`;
+    const fullDocument = new Document({
+      text: documents[0]?.text || "",
+      id_: documentDocId,
+      metadata: {
+        file_name: file.name,
+        file_type: file.type,
+        upload_date: uploadDate,
+        original_file_buffer: buffer.toString("base64"),
+      },
+    });
+
+    await storageContext.docStore.addDocuments([fullDocument], false);
+
+    const lightweightDocument = new Document({
+      text: documents[0]?.text || "",
+      metadata: {
+        file_name: file.name,
+        file_type: file.type,
+        upload_date: uploadDate,
+      },
+    });
+
+    const vectorStore = await getChromaVectorStore();
+
+    await VectorStoreIndex.fromDocuments([lightweightDocument], {
+      storageContext,
+      vectorStores: {
+        TEXT: vectorStore,
+      },
+    });
+
+    const documentId = generateDocumentId(file.name);
+
+    const response: DocumentUploadResponse = {
+      success: true,
+      id: documentId,
+      filename: file.name,
+      originalName: file.name,
+      size: formatFileSize(file.size),
+      type: file.type,
+      chunksProcessed: documents.length,
+      message: "Document uploaded and indexed successfully",
+    };
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error("Error in document upload:", error);
     return NextResponse.json(
@@ -106,7 +112,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return await getDocumentList();
     }
 
-    const stats = await getIndexStats();
+    const stats = await getCollectionStats();
 
     const formats = getSupportedFormatsList();
 
@@ -115,6 +121,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         exists: stats.exists,
         collectionName: stats.collectionName,
         count: stats.count,
+        documentCount: stats.documentCount,
       },
       supportedFormats: formats,
     };
@@ -131,84 +138,25 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
 async function getDocumentList(): Promise<NextResponse> {
   try {
-    const { getChromaClient } = await import("@/lib/llamaindex/vectorstore");
-    const { getFileInfo } = await import("@/lib/core/upload/upload");
-    const { formatFileSize } = await import("@/lib/utils/format.utils");
+    const { documents, total_chunks: _total_chunks } = await getAllDocuments();
 
-    const client = await getChromaClient();
-    const collection = await client.getCollection({ name: "documents" });
-
-    const result = await collection.get({
-      include: ["metadatas", "documents"],
-    });
-
-    if (!result || !result.metadatas || result.metadatas.length === 0) {
-      const response: DocumentListResponse = {
-        documents: [],
-      };
-      return NextResponse.json(response);
-    }
-
-    // Group by file_name to get unique documents
-    const documentMap = new Map<string, DocumentEntry>();
-
-    for (let i = 0; i < result.metadatas.length; i++) {
-      const metadata = result.metadatas[i];
-      const document = result.documents?.[i];
-      const fileName = typeof metadata?.file_name === "string" ? metadata.file_name : null;
-
-      if (!fileName) continue;
-
-      if (!documentMap.has(fileName)) {
-        // Initialize document entry with proper type casting
-        const newEntry: DocumentEntry = {
-          id: fileName,
-          file_name: fileName,
-          file_type: typeof metadata?.file_type === "string" ? metadata.file_type : "UNKNOWN",
-          upload_date: typeof metadata?.upload_date === "string" ? metadata.upload_date : new Date().toISOString(),
-          file_url: typeof metadata?.file_url === "string" ? metadata.file_url : null,
-          stored_file_path: typeof metadata?.stored_file_path === "string" ? metadata.stored_file_path : null,
-          chunk_count: 0,
-          content: "",
-          file_size: null,
-        };
-        documentMap.set(fileName, newEntry);
-      }
-
-      // Increment chunk count
-      const docEntry = documentMap.get(fileName as string);
-      if (docEntry) {
-        docEntry.chunk_count++;
-      }
-
-      if (document && docEntry && typeof document === "string") {
-        docEntry.content += document;
-      }
-    }
-
-    const documents = Array.from(documentMap.values());
-
-    for (const doc of documents) {
-      if (doc.stored_file_path) {
-        const fileInfo = getFileInfo(doc.stored_file_path);
-        if (fileInfo) {
-          doc.file_size = formatFileSize(fileInfo.size);
-        }
-      }
-    }
-
-    documents.sort(
-      (a, b) =>
-        new Date(b.upload_date).getTime() - new Date(a.upload_date).getTime(),
-    );
+    const documentEntries = documents.map((doc) => ({
+      id: doc.file_name,
+      file_name: doc.file_name,
+      file_type: doc.file_type,
+      upload_date: doc.upload_date || new Date().toISOString(),
+      chunk_count: doc.chunk_count,
+      content: "",
+      file_size: null,
+      can_download: true,
+    }));
 
     const response: DocumentListResponse = {
-      documents,
+      documents: documentEntries,
     };
 
     return NextResponse.json(response);
-  } catch (error) {
-    console.error("Error getting document list:", error);
+  } catch (_error) {
     return NextResponse.json(
       { error: "Failed to retrieve document list" },
       { status: 500 },

@@ -60,7 +60,7 @@ export function createCondenseChatEngine(
     queryEngine,
     chatHistory: historyWithSystem,
   });
-  return result as unknown as ChatEngineReturnType;
+  return result;
 }
 
 export function createContextChatEngine(
@@ -82,7 +82,7 @@ export function createContextChatEngine(
     }),
     chatHistory: historyWithSystem,
   });
-  return result as unknown as ChatEngineReturnType;
+  return result;
 }
 
 const chatEngineCache = new Map<string, ChatEngineReturnType>();
@@ -101,7 +101,7 @@ export async function getChatEngine(
   }
 
   if (chatEngineCache.has(cacheKey)) {
-    return chatEngineCache.get(cacheKey);
+    return chatEngineCache.get(cacheKey)!;
   }
 
   let engine: ChatEngineReturnType;

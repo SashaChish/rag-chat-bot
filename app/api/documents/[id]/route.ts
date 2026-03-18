@@ -1,20 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { deleteDocument } from "@/lib/llamaindex/index";
-import { getChromaClient } from "@/lib/llamaindex/vectorstore";
-import fs from "fs";
-import type {
-  Collection,
-  GetResult,
-  Metadata,
-} from "chromadb";
+import { getCollection, getStorageContext } from "@/lib/llamaindex/vectorstore";
+import { initializeSettings } from "@/lib/llamaindex/settings";
 
-async function getChromaCollection(): Promise<Collection> {
-  const client = await getChromaClient();
-  const collection = await client.getCollection({
-    name: "documents",
-  });
-  return collection as Collection;
-}
+initializeSettings();
 
 export async function DELETE(
   _request: NextRequest,
@@ -30,30 +19,30 @@ export async function DELETE(
       );
     }
 
-    const coll = await getChromaCollection();
-    const results = await coll.get();
-
     const deleteResult = await deleteDocument(id);
 
-    const { metadatas } = results || {};
-    if (metadatas && metadatas.length > 0) {
-      const { stored_file_path: filePath } = metadatas[0] || {};
-      if (filePath && fs.existsSync(filePath as string)) {
-        fs.unlinkSync(filePath as string);
-      }
-    }
-
-    if (deleteResult.success) {
-      return NextResponse.json({
-        success: true,
-        message: "Document deleted successfully",
-      });
-    } else {
+    if (!deleteResult.success) {
       return NextResponse.json(
         { error: deleteResult.error || "Failed to delete document" },
         { status: 500 },
       );
     }
+
+    const { docStore } = await getStorageContext();
+    const docInfos = docStore.getAllRefDocInfo();
+
+    for (const [docId] of Object.entries(docInfos)) {
+      const doc = await docStore.getDocument(docId, false);
+      if (doc && doc.metadata.file_name === id) {
+        await docStore.deleteDocument(docId, false);
+        break;
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Document deleted successfully",
+    });
   } catch (error) {
     console.error("Error deleting document:", error);
     return NextResponse.json(
@@ -82,47 +71,56 @@ export async function GET(
     }
 
     if (action === "download") {
-      const coll = await getChromaCollection();
-      const results: GetResult<Metadata> = await coll.get();
+      const { docStore } = await getStorageContext();
+      const docInfos = docStore.getAllRefDocInfo();
 
-      const { metadatas } = results || {};
-      if (!metadatas || metadatas.length === 0) {
+      let matchingDocument = null;
+      for (const [docId] of Object.entries(docInfos)) {
+        const doc = await docStore.getDocument(docId, false);
+        if (doc && doc.metadata.file_name === id) {
+          matchingDocument = doc;
+          break;
+        }
+      }
+
+      if (!matchingDocument) {
         return NextResponse.json(
           { error: "Document not found" },
           { status: 404 },
         );
       }
 
-      const {
-        stored_file_path: filePath,
-        file_name,
-        file_type,
-      } = metadatas[0] || {};
-      const fileName = file_name || id;
-      const fileType = file_type || "application/octet-stream";
+      const originalFileBase64 = matchingDocument.metadata.original_file_buffer as string;
 
-      if (!fs.existsSync(filePath as string)) {
-        return NextResponse.json(
-          { error: "File not found on disk" },
-          { status: 404 },
+      if (!originalFileBase64) {
+        const textBuffer = Buffer.from("", "utf-8");
+        const response = new NextResponse(new Uint8Array(textBuffer));
+        response.headers.set("Content-Type", "text/plain");
+        response.headers.set(
+          "Content-Disposition",
+          `attachment; filename="${id}"`,
         );
+        response.headers.set("Content-Length", textBuffer.length.toString());
+        return response;
       }
 
-      const fileBuffer = fs.readFileSync(filePath as string);
-      const response = new NextResponse(fileBuffer);
+      const fileBuffer = Buffer.from(originalFileBase64, "base64");
+      const fileName = matchingDocument.metadata.file_name as string;
+      const fileType = matchingDocument.metadata.file_type as string;
 
-      response.headers.set("Content-Type", fileType as string);
+      const response = new NextResponse(new Uint8Array(fileBuffer));
+      response.headers.set("Content-Type", fileType);
       response.headers.set(
         "Content-Disposition",
-        `attachment; filename="${fileName as string}"`,
+        `attachment; filename="${fileName}"`,
       );
       response.headers.set("Content-Length", fileBuffer.length.toString());
 
       return response;
     }
 
-    const coll = await getChromaCollection();
-    const results: GetResult<Metadata> = await coll.get();
+    const coll = await getCollection();
+    const results = await coll.get();
 
     const { metadatas } = results || {};
     if (!metadatas || metadatas.length === 0) {
@@ -133,13 +131,12 @@ export async function GET(
     }
 
     const { ids } = results || {};
-    const { file_name, file_type, upload_date, file_url } = metadatas[0] || {};
+    const { file_name, file_type, upload_date } = metadatas[0] || {};
     return NextResponse.json({
       id,
       file_name,
       file_type,
       upload_date,
-      file_url,
       chunk_count: ids?.length || 0,
     });
   } catch (error) {

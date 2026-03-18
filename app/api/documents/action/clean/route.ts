@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { initializeLlamaIndex } from '@/lib/core/llamaindex/core.utils';
+import { type NextRequest, NextResponse } from 'next/server';
+import { initializeLlamaIndex } from '@/lib/llamaindex/utils';
 import { getAllDocuments, deleteDocumentByName } from '@/lib/llamaindex/vectorstore';
 import { clearIndex } from '@/lib/llamaindex/index';
 import type { DocumentListEntry } from '@/lib/types/core.types';
@@ -49,11 +49,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
               file_name: fileName,
               file_type: "unknown",
               upload_date: new Date().toISOString(),
-              file_url: null,
-              stored_file_path: null,
               chunk_count: deletedCount,
               content: "",
               file_size: null,
+              can_download: false,
               deleted_chunks: deletedCount,
               success: true,
             });
@@ -63,11 +62,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
               file_name: fileName,
               file_type: "unknown",
               upload_date: new Date().toISOString(),
-              file_url: null,
-              stored_file_path: null,
               chunk_count: 0,
               content: "",
               file_size: null,
+              can_download: false,
               deleted_chunks: 0,
               error: (error as Error).message,
               success: false,

@@ -1,6 +1,6 @@
 'use client';
 
-import { SourceInfo } from '../../lib/types/core.types';
+import type { SourceInfo } from '../../lib/types/core.types';
 import styles from './MessageList.module.css';
 import type { MessageListProps } from '../../lib/types/components';
 import type { SimilarityBarProps } from './MessageList.types';
@@ -66,6 +66,7 @@ export default function MessageList({
         <div
           key={message.id}
           className={`${styles.message} ${styles[`message${message.role.charAt(0).toUpperCase() + message.role.slice(1)}`]} ${message.error ? styles.messageError : ""}`}
+          data-testid={message.role === "assistant" ? "chat-response" : undefined}
         >
           <div className={styles.messageHeader}>
             <span className={styles.messageRole}>
@@ -80,7 +81,7 @@ export default function MessageList({
             className={`${styles.messageContent} ${message.isStreaming || message.loadingPhase ? styles.loading : ""}`}
           >
             {(message.isStreaming || message.loadingPhase) && (
-              <span className={styles.loadingDots}>
+              <span className={styles.loadingDots} data-testid="streaming-indicator">
                 {message.loadingPhase === "loadingSources"
                   ? "Loading sources"
                   : "Thinking"}
@@ -96,13 +97,13 @@ export default function MessageList({
           </div>
 
           {message.sources && message.sources.length > 0 && (
-            <div className={styles.messageSources}>
+            <div className={styles.messageSources} data-testid="sources-section">
               <div className={styles.sourcesExplanation}>
                 {getSourceExplanation(message.sources)?.text}
               </div>
               <div className={styles.sourcesList}>
                 {message.sources.map((source: SourceInfo, index: number) => (
-                  <div key={index} className={styles.sourceCard}>
+                  <div key={index} className={styles.sourceCard} data-testid="source-item">
                     <div className={styles.sourceHeader}>
                       <span className={styles.sourceFilename}>
                         {source.filename}

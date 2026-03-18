@@ -44,7 +44,7 @@ export function hasPreviewContent(document: DocumentData): boolean {
  * Check if document can be downloaded
  */
 export function canDownload(document: DocumentData): boolean {
-  return Boolean(document.file_url);
+  return Boolean(document.can_download);
 }
 
 /**

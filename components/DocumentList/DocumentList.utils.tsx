@@ -5,18 +5,25 @@
 
 import type { DocumentData } from './DocumentList.types';
 import { formatDate } from '../../lib/utils/date.utils';
+import {
+  PdfFileIcon,
+  DocxFileIcon,
+  MarkdownFileIcon,
+  TextFileIcon,
+  DefaultFileIcon,
+} from '@/lib/icons';
 
 /**
- * Get file icon based on file type
+ * Get file icon component based on file type
  */
-export function getFileIcon(fileType: string): string {
-  const icons: Record<string, string> = {
-    PDF: '📕',
-    TEXT: '📄',
-    MARKDOWN: '📝',
-    DOCX: '📘',
+export function getFileIcon(fileType: string): JSX.Element {
+  const iconMap: Record<string, JSX.Element> = {
+    PDF: <PdfFileIcon />,
+    TEXT: <TextFileIcon />,
+    MARKDOWN: <MarkdownFileIcon />,
+    DOCX: <DocxFileIcon />,
   };
-  return icons[fileType] || '📄';
+  return iconMap[fileType] || <DefaultFileIcon />;
 }
 
 /**

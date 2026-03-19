@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { render } from "@testing-library/react";
 import {
   getFileIcon,
   formatDocumentDate,
@@ -22,26 +23,34 @@ function createMockDocumentData(overrides: Partial<DocumentData> = {}): Document
 }
 
 describe("getFileIcon", () => {
-  it("should return correct icon for PDF files", () => {
-    expect(getFileIcon("PDF")).toBe("📕");
+  it("should return JSX element for PDF files", () => {
+    const icon = getFileIcon("PDF");
+    const { container } = render(icon);
+    expect(container.querySelector("svg")).toBeInTheDocument();
   });
 
-  it("should return correct icon for TEXT files", () => {
-    expect(getFileIcon("TEXT")).toBe("📄");
+  it("should return JSX element for TEXT files", () => {
+    const icon = getFileIcon("TEXT");
+    const { container } = render(icon);
+    expect(container.querySelector("svg")).toBeInTheDocument();
   });
 
-  it("should return correct icon for MARKDOWN files", () => {
-    expect(getFileIcon("MARKDOWN")).toBe("📝");
+  it("should return JSX element for MARKDOWN files", () => {
+    const icon = getFileIcon("MARKDOWN");
+    const { container } = render(icon);
+    expect(container.querySelector("svg")).toBeInTheDocument();
   });
 
-  it("should return correct icon for DOCX files", () => {
-    expect(getFileIcon("DOCX")).toBe("📘");
+  it("should return JSX element for DOCX files", () => {
+    const icon = getFileIcon("DOCX");
+    const { container } = render(icon);
+    expect(container.querySelector("svg")).toBeInTheDocument();
   });
 
-  it("should return default icon for unknown file types", () => {
-    expect(getFileIcon("UNKNOWN")).toBe("📄");
-    expect(getFileIcon("JPG")).toBe("📄");
-    expect(getFileIcon("")).toBe("📄");
+  it("should return JSX element for unknown file types", () => {
+    const icon = getFileIcon("UNKNOWN");
+    const { container } = render(icon);
+    expect(container.querySelector("svg")).toBeInTheDocument();
   });
 });
 

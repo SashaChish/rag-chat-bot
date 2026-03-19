@@ -2,8 +2,9 @@
 
 import { useState, useRef, useEffect } from "react";
 import MessageList from '../MessageList/MessageList';
-import Modal from '../Modal/Modal';
-import styles from './Chat.module.css';
+import { ConfirmModal } from '../ui/Modal';
+import { Button } from '../ui/Button';
+import { cn } from '@/lib/utils/cn';
 import type { SourceInfo } from '../../lib/types/core.types';
 import type { ChatUIMessage } from './Chat.types';
 
@@ -199,11 +200,11 @@ export default function Chat(): JSX.Element {
   };
 
   return (
-    <div className={styles.chatContainer}>
-      <div className={styles.chatHeader}>
-        <div className={styles.headerRow}>
-          <h2>Chat with Your Documents</h2>
-          <div className={styles.headerControls}>
+    <div className="flex flex-col h-full w-full bg-white rounded-lg shadow-sm overflow-hidden">
+      <div className="flex-none flex flex-col p-4 border-b border-zinc-200">
+        <div className="flex justify-between items-center">
+          <h2 className="m-0 text-xl font-semibold text-zinc-900">Chat with Your Documents</h2>
+          <div className="flex items-center gap-2">
             <select
               value={chatEngineType}
               onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -212,7 +213,7 @@ export default function Chat(): JSX.Element {
                   setChatEngineType(value);
                 }
               }}
-              className={styles.engineSelector}
+              className="py-2 px-2 bg-white border border-zinc-300 rounded-md text-sm text-zinc-600 cursor-pointer transition-colors hover:border-primary-500 focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/10 disabled:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-70"
               disabled={isLoading}
               data-testid="engine-selector"
             >
@@ -220,18 +221,19 @@ export default function Chat(): JSX.Element {
               <option value="context">Context Engine</option>
             </select>
             {messages.length > 0 && (
-              <button
+              <Button
                 onClick={handleClearChat}
-                className={styles.clearChatButton}
-                type="button"
+                variant="text"
+                color="default"
+                size="small"
                 data-testid="clear-chat-button"
               >
                 Clear Chat
-              </button>
+              </Button>
             )}
           </div>
         </div>
-        <p className={styles.engineDescription}>
+        <p className="mt-1 mb-0 text-sm text-zinc-500 leading-relaxed">
           {chatEngineType === "condense"
             ? "Condenses conversation history into a standalone query before retrieving relevant documents. Maintains context while keeping queries focused."
             : "Retrieves relevant documents and provides them as context to LLM along with your conversation history. Explicit context for comprehensive answers."}
@@ -240,7 +242,7 @@ export default function Chat(): JSX.Element {
 
       <MessageList messages={messages} scrollAnchorRef={messagesEndRef} />
 
-      <div className={styles.chatInputContainer}>
+      <div className="flex-none flex gap-2 p-4 border-t border-zinc-200 bg-white">
         <textarea
           value={input}
           onChange={(e) => {
@@ -249,22 +251,34 @@ export default function Chat(): JSX.Element {
           }}
           onKeyPress={handleKeyPress}
           placeholder="Ask a question about your documents..."
-          className={styles.chatInput}
+          className={cn(
+            "flex-1 py-3 px-3 border border-zinc-300 rounded-lg resize-none font-inherit text-base",
+            "focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/10",
+            "disabled:bg-zinc-50 disabled:cursor-not-allowed"
+          )}
           rows={1}
           disabled={isLoading}
         />
-        <button
+        <Button
           onClick={handleSendMessage}
-          className={styles.sendButton}
+          size="large"
           disabled={isLoading || !input.trim()}
+          loading={isLoading}
         >
-          {isLoading ? "Sending..." : "Send"}
-        </button>
+          {isLoading ? 'Sending...' : 'Send'}
+        </Button>
       </div>
 
-      {inputError && <div className={styles.inputError} data-testid="input-error">{inputError}</div>}
+      {inputError && (
+        <div
+          className="py-3 px-4 mx-4 bg-danger-100 text-danger-800 rounded-lg text-sm border-l-[3px] border-danger-600 animate-[slideDown_0.2s_ease-out]"
+          data-testid="input-error"
+        >
+          {inputError}
+        </div>
+      )}
 
-      <Modal
+      <ConfirmModal
         isOpen={showClearModal}
         onClose={handleCancelClear}
         onConfirm={handleConfirmClear}

@@ -46,6 +46,16 @@ export type LoadingPhase = 'thinking' | 'loadingSources' | null;
 export type ComponentSize = 'small' | 'medium' | 'large';
 
 /**
+ * Button variant style
+ */
+export type ButtonVariant = 'filled' | 'outlined' | 'text';
+
+/**
+ * Button color theme
+ */
+export type ButtonColor = 'primary' | 'danger' | 'success' | 'default';
+
+/**
  * Button component props
  */
 export interface ButtonProps {
@@ -53,10 +63,14 @@ export interface ButtonProps {
   onClick?: () => void;
   disabled?: boolean;
   loading?: boolean;
-  variant?: 'default' | 'danger' | 'warning' | 'success' | 'info';
+  variant?: ButtonVariant;
+  color?: ButtonColor;
   size?: ComponentSize;
   type?: 'button' | 'submit' | 'reset';
   className?: string;
+  fullWidth?: boolean;
+  leftIcon?: ReactNode;
+  rightIcon?: ReactNode;
 }
 
 /**
@@ -104,9 +118,14 @@ export interface DocumentListProps {
 }
 
 /**
- * Modal component props
+ * Modal variant type
  */
-export interface ModalProps {
+export type ModalVariant = 'default' | 'danger' | 'warning' | 'success';
+
+/**
+ * Confirm modal props (for confirmation dialogs)
+ */
+export interface ConfirmModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
@@ -114,5 +133,23 @@ export interface ModalProps {
   message: string;
   confirmText?: string;
   cancelText?: string;
-  variant?: 'default' | 'danger' | 'warning' | 'info';
+  variant?: ModalVariant;
 }
+
+/**
+ * Content modal props (for flexible content)
+ */
+export interface ContentModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+  className?: string;
+  contentClassName?: string;
+  size?: 'small' | 'medium' | 'large';
+}
+
+/**
+ * Modal component props (either confirm or content)
+ */
+export type ModalProps = ConfirmModalProps | ContentModalProps;

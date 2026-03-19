@@ -2,7 +2,8 @@
 
 import { useState, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import styles from './Upload.module.css';
+import { cn } from '@/lib/utils/cn';
+import { UploadIcon, ErrorIcon, SuccessIcon } from '@/lib/icons';
 import type { UploadProps } from '../../lib/types/components';
 import type { DocumentUploadResponse as APIUploadResponse } from '../../lib/types/api';
 import {
@@ -152,11 +153,14 @@ export default function Upload({ onUploadSuccess, supportedFormats }: UploadProp
   };
 
   return (
-    <div className={styles.uploadContainer}>
+    <div className="p-6 bg-white rounded-xl shadow-sm">
       <div
-        className={`${styles.uploadZone} ${isDragging ? styles.dragging : ''} ${
-          isUploading ? styles.uploading : ''
-        }`}
+        className={cn(
+          "border-2 border-dashed border-zinc-300 rounded-xl py-12 px-8 text-center cursor-pointer transition-all bg-zinc-50",
+          !isUploading && "hover:border-primary-500 hover:bg-primary-50",
+          isDragging && "border-primary-500 bg-primary-100 scale-[1.02]",
+          isUploading && "cursor-not-allowed border-solid border-primary-500"
+        )}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
@@ -166,30 +170,30 @@ export default function Upload({ onUploadSuccess, supportedFormats }: UploadProp
           ref={fileInputRef}
           type="file"
           onChange={handleFileSelect}
-          className={styles.fileInput}
+          className="hidden"
           accept={getSupportedExtensions(supportedFormats).map(f => `.${f}`).join(',')}
           disabled={isUploading}
         />
 
         {isUploading ? (
-          <div className={styles.uploadProgress}>
-            <div className={styles.progressSpinner} />
-            <p>Uploading and indexing...</p>
-            <div className={styles.progressBar}>
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-10 h-10 border-[3px] border-zinc-200 border-t-primary-500 rounded-full animate-spin" />
+            <p className="m-0">Uploading and indexing...</p>
+            <div className="w-full h-2 bg-zinc-200 rounded overflow-hidden">
               <div
-                className={styles.progressFill}
+                className="h-full bg-primary-500 transition-all duration-200"
                 style={{ width: `${uploadProgress}%` }}
               />
             </div>
           </div>
         ) : (
           <>
-            <div className={styles.uploadIcon}>📄</div>
-            <h3>Upload a Document</h3>
-            <p>
+            <UploadIcon className="w-12 h-12 mb-4" />
+            <h3 className="m-0 mb-2 text-zinc-900">Upload a Document</h3>
+            <p className="m-0 mb-1 text-zinc-500">
               Drag and drop a file here, or click to browse
             </p>
-            <p className={styles.uploadHint}>
+            <p className="text-sm text-zinc-400">
               Supported formats: {supportedFormats && supportedFormats.length > 0
                 ? supportedFormats.join(', ')
                 : 'PDF, TEXT, MARKDOWN, DOCX'} (max 10MB)
@@ -199,18 +203,24 @@ export default function Upload({ onUploadSuccess, supportedFormats }: UploadProp
       </div>
 
       {error && (
-        <div className={`${styles.uploadMessage} ${styles.uploadError}`} data-testid="upload-error">
-          <span className={styles.messageIcon}>❌</span>
+        <div
+          className="flex items-center gap-2 mt-4 py-3 px-4 rounded-lg text-sm bg-danger-50 text-danger-800 border border-danger-200"
+          data-testid="upload-error"
+        >
+          <ErrorIcon />
           {error}
         </div>
       )}
 
       {success && (
-        <div className={`${styles.uploadMessage} ${styles.uploadSuccess}`} data-testid="upload-success">
-          <span className={styles.messageIcon}>✅</span>
+        <div
+          className="flex items-center gap-2 mt-4 py-3 px-4 rounded-lg text-sm bg-success-50 text-success-600 border border-green-200"
+          data-testid="upload-success"
+        >
+          <SuccessIcon />
           {success.message}
           {success.chunksProcessed && (
-            <span className={styles.chunksInfo}>
+            <span className="text-zinc-600">
               ({success.chunksProcessed} chunks processed)
             </span>
           )}

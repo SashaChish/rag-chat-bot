@@ -18,18 +18,23 @@
   },
   "dependencies": {
     "@chroma-core/default-embed": "^0.1.9",
+    "@heroicons/react": "^2.2.0",
     "@llamaindex/anthropic": "^0.3.26",
     "@llamaindex/chroma": "^0.0.36",
     "@llamaindex/groq": "^0.0.94",
     "@llamaindex/ollama": "^0.1.23",
     "@llamaindex/openai": "^0.4.22",
     "@llamaindex/readers": "^3.1.21",
+    "@tailwindcss/postcss": "^4.2.2",
     "@tanstack/react-query": "^5.90.21",
     "chromadb": "^1.10.3",
+    "clsx": "^2.1.1",
     "llamaindex": "^0.12.1",
     "next": "^14.2.0",
     "react": "^18.3.0",
-    "react-dom": "^18.3.0"
+    "react-dom": "^18.3.0",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4.2.2"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",

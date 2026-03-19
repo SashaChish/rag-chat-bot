@@ -173,7 +173,7 @@ describe('DocumentList', () => {
       expect(screen.getByText('document1.txt')).toBeInTheDocument();
     });
 
-    const deleteButtons = screen.getAllByTitle('Delete document');
+    const deleteButtons = screen.getAllByLabelText(/Delete document1\.txt/);
     fireEvent.click(deleteButtons[0]);
 
     await waitFor(() => {
@@ -195,17 +195,16 @@ describe('DocumentList', () => {
       expect(screen.getByText('document1.txt')).toBeInTheDocument();
     });
 
-    const deleteButtons = screen.getAllByTitle('Delete document');
+    const deleteButtons = screen.getAllByLabelText(/Delete document1\.txt/);
     fireEvent.click(deleteButtons[0]);
 
     await waitFor(() => {
       expect(screen.getByText('Confirm Delete')).toBeInTheDocument();
-      expect(screen.getByText('This action cannot be undone.')).toBeInTheDocument();
     });
 
-    // Check that the confirm file name is displayed
-    const confirmFileNames = screen.getAllByText('document1.txt');
-    expect(confirmFileNames.length).toBeGreaterThan(0);
+    expect(
+      screen.getByText(/Are you sure you want to delete "document1\.txt"\?/)
+    ).toBeInTheDocument();
   });
 
   it('should close delete confirmation modal when cancel is clicked', async () => {
@@ -222,7 +221,7 @@ describe('DocumentList', () => {
       expect(screen.getByText('document1.txt')).toBeInTheDocument();
     });
 
-    const deleteButtons = screen.getAllByTitle('Delete document');
+    const deleteButtons = screen.getAllByLabelText(/Delete document1\.txt/);
     fireEvent.click(deleteButtons[0]);
 
     await waitFor(() => {
@@ -270,7 +269,7 @@ describe('DocumentList', () => {
       expect(screen.getByText('document1.txt')).toBeInTheDocument();
     });
 
-    const deleteButtons = screen.getAllByTitle('Delete document');
+    const deleteButtons = screen.getAllByLabelText(/Delete document1\.txt/);
     fireEvent.click(deleteButtons[0]);
 
     await waitFor(() => {
@@ -342,7 +341,7 @@ describe('DocumentList', () => {
       expect(screen.getByText('document1.txt')).toBeInTheDocument();
     });
 
-    const detailsButtons = screen.getAllByTitle('View details');
+    const detailsButtons = screen.getAllByLabelText(/View details for document1\.txt/);
     fireEvent.click(detailsButtons[0]);
 
     await waitFor(() => {
@@ -364,7 +363,7 @@ describe('DocumentList', () => {
       expect(screen.getByText('document1.txt')).toBeInTheDocument();
     });
 
-    const detailsButtons = screen.getAllByTitle('View details');
+    const detailsButtons = screen.getAllByLabelText(/View details for document1\.txt/);
     fireEvent.click(detailsButtons[0]);
 
     await waitFor(() => {
@@ -390,17 +389,15 @@ describe('DocumentList', () => {
       expect(screen.getByText('document1.txt')).toBeInTheDocument();
     });
 
-    const detailsButtons = screen.getAllByTitle('View details');
+    const detailsButtons = screen.getAllByLabelText(/View details for document1\.txt/);
     fireEvent.click(detailsButtons[0]);
 
     await waitFor(() => {
       expect(screen.getByText('Document Details')).toBeInTheDocument();
     });
 
-    const overlay = document.querySelector('[class*="modalOverlay"]');
-    if (overlay) {
-      fireEvent.click(overlay);
-    }
+    const overlay = screen.getByTestId('details-modal-overlay');
+    fireEvent.click(overlay);
 
     await waitFor(() => {
       expect(screen.queryByText('Document Details')).not.toBeInTheDocument();
@@ -421,7 +418,7 @@ describe('DocumentList', () => {
       expect(screen.getByText('document1.txt')).toBeInTheDocument();
     });
 
-    const detailsButtons = screen.getAllByTitle('View details');
+    const detailsButtons = screen.getAllByLabelText(/View details for document1\.txt/);
     fireEvent.click(detailsButtons[0]);
 
     await waitFor(() => {
@@ -450,7 +447,7 @@ describe('DocumentList', () => {
       expect(screen.getByText('document1.txt')).toBeInTheDocument();
     });
 
-    const previewButtons = screen.getAllByTitle('Preview content');
+    const previewButtons = screen.getAllByLabelText(/Preview document1\.txt/);
     fireEvent.click(previewButtons[0]);
 
     await waitFor(() => {
@@ -472,7 +469,7 @@ describe('DocumentList', () => {
       expect(screen.getByText('document1.txt')).toBeInTheDocument();
     });
 
-    const previewButtons = screen.getAllByTitle('Preview content');
+    const previewButtons = screen.getAllByLabelText(/Preview document1\.txt/);
     fireEvent.click(previewButtons[0]);
 
     await waitFor(() => {
@@ -495,8 +492,8 @@ describe('DocumentList', () => {
       expect(screen.getByText('document2.pdf')).toBeInTheDocument();
     });
 
-    const previewButtons = screen.getAllByTitle('Preview content');
-    fireEvent.click(previewButtons[1]);
+    const previewButtons = screen.getAllByLabelText(/Preview document2\.pdf/);
+    fireEvent.click(previewButtons[0]);
 
     await waitFor(() => {
       expect(screen.getByText('Document Preview')).toBeInTheDocument();
@@ -518,17 +515,15 @@ describe('DocumentList', () => {
       expect(screen.getByText('document1.txt')).toBeInTheDocument();
     });
 
-    const previewButtons = screen.getAllByTitle('Preview content');
+    const previewButtons = screen.getAllByLabelText(/Preview document1\.txt/);
     fireEvent.click(previewButtons[0]);
 
     await waitFor(() => {
       expect(screen.getByText('Document Preview')).toBeInTheDocument();
     });
 
-    const overlay = document.querySelectorAll('[class*="modalOverlay"]')[0];
-    if (overlay) {
-      fireEvent.click(overlay);
-    }
+    const overlay = screen.getByTestId('preview-modal-overlay');
+    fireEvent.click(overlay);
 
     await waitFor(() => {
       expect(screen.queryByText('Document Preview')).not.toBeInTheDocument();
@@ -549,7 +544,7 @@ describe('DocumentList', () => {
       expect(screen.getByText('document1.txt')).toBeInTheDocument();
     });
 
-    const downloadButtons = screen.getAllByTitle('Download file');
+    const downloadButtons = screen.getAllByLabelText(/Download document1\.txt/);
     fireEvent.click(downloadButtons[0]);
 
     expect(mockMutate).toHaveBeenCalled();
@@ -569,7 +564,7 @@ describe('DocumentList', () => {
       expect(screen.getByText('document1.txt')).toBeInTheDocument();
     });
 
-    const detailsButtons = screen.getAllByTitle('View details');
+    const detailsButtons = screen.getAllByLabelText(/View details for document1\.txt/);
     fireEvent.click(detailsButtons[0]);
 
     await waitFor(() => {
@@ -592,7 +587,7 @@ describe('DocumentList', () => {
       }
       return Promise.resolve({
         ok: false,
-        json: () => Promise.resolve({ error: 'Stats error' }),
+        json: () => Promise.resolve({ error: 'Failed to load document stats' }),
       });
     });
 
@@ -606,7 +601,7 @@ describe('DocumentList', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('⚠️')).toBeInTheDocument();
+      expect(screen.getByText('Failed to load document stats')).toBeInTheDocument();
     });
   });
 
@@ -615,7 +610,7 @@ describe('DocumentList', () => {
       if (url.includes('action=list')) {
         return Promise.resolve({
           ok: false,
-          json: () => Promise.resolve({ error: 'Documents error' }),
+          json: () => Promise.resolve({ error: 'Failed to load document list' }),
         });
       }
       return Promise.resolve({
@@ -634,7 +629,7 @@ describe('DocumentList', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('⚠️')).toBeInTheDocument();
+      expect(screen.getByText('Failed to load document list')).toBeInTheDocument();
     });
   });
 
@@ -677,17 +672,15 @@ describe('DocumentList', () => {
       expect(screen.getByText('document1.txt')).toBeInTheDocument();
     });
 
-    const deleteButtons = screen.getAllByTitle('Delete document');
+    const deleteButtons = screen.getAllByLabelText(/Delete document1\.txt/);
     fireEvent.click(deleteButtons[0]);
 
     await waitFor(() => {
       expect(screen.getByText('Confirm Delete')).toBeInTheDocument();
     });
 
-    const overlay = document.querySelectorAll('[class*="modalOverlay"]')[0];
-    if (overlay) {
-      fireEvent.click(overlay);
-    }
+    const overlay = screen.getByTestId('delete-modal-overlay');
+    fireEvent.click(overlay);
 
     await waitFor(() => {
       expect(screen.queryByText('Confirm Delete')).not.toBeInTheDocument();

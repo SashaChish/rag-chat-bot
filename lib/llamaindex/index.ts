@@ -4,7 +4,6 @@ import {
   type CondenseQuestionChatEngine,
   type ContextChatEngine,
 } from "llamaindex";
-import { IncludeEnum } from "chromadb";
 import type {
   SourceNode,
   QueryResponse,
@@ -127,7 +126,7 @@ export async function clearIndex(
       `[clearIndex] Starting clear for collection: ${collectionName}`,
     );
 
-    const ids = await coll.get({ include: [IncludeEnum.Documents] });
+    const ids = await coll.get({});
 
     if (ids.ids && ids.ids.length > 0) {
       await coll.delete({ ids: ids.ids });

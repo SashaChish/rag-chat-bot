@@ -5,10 +5,12 @@ import MessageList from '../MessageList/MessageList';
 import { ConfirmModal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { cn } from '@/lib/utils/cn';
+import { IconButton } from '../ui/IconButton';
+import { SidebarOpenIcon } from '@/lib/icons';
 import type { SourceInfo } from '../../lib/types/core.types';
-import type { ChatUIMessage } from './Chat.types';
+import type { ChatUIMessage, ChatProps } from './Chat.types';
 
-export default function Chat(): JSX.Element {
+export default function Chat({ onToggleSidebar, sidebarToggleVisible }: ChatProps): JSX.Element {
   const [messages, setMessages] = useState<ChatUIMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -203,7 +205,18 @@ export default function Chat(): JSX.Element {
     <div className="flex flex-col h-full w-full bg-white rounded-lg shadow-sm overflow-hidden">
       <div className="flex-none flex flex-col p-4 border-b border-zinc-200">
         <div className="flex justify-between items-center">
-          <h2 className="m-0 text-xl font-semibold text-zinc-900">Chat with Your Documents</h2>
+          <div className="flex items-center gap-2">
+            {sidebarToggleVisible && (
+              <IconButton
+                icon={<SidebarOpenIcon />}
+                aria-label="Open documents panel"
+                onClick={onToggleSidebar}
+                color="default"
+                size="small"
+              />
+            )}
+            <h2 className="m-0 text-xl font-semibold text-zinc-900">Chat with Your Documents</h2>
+          </div>
           <div className="flex items-center gap-2">
             <select
               value={chatEngineType}

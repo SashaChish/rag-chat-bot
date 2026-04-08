@@ -67,7 +67,7 @@ Hookify rules in `.claude/` block problematic patterns:
 
 - Function components with TypeScript props interfaces
 - Custom hooks in `lib/hooks/` with `use-*.ts` naming
-- TanStack Query for state (`useQuery`, `useMutation`)
+- TanStack Query for all data fetching and server state management (`useQuery`, `useMutation`) - never use raw `fetch` in components; extract data fetching into custom hooks or use TanStack Query directly
 
 ### Testing
 

@@ -37,3 +37,8 @@ export interface ChatState {
   showClearModal: boolean;
   sessionKey: string;
 }
+
+export interface ChatProps {
+  onToggleSidebar?: () => void;
+  sidebarToggleVisible?: boolean;
+}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils/cn';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
@@ -19,78 +19,35 @@ import {
 } from '@/lib/icons';
 import type {
   DocumentData,
-  DocumentStats,
   SupportedFormat,
 } from './DocumentList.types';
 import {
   getFileIcon,
   formatDocumentDate,
 } from './DocumentList.utils';
+import { useDocumentStats } from '@/lib/hooks/use-document-stats';
+import { useDocumentList } from '@/lib/hooks/use-document-list';
+import { useDocumentPreview } from '@/lib/hooks/use-document-preview';
+import { useDocumentDelete } from '@/lib/hooks/use-document-delete';
 import { useDocumentDownload } from '@/lib/hooks/use-document-download';
 
 export default function DocumentList(): JSX.Element {
   const queryClient = useQueryClient();
   const { mutate: downloadDoc } = useDocumentDownload();
 
-  const { data: statsData, isLoading, error: statsError, refetch } = useQuery({
-    queryKey: ['documents-stats'],
-    queryFn: async () => {
-      const response = await fetch("/api/documents");
-      if (!response.ok) {
-        throw new Error("Failed to load document stats");
-      }
-      return response.json() as Promise<{ stats: DocumentStats; supportedFormats: SupportedFormat[] }>;
-    },
-  });
-  const { data: documentsData, isFetching, error: documentsError, refetch: refetchDocuments } = useQuery({
-    queryKey: ['documents-list'],
-    queryFn: async () => {
-      const response = await fetch("/api/documents?action=list");
-      if (!response.ok) {
-        throw new Error("Failed to load document list");
-      }
-      return response.json() as Promise<{ documents: DocumentData[] }>;
-    },
-  });
-  const { mutate: deleteDoc } = useMutation({
-    mutationFn: async (id: string) => {
-      const response = await fetch(`/api/documents/${encodeURIComponent(id)}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to delete document");
-      }
-      return id;
-    },
-    onMutate: async (id) => {
-      await queryClient.cancelQueries({ queryKey: ['documents-list'] });
-      const previousDocuments = queryClient.getQueryData<{ documents: DocumentData[] }>(['documents-list']);
-
-      queryClient.setQueryData<{ documents: DocumentData[] }>(['documents-list'], (old) =>
-        old ? { documents: old.documents.filter(doc => doc.id !== id) } : old
-      );
-
-      return { previousDocuments };
-    },
-    onError: (error, _id, context) => {
-      console.error("Error deleting document:", error);
-      if (context?.previousDocuments) {
-        queryClient.setQueryData(['documents-list'], context.previousDocuments);
-      }
-      alert(error instanceof Error ? error.message : "Failed to delete document");
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['documents-stats'] });
-      queryClient.invalidateQueries({ queryKey: ['documents-list'] });
-    },
-  });
+  const { data: statsData, isLoading, error: statsError, refetch } = useDocumentStats();
+  const { data: documentsData, isFetching, error: documentsError, refetch: refetchDocuments } = useDocumentList();
+  const { mutate: deleteDoc } = useDocumentDelete();
   const [selectedDocument, setSelectedDocument] = useState<DocumentData | null>(
     null,
   );
   const [showDetails, setShowDetails] = useState<boolean>(false);
   const [showPreview, setShowPreview] = useState<boolean>(false);
+  const { data: previewData, isLoading: previewLoading } = useDocumentPreview(
+    selectedDocument?.file_name,
+    { enabled: showPreview && !!selectedDocument },
+  );
+  const previewContent = previewData?.content || "";
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
   const [documentToDelete, setDocumentToDelete] = useState<DocumentData | null>(
     null,
@@ -382,9 +339,11 @@ export default function DocumentList(): JSX.Element {
               {selectedDocument.file_name}
             </p>
             <div className="bg-zinc-50 border border-zinc-200 rounded-lg p-4 max-h-[400px] overflow-y-auto">
-              {selectedDocument.content ? (
+              {previewLoading ? (
+                <p className="text-zinc-500 italic m-0">Loading preview...</p>
+              ) : previewContent ? (
                 <pre className="m-0 whitespace-pre-wrap break-words font-mono text-sm leading-relaxed text-zinc-600">
-                  {selectedDocument.content}
+                  {previewContent}
                 </pre>
               ) : (
                 <p className="text-zinc-500 italic m-0">

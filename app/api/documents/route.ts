@@ -6,7 +6,7 @@ import {
   validateFile,
   getSupportedFormatsList,
 } from "@/lib/llamaindex/loaders";
-import { getChromaVectorStore, getStorageContext, getCollectionStats, getAllDocuments } from "@/lib/llamaindex/vectorstore";
+import { getChromaVectorStore, getStorageContext, getCollectionStats, getAllDocuments, getDocumentContent } from "@/lib/llamaindex/vectorstore";
 import { generateDocumentId } from "@/lib/llamaindex/utils";
 import { formatFileSize } from "@/lib/utils/format.utils";
 import { initializeSettings } from "@/lib/llamaindex/settings";
@@ -46,9 +46,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const storageContext = await getStorageContext();
 
+    const fullText = documents.map((d) => d.text).filter(Boolean).join("\n\n");
+
     const documentDocId = `doc_${Date.now()}`;
     const fullDocument = new Document({
-      text: documents[0]?.text || "",
+      text: fullText,
       id_: documentDocId,
       metadata: {
         file_name: file.name,
@@ -61,7 +63,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     await storageContext.docStore.addDocuments([fullDocument], false);
 
     const lightweightDocument = new Document({
-      text: documents[0]?.text || "",
+      text: fullText,
       metadata: {
         file_name: file.name,
         file_type: file.type,
@@ -110,6 +112,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     if (action === "list") {
       return await getDocumentList();
+    }
+
+    if (action === "preview") {
+      const fileName = searchParams.get("file_name");
+
+      if (!fileName) {
+        return NextResponse.json(
+          { error: "file_name parameter is required" },
+          { status: 400 },
+        );
+      }
+
+      const content = await getDocumentContent(fileName);
+
+      return NextResponse.json({ content });
     }
 
     const stats = await getCollectionStats();

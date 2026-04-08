@@ -1,5 +1,4 @@
 import { ChromaVectorStore } from "@llamaindex/chroma";
-import { IncludeEnum } from "chromadb";
 import { storageContextFromDefaults } from "llamaindex";
 import type { ChromaDocumentSummary } from "../types/core.types";
 
@@ -57,7 +56,7 @@ export async function clearCollection(): Promise<{
     const vectorStore = await getChromaVectorStore();
     const coll = await vectorStore.getCollection();
 
-    const ids = await coll.get({ include: [IncludeEnum.Documents] });
+    const ids = await coll.get({});
 
     if (ids.ids && ids.ids.length > 0) {
       await coll.delete({ ids: ids.ids });
@@ -182,6 +181,20 @@ export async function getAllDocuments(): Promise<{
       `Failed to retrieve documents: ${(error as Error).message}`,
     );
   }
+}
+
+export async function getDocumentContent(fileName: string): Promise<string> {
+  const coll = await getCollection();
+
+  const results = await coll.get({
+    where: { file_name: fileName },
+  });
+
+  if (!results.documents || results.documents.length === 0) {
+    return "";
+  }
+
+  return results.documents.filter(Boolean).join("\n\n");
 }
 
 export async function deleteDocumentByName(fileName: string): Promise<number> {

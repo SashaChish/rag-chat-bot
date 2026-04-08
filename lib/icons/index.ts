@@ -28,3 +28,8 @@ export {
   UploadIcon,
   RobotIcon,
 } from './ui-icons';
+
+export {
+  SidebarOpenIcon,
+  SidebarCloseIcon,
+} from './sidebar-icons';

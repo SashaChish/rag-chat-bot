@@ -32,7 +32,6 @@ const mockDocumentsData = {
       file_type: 'TEXT',
       upload_date: '2024-01-01T12:00:00Z',
       chunk_count: 3,
-      content: 'Sample content for document 1',
       file_size: null,
       can_download: true,
     },
@@ -42,7 +41,6 @@ const mockDocumentsData = {
       file_type: 'PDF',
       upload_date: '2024-01-02T12:00:00Z',
       chunk_count: 5,
-      content: '',
       file_size: '1 MB',
       can_download: true,
     },
@@ -74,6 +72,15 @@ describe('DocumentList', () => {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve(mockDocumentsData),
+        });
+      }
+      if (url.includes('action=preview')) {
+        const fileName = url.match(/file_name=([^&]+)/)?.[1];
+        const decodedName = fileName ? decodeURIComponent(fileName) : '';
+        const content = decodedName === 'document1.txt' ? 'Sample content for document 1' : '';
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ content }),
         });
       }
       return Promise.resolve({

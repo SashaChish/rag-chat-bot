@@ -230,11 +230,12 @@ describe('vectorstore', () => {
       expect(result.documents[0].upload_date).toBeNull();
     });
 
-    it('should throw error when getAllDocuments fails', async () => {
+    it('should return empty result when getAllDocuments fails', async () => {
       mockCollection.get.mockRejectedValueOnce(new Error('Database error'));
       const { getAllDocuments } = await import('@/lib/llamaindex/vectorstore');
 
-      await expect(getAllDocuments()).rejects.toThrow('Failed to retrieve documents');
+      const result = await getAllDocuments();
+      expect(result).toEqual({ documents: [], total_chunks: 0 });
     });
 
     it('should return empty array when no metadatas', async () => {

@@ -121,6 +121,23 @@ export default function Chat({ onToggleSidebar, sidebarToggleVisible }: ChatProp
                         : msg,
                     ),
                   );
+                } else if (data.response) {
+                  fullContent = data.response;
+                  sources = data.sources || [];
+
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === assistantMessageId
+                        ? {
+                            ...msg,
+                            content: fullContent,
+                            sources,
+                            isStreaming: false,
+                            loadingPhase: null,
+                          }
+                        : msg,
+                    ),
+                  );
                 } else if (data.chunk) {
                   fullContent += data.chunk;
                   setMessages((prev) =>

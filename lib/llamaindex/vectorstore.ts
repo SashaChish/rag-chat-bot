@@ -1,8 +1,10 @@
 import { ChromaVectorStore } from "@llamaindex/chroma";
 import { storageContextFromDefaults } from "llamaindex";
+import { tmpdir } from "os";
+import path from "path";
 import type { ChromaDocumentSummary } from "../types/core.types";
 
-const STORAGE_DIR = process.env.STORAGE_DIR!;
+const STORAGE_DIR = process.env.STORAGE_DIR || path.join(tmpdir(), "llamaindex");
 
 /**
  * Get StorageContext with proper three-tier architecture:
@@ -182,9 +184,7 @@ export async function getAllDocuments(): Promise<{
     };
   } catch (error) {
     console.error("Error getting all documents:", error);
-    throw new Error(
-      `Failed to retrieve documents: ${(error as Error).message}`,
-    );
+    return { documents: [], total_chunks: 0 };
   }
 }
 

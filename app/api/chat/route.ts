@@ -56,21 +56,31 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const docsExist = await hasDocuments();
     if (!docsExist) {
+      const noDocsMessage =
+        "I don't have any documents to search through yet. Please upload some documents first, and then I can help answer your questions!";
+
       if (streaming) {
-        return new NextResponse(
-          JSON.stringify({
-            response:
-              "I don't have any documents to search through yet. Please upload some documents first, and then I can help answer your questions!",
-            sources: [],
-          }),
-          {
-            headers: { "Content-Type": "application/json" },
+        const encoder = new TextEncoder();
+        const noDocsStream = new ReadableStream({
+          start(controller) {
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({ response: noDocsMessage, sources: [] })}\n\n`,
+              ),
+            );
+            controller.close();
           },
-        );
+        });
+
+        return new NextResponse(noDocsStream, {
+          headers: {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+          },
+        });
       } else {
         return NextResponse.json({
-          response:
-            "I don't have any documents to search through yet. Please upload some documents first, and then I can help answer your questions!",
+          response: noDocsMessage,
           sources: [],
         });
       }

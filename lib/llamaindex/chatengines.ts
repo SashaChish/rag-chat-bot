@@ -6,7 +6,7 @@ import type {
   ChatEngineReturnType,
 } from "../types/core.types";
 
-const topK = parseInt(process.env.TOP_K_RESULTS || "3", 10);
+const topK = 3;
 
 export function convertToChatMessages(history: ChatMessage[]): ChatMessage[] {
   if (!Array.isArray(history)) {

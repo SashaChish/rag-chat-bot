@@ -2,7 +2,7 @@ import { ChromaVectorStore } from "@llamaindex/chroma";
 import { storageContextFromDefaults } from "llamaindex";
 import type { ChromaDocumentSummary } from "../types/core.types";
 
-const STORAGE_DIR = process.env.STORAGE_DIR || "./data/llamaindex";
+const STORAGE_DIR = process.env.STORAGE_DIR!;
 
 /**
  * Get StorageContext with proper three-tier architecture:
@@ -102,7 +102,12 @@ export async function deleteDocument(
 
 export async function getCollectionStats(
   collectionName: string = "documents",
-): Promise<{ exists: boolean; collectionName: string; count: number; documentCount: number }> {
+): Promise<{
+  exists: boolean;
+  collectionName: string;
+  count: number;
+  documentCount: number;
+}> {
   try {
     const vectorStore = await getChromaVectorStore();
     const coll = await vectorStore.getCollection();

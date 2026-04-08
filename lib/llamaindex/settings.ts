@@ -4,8 +4,8 @@ import { Anthropic } from "@llamaindex/anthropic";
 import { Groq } from "@llamaindex/groq";
 import { Ollama, OllamaEmbedding } from "@llamaindex/ollama";
 
-export type LLMProvider = 'openai' | 'anthropic' | 'groq' | 'ollama';
-export type EmbeddingProvider = 'openai' | 'ollama';
+export type LLMProvider = "openai" | "anthropic" | "groq" | "ollama";
+export type EmbeddingProvider = "openai" | "ollama";
 
 export interface LLMConfig {
   provider: LLMProvider;
@@ -19,22 +19,26 @@ export function configureLLM(): unknown {
   switch (provider) {
     case "openai":
       if (!process.env.OPENAI_API_KEY) {
-        throw new Error("OPENAI_API_KEY is required when using OpenAI provider");
+        throw new Error(
+          "OPENAI_API_KEY is required when using OpenAI provider",
+        );
       }
       Settings.llm = new OpenAI({
         apiKey: process.env.OPENAI_API_KEY,
         model: model,
-        timeout: parseInt(process.env.LLM_TIMEOUT || "60000", 10),
+        timeout: 60000,
       });
       break;
     case "anthropic":
       if (!process.env.ANTHROPIC_API_KEY) {
-        throw new Error("ANTHROPIC_API_KEY is required when using Anthropic provider");
+        throw new Error(
+          "ANTHROPIC_API_KEY is required when using Anthropic provider",
+        );
       }
       Settings.llm = new Anthropic({
         apiKey: process.env.ANTHROPIC_API_KEY,
         model: model || "claude-3-5-sonnet-20241022",
-        timeout: parseInt(process.env.LLM_TIMEOUT || "60000", 10),
+        timeout: 60000,
       });
       break;
     case "groq":
@@ -44,7 +48,7 @@ export function configureLLM(): unknown {
       Settings.llm = new Groq({
         apiKey: process.env.GROQ_API_KEY,
         model: model || "llama-3.1-8b-versatile",
-        timeout: parseInt(process.env.LLM_TIMEOUT || "60000", 10),
+        timeout: 60000,
       });
       break;
     case "ollama":
@@ -54,15 +58,19 @@ export function configureLLM(): unknown {
       });
       break;
     default:
-      throw new Error(`Unsupported LLM provider: ${provider}. Supported providers: openai, anthropic, groq, ollama`);
+      throw new Error(
+        `Unsupported LLM provider: ${provider}. Supported providers: openai, anthropic, groq, ollama`,
+      );
   }
 
   return Settings.llm;
 }
 
 export function configureEmbedding(): unknown {
-  const embeddingProvider = (process.env.EMBEDDING_PROVIDER || "openai") as EmbeddingProvider;
-  const embeddingModel = process.env.EMBEDDING_MODEL || "text-embedding-3-small";
+  const embeddingProvider = (process.env.EMBEDDING_PROVIDER ||
+    "openai") as EmbeddingProvider;
+  const embeddingModel =
+    process.env.EMBEDDING_MODEL || "text-embedding-3-small";
 
   switch (embeddingProvider) {
     case "openai":
@@ -72,17 +80,20 @@ export function configureEmbedding(): unknown {
       Settings.embedModel = new OpenAIEmbedding({
         apiKey: process.env.OPENAI_API_KEY,
         model: embeddingModel,
-        timeout: parseInt(process.env.EMBEDDING_TIMEOUT || "60000", 10),
+        timeout: 60000,
       });
       break;
     case "ollama":
-      const ollamaEmbeddingModel = process.env.OLLAMA_EMBEDDING_MODEL || embeddingModel;
+      const ollamaEmbeddingModel =
+        process.env.OLLAMA_EMBEDDING_MODEL || embeddingModel;
       Settings.embedModel = new OllamaEmbedding({
         model: ollamaEmbeddingModel,
       });
       break;
     default:
-      throw new Error(`Unsupported embedding provider: ${embeddingProvider}. Supported providers: openai, ollama`);
+      throw new Error(
+        `Unsupported embedding provider: ${embeddingProvider}. Supported providers: openai, ollama`,
+      );
   }
 
   return Settings.embedModel;

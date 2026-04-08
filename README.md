@@ -3,6 +3,7 @@
 A Retrieval-Augmented Generation (RAG) chatbot that allows users to upload documents and ask questions, receiving AI-powered responses with source citations.
 
 Built with:
+
 - **Next.js** - Full-stack React framework
 - **LlamaIndex.TS** - Primary RAG framework with document loaders, text splitters, and query engines
 - **Chroma** - Local vector database with SQLite backend for zero infrastructure overhead
@@ -26,28 +27,33 @@ Built with:
 ### Installation
 
 1. Clone the repository:
+
 ```bash
 git clone <repository-url>
 cd rag-chatbot
 ```
 
 2. Install dependencies:
+
 ```bash
 npm install
 ```
 
 3. Set up environment variables:
+
 ```bash
 cp .env.example .env
 ```
 
 Edit `.env` and add your API keys:
+
 ```
 OPENAI_API_KEY=your_openai_api_key_here
 ANTHROPIC_API_KEY=your_anthropic_api_key_here  # Optional
 ```
 
 4. Start the development server:
+
 ```bash
 npm run dev
 ```
@@ -74,19 +80,14 @@ npm run dev
 
 ### Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `OPENAI_API_KEY` | OpenAI API key (required) | - |
-| `ANTHROPIC_API_KEY` | Anthropic API key (optional) | - |
-| `GROQ_API_KEY` | Groq API key (optional) | - |
-| `LLM_PROVIDER` | Default LLM provider | `openai` |
-| `LLM_MODEL` | Default model name | `gpt-4o-mini` |
-| `EMBEDDING_MODEL` | Embedding model | `text-embedding-3-small` |
-| `CHROMA_PERSIST_DIR` | Chroma persistence directory | `./data/chroma` |
-| `MAX_FILE_SIZE_MB` | Maximum upload file size | `10` |
-| `CHUNK_SIZE` | Text chunk size in characters | `1000` |
-| `CHUNK_OVERLAP` | Overlap between chunks | `200` |
-| `TOP_K_RESULTS` | Number of chunks to retrieve | `3` |
+| Variable            | Description                  | Default                  |
+| ------------------- | ---------------------------- | ------------------------ |
+| `OPENAI_API_KEY`    | OpenAI API key (required)    | -                        |
+| `ANTHROPIC_API_KEY` | Anthropic API key (optional) | -                        |
+| `GROQ_API_KEY`      | Groq API key (optional)      | -                        |
+| `LLM_PROVIDER`      | Default LLM provider         | `openai`                 |
+| `LLM_MODEL`         | Default model name           | `gpt-4o-mini`            |
+| `EMBEDDING_MODEL`   | Embedding model              | `text-embedding-3-small` |
 
 ### Supported LLM Providers
 
@@ -173,6 +174,7 @@ rag-chatbot/
 
 1. Set environment variables in your Vercel project settings
 2. Deploy using the Vercel CLI:
+
 ```bash
 vercel
 ```
@@ -203,21 +205,17 @@ npm start
 ### Adding Features
 
 The codebase is organized around LlamaIndex.TS abstractions:
+
 - Document loaders in `lib/llamaindex/loaders.js`
 - Vector store operations in `lib/llamaindex/vectorstore.js`
 - Query engine logic in `lib/llamaindex/index.js`
 
 ## Troubleshooting
 
-### Chroma Initialization Failed
-
-If Chroma fails to initialize with the persistent directory, it will fall back to an in-memory instance. Check that:
-- The `CHROMA_PERSIST_DIR` directory exists and is writable
-- Sufficient disk space is available
-
 ### No Documents Indexed
 
 If you see "No documents indexed yet":
+
 - Ensure you've successfully uploaded at least one document
 - Check the browser console for upload errors
 - Verify file format is supported
@@ -225,6 +223,7 @@ If you see "No documents indexed yet":
 ### LLM API Errors
 
 If you receive API errors:
+
 - Verify your API keys are correct in `.env`
 - Check that your API key has sufficient credits
 - Ensure the model name is valid for your provider

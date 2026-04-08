@@ -5,6 +5,7 @@ import { TextFileReader } from "@llamaindex/readers/text";
 import type { BaseReader } from "llamaindex";
 import fs from "fs/promises";
 import type { RAGDocument } from "../types";
+import { MAX_FILE_SIZE_MB } from "../constants";
 
 export const SUPPORTED_FORMATS: Record<string, string[]> = {
   PDF: ["pdf"],
@@ -51,18 +52,21 @@ export function isFormatSupported(filename: string): boolean {
 
 export async function loadDocument(filePath: string): Promise<RAGDocument[]> {
   try {
-    const fileExists = await fs.access(filePath).then(() => true).catch(() => false);
+    const fileExists = await fs
+      .access(filePath)
+      .then(() => true)
+      .catch(() => false);
     if (!fileExists) {
       throw new Error(`File not found: ${filePath}`);
     }
 
     const stats = await fs.stat(filePath);
-    const maxSizeMB = parseInt(process.env.MAX_FILE_SIZE_MB || "10", 10);
-    const maxSizeBytes = maxSizeMB * 1024 * 1024;
+
+    const maxSizeBytes = MAX_FILE_SIZE_MB * 1024 * 1024;
 
     if (stats.size > maxSizeBytes) {
       throw new Error(
-        `File size (${(stats.size / 1024 / 1024).toFixed(2)}MB) exceeds maximum allowed size (${maxSizeMB}MB)`
+        `File size (${(stats.size / 1024 / 1024).toFixed(2)}MB) exceeds maximum allowed size (${MAX_FILE_SIZE_MB}MB)`,
       );
     }
 
@@ -82,7 +86,7 @@ export async function loadDocument(filePath: string): Promise<RAGDocument[]> {
     const reader = FILE_EXT_TO_READER[ext];
     if (!reader) {
       throw new Error(
-        `Unsupported file type: .${ext}. Supported formats: ${SUPPORTED_EXTENSIONS.join(", ")}`
+        `Unsupported file type: .${ext}. Supported formats: ${SUPPORTED_EXTENSIONS.join(", ")}`,
       );
     }
 
@@ -106,7 +110,7 @@ export async function loadDocument(filePath: string): Promise<RAGDocument[]> {
 
 export async function loadDocumentFromBuffer(
   buffer: Buffer,
-  filename: string
+  filename: string,
 ): Promise<{ documents: RAGDocument[] }> {
   const fs = await import("fs");
   const path = await import("path");
@@ -115,12 +119,11 @@ export async function loadDocumentFromBuffer(
   let tempFilePath = "";
 
   try {
-    const maxSizeMB = parseInt(process.env.MAX_FILE_SIZE_MB || "10", 10);
-    const maxSizeBytes = maxSizeMB * 1024 * 1024;
+    const maxSizeBytes = MAX_FILE_SIZE_MB * 1024 * 1024;
 
     if (buffer.length > maxSizeBytes) {
       throw new Error(
-        `File size (${(buffer.length / 1024 / 1024).toFixed(2)}MB) exceeds maximum allowed size (${maxSizeMB}MB)`
+        `File size (${(buffer.length / 1024 / 1024).toFixed(2)}MB) exceeds maximum allowed size (${MAX_FILE_SIZE_MB}MB)`,
       );
     }
 
@@ -137,7 +140,7 @@ export async function loadDocumentFromBuffer(
     const reader = FILE_EXT_TO_READER[ext];
     if (!reader) {
       throw new Error(
-        `Unsupported file type: .${ext}. Supported formats: ${SUPPORTED_EXTENSIONS.join(", ")}`
+        `Unsupported file type: .${ext}. Supported formats: ${SUPPORTED_EXTENSIONS.join(", ")}`,
       );
     }
 
@@ -184,16 +187,15 @@ export function validateFile(file: File): boolean {
   // Check file type
   if (!isFormatSupported(file.name)) {
     throw new Error(
-      `Unsupported file format: ${file.name}. Supported formats: ${SUPPORTED_EXTENSIONS.join(", ")}`
+      `Unsupported file format: ${file.name}. Supported formats: ${SUPPORTED_EXTENSIONS.join(", ")}`,
     );
   }
 
-  const maxSizeMB = parseInt(process.env.MAX_FILE_SIZE_MB || "10", 10);
-  const maxSizeBytes = maxSizeMB * 1024 * 1024;
+  const maxSizeBytes = MAX_FILE_SIZE_MB * 1024 * 1024;
 
   if (file.size > maxSizeBytes) {
     throw new Error(
-      `File size (${(file.size / 1024 / 1024).toFixed(2)}MB) exceeds maximum allowed size (${maxSizeMB}MB)`
+      `File size (${(file.size / 1024 / 1024).toFixed(2)}MB) exceeds maximum allowed size (${MAX_FILE_SIZE_MB}MB)`,
     );
   }
 
@@ -204,7 +206,10 @@ export function validateFile(file: File): boolean {
   return true;
 }
 
-export function getSupportedFormatsList(): Array<{ type: string; extensions: string }> {
+export function getSupportedFormatsList(): Array<{
+  type: string;
+  extensions: string;
+}> {
   return Object.entries(SUPPORTED_FORMATS).map(([type, extensions]) => ({
     type,
     extensions: extensions.map((ext) => `.${ext}`).join(", "),

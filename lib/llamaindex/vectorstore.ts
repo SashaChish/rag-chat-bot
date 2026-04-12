@@ -4,7 +4,8 @@ import { tmpdir } from "os";
 import path from "path";
 import type { ChromaDocumentSummary } from "../types/core.types";
 
-const STORAGE_DIR = process.env.STORAGE_DIR || path.join(tmpdir(), "llamaindex");
+const STORAGE_DIR =
+  process.env.STORAGE_DIR || path.join(tmpdir(), "llamaindex");
 
 /**
  * Get StorageContext with proper three-tier architecture:
@@ -29,6 +30,16 @@ export async function getStorageContext() {
 export async function getChromaVectorStore(): Promise<ChromaVectorStore> {
   return new ChromaVectorStore({
     collectionName: "documents",
+    chromaClientParams: {
+      path: process.env.CHROMA_URL || "http://localhost:8000",
+      auth: process.env.CHROMA_API_KEY
+        ? {
+            provider: "token" as const,
+            credentials: process.env.CHROMA_API_KEY,
+            tokenHeaderType: "X_CHROMA_TOKEN",
+          }
+        : undefined,
+    },
   });
 }
 

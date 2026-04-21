@@ -4,7 +4,7 @@ import { forwardRef } from 'react';
 import type { ButtonProps } from './Button.types';
 import { getButtonClasses } from './Button.utils';
 
-const Spinner = (): JSX.Element => (
+const Spinner = () => (
   <svg
     className="animate-spin h-4 w-4"
     xmlns="http://www.w3.org/2000/svg"
@@ -44,7 +44,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       ...props
     },
     ref,
-  ): JSX.Element => {
+  ) => {
     const isDisabled = disabled || loading;
 
     return (

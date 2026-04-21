@@ -10,7 +10,7 @@ import {
   getSupportedExtensions,
 } from './Upload.utils';
 
-export default function Upload({ onUploadSuccess, supportedFormats }: UploadProps): JSX.Element {
+export default function Upload({ onUploadSuccess, supportedFormats }: UploadProps) {
   const queryClient = useQueryClient();
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);

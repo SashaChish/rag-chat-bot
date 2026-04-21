@@ -31,7 +31,7 @@ import { useDocumentPreview } from '@/lib/hooks/use-document-preview';
 import { useDocumentDelete } from '@/lib/hooks/use-document-delete';
 import { useDocumentDownload } from '@/lib/hooks/use-document-download';
 
-export default function DocumentList(): JSX.Element {
+export default function DocumentList() {
   const queryClient = useQueryClient();
   const { mutate: downloadDoc } = useDocumentDownload();
 

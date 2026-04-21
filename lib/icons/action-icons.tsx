@@ -11,7 +11,7 @@ interface ActionIconProps {
   className?: string;
 }
 
-export function RefreshIcon({ className }: ActionIconProps): JSX.Element {
+export function RefreshIcon({ className }: ActionIconProps) {
   return (
     <ArrowPathIcon
       className={cn('w-4 h-4', className)}
@@ -20,7 +20,7 @@ export function RefreshIcon({ className }: ActionIconProps): JSX.Element {
   );
 }
 
-export function InfoIcon({ className }: ActionIconProps): JSX.Element {
+export function InfoIcon({ className }: ActionIconProps) {
   return (
     <InformationCircleIcon
       className={cn('w-5 h-5 text-zinc-500', className)}
@@ -29,7 +29,7 @@ export function InfoIcon({ className }: ActionIconProps): JSX.Element {
   );
 }
 
-export function PreviewIcon({ className }: ActionIconProps): JSX.Element {
+export function PreviewIcon({ className }: ActionIconProps) {
   return (
     <EyeIcon
       className={cn('w-5 h-5 text-zinc-500', className)}
@@ -38,7 +38,7 @@ export function PreviewIcon({ className }: ActionIconProps): JSX.Element {
   );
 }
 
-export function DownloadIcon({ className }: ActionIconProps): JSX.Element {
+export function DownloadIcon({ className }: ActionIconProps) {
   return (
     <ArrowDownTrayIcon
       className={cn('w-5 h-5 text-zinc-500', className)}
@@ -47,7 +47,7 @@ export function DownloadIcon({ className }: ActionIconProps): JSX.Element {
   );
 }
 
-export function DeleteIcon({ className }: ActionIconProps): JSX.Element {
+export function DeleteIcon({ className }: ActionIconProps) {
   return (
     <TrashIcon
       className={cn('w-5 h-5', className)}

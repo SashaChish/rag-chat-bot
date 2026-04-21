@@ -1,26 +1,26 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { cn } from '@/lib/utils/cn';
-import { Button } from '../Button';
-import { IconButton } from '../IconButton';
+import { useEffect } from "react";
+import { cn } from "@/lib/utils/cn";
+import { Button } from "../Button";
+import { IconButton } from "../IconButton";
 import type {
   ConfirmModalProps,
   ContentModalProps,
   ModalVariant,
-} from './Modal.types';
+} from "./Modal.types";
 
 const variantStyles: Record<ModalVariant, string> = {
-  default: '',
-  danger: 'border-l-4 border-danger-600',
-  warning: 'border-l-4 border-warning-500',
-  success: 'border-l-4 border-success-500',
+  default: "",
+  danger: "border-l-4 border-danger-600",
+  warning: "border-l-4 border-warning-500",
+  success: "border-l-4 border-success-500",
 };
 
-const sizeStyles: Record<NonNullable<ContentModalProps['size']>, string> = {
-  small: 'max-w-[400px]',
-  medium: 'max-w-[500px]',
-  large: 'max-w-[700px]',
+const sizeStyles: Record<NonNullable<ContentModalProps["size"]>, string> = {
+  small: "max-w-[400px]",
+  medium: "max-w-[500px]",
+  large: "max-w-[700px]",
 };
 
 function ConfirmModal({
@@ -29,25 +29,25 @@ function ConfirmModal({
   onConfirm,
   title,
   message,
-  confirmText = 'Confirm',
-  cancelText = 'Cancel',
-  variant = 'default',
-  testId = 'confirm-modal',
-}: ConfirmModalProps): JSX.Element | null {
+  confirmText = "Confirm",
+  cancelText = "Cancel",
+  variant = "default",
+  testId = "confirm-modal",
+}: ConfirmModalProps) {
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape' && isOpen) {
+      if (e.key === "Escape" && isOpen) {
         onClose();
       }
     };
 
-    document.addEventListener('keydown', handleEscape);
-    return (): void => document.removeEventListener('keydown', handleEscape);
+    document.addEventListener("keydown", handleEscape);
+    return (): void => document.removeEventListener("keydown", handleEscape);
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
-  const confirmColor = variant === 'danger' ? 'danger' : 'primary';
+  const confirmColor = variant === "danger" ? "danger" : "primary";
 
   return (
     <div
@@ -57,7 +57,7 @@ function ConfirmModal({
     >
       <div
         className={cn(
-          'bg-white rounded-lg shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_10px_10px_-5px_rgba(0,0,0,0.04)] max-w-[400px] w-[90%] animate-[slideUp_0.2s_ease-out]',
+          "bg-white rounded-lg shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_10px_10px_-5px_rgba(0,0,0,0.04)] max-w-[400px] w-[90%] animate-[slideUp_0.2s_ease-out]",
           variantStyles[variant],
         )}
         onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
@@ -98,18 +98,18 @@ function ContentModal({
   children,
   className,
   contentClassName,
-  size = 'medium',
-  testId = 'content-modal',
-}: ContentModalProps): JSX.Element | null {
+  size = "medium",
+  testId = "content-modal",
+}: ContentModalProps) {
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape' && isOpen) {
+      if (e.key === "Escape" && isOpen) {
         onClose();
       }
     };
 
-    document.addEventListener('keydown', handleEscape);
-    return (): void => document.removeEventListener('keydown', handleEscape);
+    document.addEventListener("keydown", handleEscape);
+    return (): void => document.removeEventListener("keydown", handleEscape);
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
@@ -122,7 +122,7 @@ function ContentModal({
     >
       <div
         className={cn(
-          'bg-white rounded-xl shadow-lg w-full max-h-[80vh] flex flex-col overflow-hidden animate-[slideUp_0.2s_ease-out]',
+          "bg-white rounded-xl shadow-lg w-full max-h-[80vh] flex flex-col overflow-hidden animate-[slideUp_0.2s_ease-out]",
           sizeStyles[size],
           className,
         )}
@@ -139,7 +139,7 @@ function ContentModal({
             size="small"
           />
         </div>
-        <div className={cn('py-5 px-5 overflow-y-auto', contentClassName)}>
+        <div className={cn("py-5 px-5 overflow-y-auto", contentClassName)}>
           {children}
         </div>
       </div>

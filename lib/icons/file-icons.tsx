@@ -9,7 +9,7 @@ interface FileIconProps {
   className?: string;
 }
 
-export function DefaultFileIcon({ className }: FileIconProps): JSX.Element {
+export function DefaultFileIcon({ className }: FileIconProps) {
   return (
     <DocumentIcon
       className={cn('w-5 h-5 text-zinc-500', className)}
@@ -18,7 +18,7 @@ export function DefaultFileIcon({ className }: FileIconProps): JSX.Element {
   );
 }
 
-export function PdfFileIcon({ className }: FileIconProps): JSX.Element {
+export function PdfFileIcon({ className }: FileIconProps) {
   return (
     <DocumentTextIconSolid
       className={cn('w-5 h-5 text-red-600', className)}
@@ -27,7 +27,7 @@ export function PdfFileIcon({ className }: FileIconProps): JSX.Element {
   );
 }
 
-export function DocxFileIcon({ className }: FileIconProps): JSX.Element {
+export function DocxFileIcon({ className }: FileIconProps) {
   return (
     <DocumentIcon
       className={cn('w-5 h-5 text-blue-600', className)}
@@ -36,7 +36,7 @@ export function DocxFileIcon({ className }: FileIconProps): JSX.Element {
   );
 }
 
-export function MarkdownFileIcon({ className }: FileIconProps): JSX.Element {
+export function MarkdownFileIcon({ className }: FileIconProps) {
   return (
     <DocumentTextIcon
       className={cn('w-5 h-5 text-zinc-600', className)}
@@ -45,7 +45,7 @@ export function MarkdownFileIcon({ className }: FileIconProps): JSX.Element {
   );
 }
 
-export function TextFileIcon({ className }: FileIconProps): JSX.Element {
+export function TextFileIcon({ className }: FileIconProps) {
   return (
     <DocumentIcon
       className={cn('w-5 h-5 text-zinc-500', className)}

@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import Upload from "@/components/Upload/Upload";
 import type { DocumentUploadResponse, SupportedFormat } from "@/lib/types/api";
 
-export default function UploadWrapper(): JSX.Element {
+export default function UploadWrapper() {
   const { data: formatsData } = useQuery({
     queryKey: ["documents-formats"],
     queryFn: async () => {

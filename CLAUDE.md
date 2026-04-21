@@ -13,10 +13,9 @@ Application runs at `http://localhost:3000`. ChromaDB storage is auto-created in
 ## Development Commands
 
 ```bash
-npm run dev              # Start development server
-npm run build            # Build for production
+npm run dev              # Start development server (Turbopack)
+npm run build            # Build for production (Turbopack)
 npm run lint             # Run ESLint
-npm run lint -- --fix    # Auto-fix ESLint issues
 npm run type-check       # TypeScript type checking
 npm run test             # Run tests in watch mode
 npm run test:run         # Run all tests once
@@ -31,6 +30,10 @@ rag-chatbot/
 ├── __tests__/           # Unit tests, E2E tests, fixtures, mocks
 ├── app/
 │   ├── api/             # Chat and document API routes
+│   ├── error.tsx        # Root error boundary
+│   ├── layout.tsx       # Root layout with next/font
+│   ├── loading.tsx      # Root loading state
+│   ├── not-found.tsx    # Custom 404 page
 │   └── page.tsx         # Main application page
 ├── components/          # React components (Chat, Upload, DocumentList, MessageList)
 ├── lib/
@@ -39,7 +42,9 @@ rag-chatbot/
 │   ├── utils/           # File validation, encoding utilities
 │   ├── query-client.ts  # TanStack Query configuration
 │   └── types/           # TypeScript definitions
-└── data/chroma/         # ChromaDB storage (auto-created)
+├── data/chroma/         # ChromaDB storage (auto-created)
+├── next.config.ts       # Next.js config (serverExternalPackages, strict mode)
+└── eslint.config.mjs    # ESLint flat config
 ```
 
 ## Code Conventions
@@ -62,6 +67,8 @@ Hookify rules in `.claude/` block problematic patterns:
 - No comments - use descriptive names
 - Always destructure at call site (props, hook returns)
 - Remove unused code immediately
+- React 19: omit explicit return types on components (TypeScript infers them); use `React.ReactElement` when a type annotation is needed
+- Route handler `params` are async: `{ params }: { params: Promise<{ id: string }> }` — always `await params`
 
 ### React Patterns
 
@@ -88,8 +95,11 @@ Before marking tasks complete:
 
 - **Serverless-compatible**: No global state; indexes created on-demand from ChromaDB
 - **ChromaVectorStore**: Manages ChromaDB client internally - no manual ChromaClient
+- **Native module isolation**: `serverExternalPackages` in `next.config.ts` excludes ChromaDB/ONNX from bundling
 - **Chat engines**: Preferred over query engines (includes conversation history + system prompts)
 - **Multi-provider LLM**: OpenAI (embeddings required), optional Anthropic/Groq/Ollama
+- **Turbopack**: Default bundler (Next.js 16+); no webpack config needed
+- **ESLint flat config**: Uses `eslint.config.mjs` with `typescript-eslint` and `@next/eslint-plugin-next`
 
 ## Environment
 

@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 @theme {
+  --font-sans: var(--font-inter);
+
   /* Primary - Violet/Purple Gradient */
   --color-primary-50: #faf5ff;
   --color-primary-100: #f3e8ff;
@@ -49,8 +51,6 @@ html {
 body {
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
   background: #f9fafb;
   color: #111827;
   height: 100%;

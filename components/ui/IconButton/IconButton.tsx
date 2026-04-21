@@ -15,7 +15,7 @@ const colorClasses: Record<IconButtonColor, string> = {
   danger: 'bg-danger-50 text-danger-800 hover:bg-danger-100',
 };
 
-const Spinner = (): JSX.Element => (
+const Spinner = () => (
   <svg
     className="animate-spin h-4 w-4"
     xmlns="http://www.w3.org/2000/svg"
@@ -52,7 +52,7 @@ const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
       ...props
     },
     ref,
-  ): JSX.Element => {
+  ) => {
     const isDisabled = disabled || loading;
 
     return (

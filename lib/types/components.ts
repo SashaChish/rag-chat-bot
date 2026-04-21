@@ -20,7 +20,7 @@ export interface ChatProps {
  */
 export interface MessageListProps {
   messages: ChatUIMessage[];
-  scrollAnchorRef?: React.RefObject<HTMLDivElement>;
+  scrollAnchorRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 /**

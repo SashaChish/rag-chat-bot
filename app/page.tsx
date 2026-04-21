@@ -7,7 +7,7 @@ import { IconButton } from '@/components/ui/IconButton';
 import { RobotIcon, SidebarCloseIcon } from '@/lib/icons';
 import { useSidebarState } from '@/lib/hooks/use-sidebar-state';
 
-export default function Home(): JSX.Element {
+export default function Home() {
   const { isOpen, isDesktop, close, toggle } = useSidebarState();
 
   return (

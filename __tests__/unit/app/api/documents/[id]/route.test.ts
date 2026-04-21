@@ -21,7 +21,7 @@ const createMockRequest = (url: string): NextRequest => {
   } as unknown as NextRequest;
 };
 
-const createParams = (id: string) => ({ params: { id } });
+const createParams = (id: string) => ({ params: Promise.resolve({ id }) });
 
 describe("/api/documents/[id]", () => {
   const originalEnv = process.env;

@@ -10,7 +10,7 @@ import { SidebarOpenIcon } from '@/lib/icons';
 import type { SourceInfo } from '../../lib/types/core.types';
 import type { ChatUIMessage, ChatProps } from './Chat.types';
 
-export default function Chat({ onToggleSidebar, sidebarToggleVisible }: ChatProps): JSX.Element {
+export default function Chat({ onToggleSidebar, sidebarToggleVisible }: ChatProps) {
   const [messages, setMessages] = useState<ChatUIMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);

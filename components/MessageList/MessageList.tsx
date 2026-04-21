@@ -1,24 +1,24 @@
-'use client';
+"use client";
 
-import type { SourceInfo } from '../../lib/types/core.types';
-import type { MessageListProps } from '../../lib/types/components';
-import type { SimilarityBarProps } from './MessageList.types';
-import { cn } from '@/lib/utils/cn';
-import { ChatEmptyIcon } from '@/lib/icons';
+import type { SourceInfo } from "../../lib/types/core.types";
+import type { MessageListProps } from "../../lib/types/components";
+import type { SimilarityBarProps } from "./MessageList.types";
+import { cn } from "@/lib/utils/cn";
+import { ChatEmptyIcon } from "@/lib/icons";
 import {
   formatContent,
   getSourceExplanation,
   getSimilarityColor,
   getSimilarityPercentage,
   isValidScore,
-} from './MessageList.utils';
+} from "./MessageList.utils";
 
-const SimilarityBar = ({ score }: SimilarityBarProps): JSX.Element | null => {
+const SimilarityBar = ({ score }: SimilarityBarProps) => {
   if (!isValidScore(score)) {
     return null;
   }
 
-  const numericScore = typeof score === 'string' ? parseFloat(score) : score;
+  const numericScore = typeof score === "string" ? parseFloat(score) : score;
   const percentage = getSimilarityPercentage(numericScore);
   const color = getSimilarityColor(numericScore);
 
@@ -39,7 +39,7 @@ const SimilarityBar = ({ score }: SimilarityBarProps): JSX.Element | null => {
 export default function MessageList({
   messages,
   scrollAnchorRef,
-}: MessageListProps): JSX.Element {
+}: MessageListProps) {
   return (
     <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-4">
       {messages.length === 0 && (
@@ -57,14 +57,18 @@ export default function MessageList({
             "flex flex-col gap-2 animate-[slideIn_0.3s_ease-out]",
             message.role === "user" && "items-end",
             message.role === "assistant" && "items-start",
-            message.error && "bg-danger-50"
+            message.error && "bg-danger-50",
           )}
-          data-testid={message.role === "assistant" ? "chat-response" : undefined}
+          data-testid={
+            message.role === "assistant" ? "chat-response" : undefined
+          }
         >
-          <div className={cn(
-            "flex justify-between items-center gap-4 text-sm",
-            message.role === "user" && "flex-row-reverse"
-          )}>
+          <div
+            className={cn(
+              "flex justify-between items-center gap-4 text-sm",
+              message.role === "user" && "flex-row-reverse",
+            )}
+          >
             <span className="font-semibold text-zinc-600">
               {message.role === "user" ? "You" : "AI Assistant"}
             </span>
@@ -76,10 +80,13 @@ export default function MessageList({
           <div
             className={cn(
               "py-3 px-4 rounded-2xl max-w-[80%] leading-relaxed break-words",
-              message.role === "user" && "bg-gradient-to-r from-primary-500 to-accent-600 text-white rounded-br-sm",
-              message.role === "assistant" && !message.error && "bg-zinc-100 text-zinc-800 rounded-bl-sm",
+              message.role === "user" &&
+                "bg-gradient-to-r from-primary-500 to-accent-600 text-white rounded-br-sm",
+              message.role === "assistant" &&
+                !message.error &&
+                "bg-zinc-100 text-zinc-800 rounded-bl-sm",
               message.error && "bg-danger-100 text-danger-800",
-              (message.isStreaming || message.loadingPhase) && "loading"
+              (message.isStreaming || message.loadingPhase) && "loading",
             )}
           >
             {(message.isStreaming || message.loadingPhase) && (
@@ -92,20 +99,29 @@ export default function MessageList({
             <span
               dangerouslySetInnerHTML={{
                 __html: formatContent(
-                  typeof message.content === 'string' ? message.content : JSON.stringify(message.content)
+                  typeof message.content === "string"
+                    ? message.content
+                    : JSON.stringify(message.content),
                 ),
               }}
             />
           </div>
 
           {message.sources && message.sources.length > 0 && (
-            <div className="mt-2 py-2 px-3 bg-primary-50 rounded-lg border-l-[3px] border-primary-500" data-testid="sources-section">
+            <div
+              className="mt-2 py-2 px-3 bg-primary-50 rounded-lg border-l-[3px] border-primary-500"
+              data-testid="sources-section"
+            >
               <div className="text-sm text-zinc-600 mb-3 font-semibold">
                 {getSourceExplanation(message.sources)?.text}
               </div>
               <div className="flex flex-col gap-4">
                 {message.sources.map((source: SourceInfo, index: number) => (
-                  <div key={index} className="bg-white border border-zinc-300 rounded-lg p-3 transition-all hover:shadow-md hover:-translate-y-px" data-testid="source-item">
+                  <div
+                    key={index}
+                    className="bg-white border border-zinc-300 rounded-lg p-3 transition-all hover:shadow-md hover:-translate-y-px"
+                    data-testid="source-item"
+                  >
                     <div className="flex justify-between items-center mb-2 gap-2">
                       <span className="font-semibold text-primary-700 text-sm">
                         {source.filename}

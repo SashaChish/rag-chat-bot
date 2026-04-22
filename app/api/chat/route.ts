@@ -19,8 +19,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       systemPrompt = null,
     } = body;
 
-    console.log(body);
-
     if (!message) {
       return NextResponse.json(
         { error: "Message is required" },

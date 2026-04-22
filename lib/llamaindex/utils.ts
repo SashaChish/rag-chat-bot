@@ -10,9 +10,3 @@ export function initializeLlamaIndex(): boolean {
     throw error;
   }
 }
-
-export function generateDocumentId(filename: string): string {
-  const timestamp = Date.now();
-  const random = Math.random().toString(36).substring(2, 9);
-  return `${filename}-${timestamp}-${random}`;
-}

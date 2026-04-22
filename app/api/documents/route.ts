@@ -1,12 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { Document } from "@llamaindex/core/schema";
 import { VectorStoreIndex } from "llamaindex";
+import { loadDocumentFromBuffer, validateFile } from "@/lib/llamaindex/loaders";
 import {
-  loadDocumentFromBuffer,
-  validateFile,
-} from "@/lib/llamaindex/loaders";
-import { getChromaVectorStore, getStorageContext, getCollectionStats, getAllDocuments, getDocumentContent } from "@/lib/llamaindex/vectorstore";
-import { generateDocumentId } from "@/lib/llamaindex/utils";
+  getChromaVectorStore,
+  getStorageContext,
+  getCollectionStats,
+  getAllDocuments,
+  getDocumentContent,
+} from "@/lib/llamaindex/vectorstore";
 import { formatFileSize } from "@/lib/utils/format.utils";
 import { initializeSettings } from "@/lib/llamaindex/settings";
 import type {
@@ -45,7 +47,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const storageContext = await getStorageContext();
 
-    const fullText = documents.map((d) => d.text).filter(Boolean).join("\n\n");
+    const fullText = documents
+      .map((d) => d.text)
+      .filter(Boolean)
+      .join("\n\n");
 
     const documentDocId = `doc_${Date.now()}`;
     const fullDocument = new Document({
@@ -79,7 +84,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       },
     });
 
-    const documentId = generateDocumentId(file.name);
+    const documentId = crypto.randomUUID();
 
     const response: DocumentUploadResponse = {
       success: true,

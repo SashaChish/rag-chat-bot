@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { initializeLlamaIndex } from "@/lib/llamaindex/utils";
-import { validateQuery } from "@/lib/validators/query.validators";
 import { executeQuery } from "@/lib/llamaindex/index";
 import { hasDocuments } from "@/lib/llamaindex/vectorstore";
 import type { ChatRequest, ChatStatusResponse } from "@/lib/types/api";
@@ -8,10 +7,6 @@ import type { QueryChunk } from "@/lib/types/core.types";
 
 initializeLlamaIndex();
 
-/**
- * POST /api/chat
- * Handle chat message requests with optional streaming
- */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const body = (await request.json()) as ChatRequest;
@@ -19,12 +14,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       message,
       conversationHistory = [],
       streaming = false,
-      chatEngineType,
+      chatEngineType = "condense",
       sessionKey = null,
       systemPrompt = null,
     } = body;
 
-    const finalChatEngineType = chatEngineType || "condense";
+    console.log(body);
 
     if (!message) {
       return NextResponse.json(
@@ -33,28 +28,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    try {
-      validateQuery(message);
-    } catch (error) {
-      return NextResponse.json(
-        { error: (error as Error).message },
-        { status: 400 },
-      );
-    }
-
-    if (finalChatEngineType !== null && finalChatEngineType !== undefined) {
-      const validChatEngineTypes = ["condense", "context"];
-      if (!validChatEngineTypes.includes(finalChatEngineType)) {
-        return NextResponse.json(
-          {
-            error: `Invalid chat engine type: ${finalChatEngineType}. Must be one of: ${validChatEngineTypes.join(", ")}`,
-          },
-          { status: 400 },
-        );
-      }
-    }
-
     const docsExist = await hasDocuments();
+
     if (!docsExist) {
       const noDocsMessage =
         "I don't have any documents to search through yet. Please upload some documents first, and then I can help answer your questions!";
@@ -90,7 +65,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       message,
       streaming,
       conversationHistory,
-      finalChatEngineType,
+      chatEngineType,
       sessionKey,
       systemPrompt,
     );

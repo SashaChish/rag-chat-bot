@@ -8,16 +8,14 @@
 import type {
   NodeWithScore,
   ChatMessage as LlamaIndexChatMessage,
-  VectorStoreIndex,
   CondenseQuestionChatEngine,
   ContextChatEngine,
 } from "llamaindex";
 
-// Re-export VectorStoreIndex as IndexType for backward compatibility
-export type IndexType = VectorStoreIndex;
-
 // Chat engine return type - union of supported chat engine types
-export type ChatEngineReturnType = CondenseQuestionChatEngine | ContextChatEngine;
+export type ChatEngineReturnType =
+  | CondenseQuestionChatEngine
+  | ContextChatEngine;
 
 /**
  * Use LlamaIndex's ChatMessage type for compatibility

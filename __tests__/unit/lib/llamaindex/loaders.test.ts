@@ -64,25 +64,6 @@ describe("loaders", () => {
     });
   });
 
-  describe("isFormatSupported", () => {
-    it("should return true for supported formats", async () => {
-      const { isFormatSupported } = await import("@/lib/llamaindex/loaders");
-
-      expect(isFormatSupported("document.pdf")).toBe(true);
-      expect(isFormatSupported("document.txt")).toBe(true);
-      expect(isFormatSupported("document.md")).toBe(true);
-      expect(isFormatSupported("document.docx")).toBe(true);
-    });
-
-    it("should return false for unsupported formats", async () => {
-      const { isFormatSupported } = await import("@/lib/llamaindex/loaders");
-
-      expect(isFormatSupported("document.xyz")).toBe(false);
-      expect(isFormatSupported("document")).toBe(false);
-      expect(isFormatSupported("document.exe")).toBe(false);
-    });
-  });
-
   describe("validateFile", () => {
     it("should return true for valid files", async () => {
       const { validateFile } = await import("@/lib/llamaindex/loaders");
@@ -115,34 +96,6 @@ describe("loaders", () => {
       const file = new File([], "test.txt", { type: "text/plain" });
 
       expect(() => validateFile(file)).toThrow("File is empty");
-    });
-  });
-
-  describe("loadDocument", () => {
-    it("should be defined", async () => {
-      const { loadDocument } = await import("@/lib/llamaindex/loaders");
-      expect(typeof loadDocument).toBe("function");
-    });
-
-    it("should throw error when file does not exist", async () => {
-      const { loadDocument } = await import("@/lib/llamaindex/loaders");
-
-      await expect(loadDocument("/nonexistent/path/file.txt")).rejects.toThrow(
-        "File not found",
-      );
-    });
-
-    it("should throw error for unsupported file types", async () => {
-      vi.doMock("fs/promises", () => ({
-        default: {
-          access: vi.fn().mockResolvedValue(undefined),
-          stat: vi.fn().mockResolvedValue({ size: 100 }),
-        },
-      }));
-
-      const { loadDocument } = await import("@/lib/llamaindex/loaders");
-
-      await expect(loadDocument("test.xyz")).rejects.toThrow();
     });
   });
 

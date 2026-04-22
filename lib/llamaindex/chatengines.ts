@@ -1,8 +1,11 @@
-import { CondenseQuestionChatEngine, ContextChatEngine } from "llamaindex";
+import {
+  CondenseQuestionChatEngine,
+  ContextChatEngine,
+  type VectorStoreIndex,
+} from "llamaindex";
 import type {
   ChatMessage,
   ChatEngineType,
-  IndexType,
   ChatEngineReturnType,
 } from "../types/core.types";
 
@@ -37,7 +40,7 @@ export function convertToChatMessages(history: ChatMessage[]): ChatMessage[] {
 }
 
 export function createCondenseChatEngine(
-  index: IndexType,
+  index: VectorStoreIndex,
   chatHistory: ChatMessage[] = [],
   systemPrompt: string | null = null,
 ): ChatEngineReturnType {
@@ -64,7 +67,7 @@ export function createCondenseChatEngine(
 }
 
 export function createContextChatEngine(
-  index: IndexType,
+  index: VectorStoreIndex,
   chatHistory: ChatMessage[] = [],
   systemPrompt: string | null = null,
 ): ChatEngineReturnType {
@@ -88,7 +91,7 @@ export function createContextChatEngine(
 const chatEngineCache = new Map<string, ChatEngineReturnType>();
 
 export async function getChatEngine(
-  index: IndexType,
+  index: VectorStoreIndex,
   type: ChatEngineType = "condense",
   chatHistory: ChatMessage[] = [],
   sessionKey: string = "default",

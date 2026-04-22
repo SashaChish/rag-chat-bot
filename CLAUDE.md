@@ -37,10 +37,12 @@ rag-chatbot/
 │   └── page.tsx         # Main application page
 ├── components/          # React components (Chat, Upload, DocumentList, MessageList)
 ├── lib/
+│   ├── constants/       # App-wide constants (file limits, format strings)
+│   ├── hooks/           # Custom React hooks
 │   ├── icons/           # Tabler icon components (@tabler/icons-react)
 │   ├── llamaindex/      # RAG pipeline (indexing, chat engines, vectorstore)
 │   ├── theme/           # Mantine theme configuration
-│   ├── utils/           # File validation, encoding utilities
+│   ├── utils/           # Formatting, date, and file encoding utilities
 │   ├── query-client.ts  # TanStack Query configuration
 │   └── types/           # TypeScript definitions
 ├── data/chroma/         # ChromaDB storage (auto-created)
@@ -60,6 +62,8 @@ Hookify rules in `.claude/` block problematic patterns:
 | `block-eslint-disable` | `eslint-disable` | Blocked everywhere |
 | `block-as-any` | `as any` | Blocked everywhere |
 | `block-type-workarounds` | `as never as` / `as unknown as` | Blocked in production (allowed in `__tests__/`) |
+| `warn-eslint-config` | Modifying ESLint config files | Warn — requires explicit user permission |
+| `code-refactoring` | Adding new functions/classes | Warn — check for existing utilities first, don't duplicate |
 
 ### TypeScript & Style
 

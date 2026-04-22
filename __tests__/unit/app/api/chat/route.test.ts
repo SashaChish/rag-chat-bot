@@ -1,20 +1,16 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { NextRequest } from 'next/server';
-import { POST, GET } from '@/app/api/chat/route';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import type { NextRequest } from "next/server";
+import { POST, GET } from "@/app/api/chat/route";
 
-vi.mock('@/lib/llamaindex/utils', () => ({
+vi.mock("@/lib/llamaindex/utils", () => ({
   initializeLlamaIndex: vi.fn(),
 }));
 
-vi.mock('@/lib/validators/query.validators', () => ({
-  validateQuery: vi.fn(),
-}));
-
-vi.mock('@/lib/llamaindex/index', () => ({
+vi.mock("@/lib/llamaindex/index", () => ({
   executeQuery: vi.fn(),
 }));
 
-vi.mock('@/lib/llamaindex/vectorstore', () => ({
+vi.mock("@/lib/llamaindex/vectorstore", () => ({
   hasDocuments: vi.fn(),
 }));
 
@@ -24,13 +20,13 @@ const createMockRequest = (body: unknown): NextRequest => {
   } as unknown as NextRequest;
 };
 
-describe('/api/chat', () => {
+describe("/api/chat", () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
     vi.resetModules();
     process.env = { ...originalEnv };
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -38,166 +34,151 @@ describe('/api/chat', () => {
     vi.clearAllMocks();
   });
 
-  describe('POST', () => {
-    it('should return 400 when message is missing', async () => {
+  describe("POST", () => {
+    it("should return 400 when message is missing", async () => {
       const request = createMockRequest({});
 
       const response = await POST(request);
       const data = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data.error).toBe('Message is required');
+      expect(data.error).toBe("Message is required");
     });
 
-    it('should return 400 when message is empty', async () => {
-      const request = createMockRequest({ message: '' });
+    it("should return 400 when message is empty", async () => {
+      const request = createMockRequest({ message: "" });
 
       const response = await POST(request);
       const data = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data.error).toBe('Message is required');
+      expect(data.error).toBe("Message is required");
     });
 
-    it('should return 400 when query validation fails', async () => {
-      const { validateQuery } = await import('@/lib/validators/query.validators');
-      vi.mocked(validateQuery).mockImplementation(() => {
-        throw new Error('Invalid query');
-      });
-
-      const request = createMockRequest({ message: 'test query' });
-
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(400);
-      expect(data.error).toBe('Invalid query');
-    });
-
-    it('should return message when no documents exist', async () => {
-      const { hasDocuments } = await import('@/lib/llamaindex/vectorstore');
+    it("should return message when no documents exist", async () => {
+      const { hasDocuments } = await import("@/lib/llamaindex/vectorstore");
       vi.mocked(hasDocuments).mockResolvedValue(false);
 
-      const request = createMockRequest({ message: 'Hello' });
+      const request = createMockRequest({ message: "Hello" });
 
       const response = await POST(request);
       const data = await response.json();
 
-      expect(data.response).toContain('upload some documents');
+      expect(data.response).toContain("upload some documents");
       expect(data.sources).toEqual([]);
     });
 
-    it('should return 400 for invalid chat engine type', async () => {
-      const { hasDocuments } = await import('@/lib/llamaindex/vectorstore');
+    it("should return 400 for invalid chat engine type", async () => {
+      const { hasDocuments } = await import("@/lib/llamaindex/vectorstore");
       vi.mocked(hasDocuments).mockResolvedValue(true);
 
       const request = createMockRequest({
-        message: 'Hello',
-        chatEngineType: 'invalid',
+        message: "Hello",
+        chatEngineType: "invalid",
       });
 
       const response = await POST(request);
       const data = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data.error).toContain('Invalid chat engine type');
+      expect(data.error).toContain("Invalid chat engine type");
     });
 
-    it('should execute query with valid request', async () => {
-      const { hasDocuments } = await import('@/lib/llamaindex/vectorstore');
-      const { executeQuery } = await import('@/lib/llamaindex/index');
+    it("should execute query with valid request", async () => {
+      const { hasDocuments } = await import("@/lib/llamaindex/vectorstore");
+      const { executeQuery } = await import("@/lib/llamaindex/index");
 
       vi.mocked(hasDocuments).mockResolvedValue(true);
       vi.mocked(executeQuery).mockResolvedValue({
-        response: 'This is the answer',
+        response: "This is the answer",
         sources: [],
         streaming: false,
       });
 
       const request = createMockRequest({
-        message: 'What is this about?',
-        chatEngineType: 'condense',
+        message: "What is this about?",
+        chatEngineType: "condense",
       });
 
       const response = await POST(request);
       const data = await response.json();
 
-      expect(data.response).toBe('This is the answer');
+      expect(data.response).toBe("This is the answer");
       expect(executeQuery).toHaveBeenCalledWith(
-        'What is this about?',
+        "What is this about?",
         false,
         [],
-        'condense',
+        "condense",
         null,
-        null
+        null,
       );
     });
 
-    it('should pass conversation history to query', async () => {
-      const { hasDocuments } = await import('@/lib/llamaindex/vectorstore');
-      const { executeQuery } = await import('@/lib/llamaindex/index');
+    it("should pass conversation history to query", async () => {
+      const { hasDocuments } = await import("@/lib/llamaindex/vectorstore");
+      const { executeQuery } = await import("@/lib/llamaindex/index");
 
       vi.mocked(hasDocuments).mockResolvedValue(true);
       vi.mocked(executeQuery).mockResolvedValue({
-        response: 'Answer',
+        response: "Answer",
         sources: [],
         streaming: false,
       });
 
       const history = [
-        { role: 'user', content: 'Previous question' },
-        { role: 'assistant', content: 'Previous answer' },
+        { role: "user", content: "Previous question" },
+        { role: "assistant", content: "Previous answer" },
       ];
 
       const request = createMockRequest({
-        message: 'Follow up',
+        message: "Follow up",
         conversationHistory: history,
       });
 
       await POST(request);
 
       expect(executeQuery).toHaveBeenCalledWith(
-        'Follow up',
+        "Follow up",
         false,
         history,
-        'condense',
+        "condense",
         null,
-        null
+        null,
       );
     });
 
-    it('should handle query errors', async () => {
-      const { hasDocuments } = await import('@/lib/llamaindex/vectorstore');
-      const { executeQuery } = await import('@/lib/llamaindex/index');
+    it("should handle query errors", async () => {
+      const { hasDocuments } = await import("@/lib/llamaindex/vectorstore");
+      const { executeQuery } = await import("@/lib/llamaindex/index");
 
       vi.mocked(hasDocuments).mockResolvedValue(true);
       vi.mocked(executeQuery).mockResolvedValue({
-        response: '',
+        response: "",
         sources: [],
         streaming: false,
-        error: 'Query failed',
+        error: "Query failed",
       });
 
       const request = createMockRequest({
-        message: 'Hello',
+        message: "Hello",
       });
 
       const response = await POST(request);
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.error).toBe('Query failed');
+      expect(data.error).toBe("Query failed");
     });
 
-    it('should handle streaming request', async () => {
-      const { hasDocuments } = await import('@/lib/llamaindex/vectorstore');
-      const { executeQuery } = await import('@/lib/llamaindex/index');
+    it("should handle streaming request", async () => {
+      const { hasDocuments } = await import("@/lib/llamaindex/vectorstore");
+      const { executeQuery } = await import("@/lib/llamaindex/index");
 
       vi.mocked(hasDocuments).mockResolvedValue(true);
 
       async function* mockGenerator() {
-        yield { delta: 'Hello' };
-        yield { delta: ' world' };
+        yield { delta: "Hello" };
+        yield { delta: " world" };
       }
 
       vi.mocked(executeQuery).mockResolvedValue({
@@ -207,60 +188,62 @@ describe('/api/chat', () => {
       });
 
       const request = createMockRequest({
-        message: 'Hello',
+        message: "Hello",
         streaming: true,
       });
 
       const response = await POST(request);
 
-      expect(response.headers.get('Content-Type')).toBe('text/event-stream');
+      expect(response.headers.get("Content-Type")).toBe("text/event-stream");
     });
 
-    it('should handle unexpected errors', async () => {
+    it("should handle unexpected errors", async () => {
       const request = {
-        json: vi.fn().mockRejectedValue(new Error('Parse error')),
+        json: vi.fn().mockRejectedValue(new Error("Parse error")),
       } as unknown as NextRequest;
 
       const response = await POST(request);
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.error).toBe('Failed to process your request. Please try again.');
+      expect(data.error).toBe(
+        "Failed to process your request. Please try again.",
+      );
     });
   });
 
-  describe('GET', () => {
-    it('should return ready status when documents exist', async () => {
-      const { hasDocuments } = await import('@/lib/llamaindex/vectorstore');
+  describe("GET", () => {
+    it("should return ready status when documents exist", async () => {
+      const { hasDocuments } = await import("@/lib/llamaindex/vectorstore");
       vi.mocked(hasDocuments).mockResolvedValue(true);
 
       const response = await GET();
       const data = await response.json();
 
       expect(data.ready).toBe(true);
-      expect(data.message).toBe('Ready to answer questions');
+      expect(data.message).toBe("Ready to answer questions");
     });
 
-    it('should return not ready status when no documents', async () => {
-      const { hasDocuments } = await import('@/lib/llamaindex/vectorstore');
+    it("should return not ready status when no documents", async () => {
+      const { hasDocuments } = await import("@/lib/llamaindex/vectorstore");
       vi.mocked(hasDocuments).mockResolvedValue(false);
 
       const response = await GET();
       const data = await response.json();
 
       expect(data.ready).toBe(false);
-      expect(data.message).toBe('Please upload documents first');
+      expect(data.message).toBe("Please upload documents first");
     });
 
-    it('should handle errors', async () => {
-      const { hasDocuments } = await import('@/lib/llamaindex/vectorstore');
-      vi.mocked(hasDocuments).mockRejectedValue(new Error('Check failed'));
+    it("should handle errors", async () => {
+      const { hasDocuments } = await import("@/lib/llamaindex/vectorstore");
+      vi.mocked(hasDocuments).mockRejectedValue(new Error("Check failed"));
 
       const response = await GET();
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.error).toBe('Failed to check status');
+      expect(data.error).toBe("Failed to check status");
     });
   });
 });

@@ -69,10 +69,6 @@ vi.mock("@/lib/llamaindex/vectorstore", () => ({
   }),
 }));
 
-vi.mock("@/lib/llamaindex/utils", () => ({
-  generateDocumentId: vi.fn().mockReturnValue("doc-123"),
-}));
-
 vi.mock("@/lib/utils/format.utils", () => ({
   formatFileSize: vi.fn().mockReturnValue("1 KB"),
 }));
@@ -155,7 +151,9 @@ describe("/api/documents", () => {
     });
 
     it("should return 500 when loadDocumentFromBuffer throws an error", async () => {
-      mockLoadDocumentFromBuffer.mockRejectedValueOnce(new Error("Failed to load document"));
+      mockLoadDocumentFromBuffer.mockRejectedValueOnce(
+        new Error("Failed to load document"),
+      );
 
       const { POST } = await import("@/app/api/documents/route");
       const file = new File(["content"], "test.txt", { type: "text/plain" });
@@ -201,8 +199,11 @@ describe("/api/documents", () => {
 
   describe("GET", () => {
     it("should return 500 on error for stats request", async () => {
-      const { getCollectionStats } = await import("@/lib/llamaindex/vectorstore");
-      vi.mocked(getCollectionStats).mockRejectedValueOnce(new Error("Database error"));
+      const { getCollectionStats } =
+        await import("@/lib/llamaindex/vectorstore");
+      vi.mocked(getCollectionStats).mockRejectedValueOnce(
+        new Error("Database error"),
+      );
 
       const { GET } = await import("@/app/api/documents/route");
       const request = createGetRequest();
@@ -216,7 +217,9 @@ describe("/api/documents", () => {
 
     it("should return 500 on error for list request", async () => {
       const { getAllDocuments } = await import("@/lib/llamaindex/vectorstore");
-      vi.mocked(getAllDocuments).mockRejectedValueOnce(new Error("Database error"));
+      vi.mocked(getAllDocuments).mockRejectedValueOnce(
+        new Error("Database error"),
+      );
 
       const { GET } = await import("@/app/api/documents/route");
       const request = createGetRequest("list");
@@ -244,7 +247,9 @@ describe("/api/documents", () => {
 
       const response = await OPTIONS();
 
-      expect(response.headers.get("Access-Control-Allow-Methods")).toBe("GET, POST, DELETE, OPTIONS");
+      expect(response.headers.get("Access-Control-Allow-Methods")).toBe(
+        "GET, POST, DELETE, OPTIONS",
+      );
     });
 
     it("should return correct CORS headers for content-type", async () => {
@@ -252,7 +257,9 @@ describe("/api/documents", () => {
 
       const response = await OPTIONS();
 
-      expect(response.headers.get("Access-Control-Allow-Headers")).toBe("Content-Type");
+      expect(response.headers.get("Access-Control-Allow-Headers")).toBe(
+        "Content-Type",
+      );
     });
   });
 });

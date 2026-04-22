@@ -22,44 +22,6 @@ export interface ChatUIMessage extends ChatMessage {
 }
 
 /**
- * Chat UI loading phase
- */
-export type LoadingPhase = "thinking" | "loadingSources" | null;
-
-/**
- * Component size
- */
-export type ComponentSize = "small" | "medium" | "large";
-
-/**
- * Button variant style
- */
-export type ButtonVariant = "filled" | "outlined" | "text";
-
-/**
- * Button color theme
- */
-export type ButtonColor = "primary" | "danger" | "success" | "default";
-
-/**
- * Button component props
- */
-export interface ButtonProps {
-  children: ReactNode;
-  onClick?: () => void;
-  disabled?: boolean;
-  loading?: boolean;
-  variant?: ButtonVariant;
-  color?: ButtonColor;
-  size?: ComponentSize;
-  type?: "button" | "submit" | "reset";
-  className?: string;
-  fullWidth?: boolean;
-  leftIcon?: ReactNode;
-  rightIcon?: ReactNode;
-}
-
-/**
  * Select component props
  */
 export interface SelectProps<T = string> {

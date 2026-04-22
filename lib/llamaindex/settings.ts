@@ -103,18 +103,3 @@ export function initializeSettings(): void {
   configureLLM();
   configureEmbedding();
 }
-
-export function updateLLMProvider(provider: LLMProvider, model?: string): void {
-  process.env.LLM_PROVIDER = provider;
-  if (model) {
-    process.env.LLM_MODEL = model;
-  }
-  configureLLM();
-}
-
-export function getLLMConfig(): LLMConfig {
-  return {
-    provider: (process.env.LLM_PROVIDER || "openai") as LLMProvider,
-    model: process.env.LLM_MODEL || "gpt-4o-mini",
-  };
-}

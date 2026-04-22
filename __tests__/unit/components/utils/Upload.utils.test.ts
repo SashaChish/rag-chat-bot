@@ -1,8 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
   getFileExtension,
-  validateFileExtension,
-  validateFileSize,
   formatFileSize,
   getUploadErrorMessage,
 } from "@/components/Upload/Upload.utils";
@@ -32,62 +30,6 @@ describe("getFileExtension", () => {
   it("should handle mixed case extensions", () => {
     expect(getFileExtension("test.PdF")).toBe("pdf");
     expect(getFileExtension("document.TxT")).toBe("txt");
-  });
-});
-
-describe("validateFileExtension", () => {
-  it("should return true for supported extensions", () => {
-    expect(validateFileExtension("test.pdf")).toBe(true);
-    expect(validateFileExtension("test.txt")).toBe(true);
-    expect(validateFileExtension("test.md")).toBe(true);
-    expect(validateFileExtension("test.markdown")).toBe(true);
-    expect(validateFileExtension("test.docx")).toBe(true);
-  });
-
-  it("should return false for unsupported extensions", () => {
-    expect(validateFileExtension("test.jpg")).toBe(false);
-    expect(validateFileExtension("test.png")).toBe(false);
-    expect(validateFileExtension("test.exe")).toBe(false);
-  });
-
-  it("should return false for files without extension", () => {
-    expect(validateFileExtension("testfile")).toBe(false);
-    expect(validateFileExtension("README")).toBe(false);
-  });
-
-  it("should handle case insensitive extensions", () => {
-    expect(validateFileExtension("test.PDF")).toBe(true);
-    expect(validateFileExtension("test.Txt")).toBe(true);
-  });
-
-  it("should validate using FILE_EXTENSIONS constant", () => {
-    expect(validateFileExtension("test.pdf")).toBe(true);
-    expect(validateFileExtension("test.txt")).toBe(true);
-    expect(validateFileExtension("test.exe")).toBe(false);
-  });
-});
-
-describe("validateFileSize", () => {
-  it("should return true for files within size limit", () => {
-    const file = new File(["test"], "test.txt", { type: "text/plain" });
-    expect(validateFileSize(file, 10)).toBe(true);
-  });
-
-  it("should return false for files exceeding size limit", () => {
-    const largeContent = "x".repeat(11 * 1024 * 1024);
-    const file = new File([largeContent], "large.txt", { type: "text/plain" });
-    expect(validateFileSize(file, 10)).toBe(false);
-  });
-
-  it("should use default max size of 10MB", () => {
-    const file = new File(["test"], "test.txt", { type: "text/plain" });
-    expect(validateFileSize(file)).toBe(true);
-  });
-
-  it("should handle custom max size", () => {
-    const content = "x".repeat(5 * 1024 * 1024);
-    const file = new File([content], "test.txt", { type: "text/plain" });
-    expect(validateFileSize(file, 1)).toBe(false);
   });
 });
 

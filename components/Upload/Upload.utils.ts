@@ -12,17 +12,6 @@ export function getFileExtension(filename: string): string {
   return filename.split(".").pop()?.toLowerCase() || "";
 }
 
-export function validateFileExtension(filename: string): boolean {
-  const ext = getFileExtension(filename);
-
-  return FILE_EXTENSIONS.includes(ext);
-}
-
-export function validateFileSize(file: File, maxSizeMB = 10): boolean {
-  const maxSizeBytes = maxSizeMB * 1024 * 1024;
-  return file.size <= maxSizeBytes;
-}
-
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) return "0 Bytes";
 

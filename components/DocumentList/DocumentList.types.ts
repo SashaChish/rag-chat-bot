@@ -13,14 +13,6 @@ export interface DocumentStats {
 }
 
 /**
- * Supported format interface
- */
-export interface SupportedFormat {
-  type: string;
-  extensions: string;
-}
-
-/**
  * Document data interface
  */
 export interface DocumentData {
@@ -39,7 +31,6 @@ export interface DocumentData {
  */
 export interface DocumentListState {
   stats: DocumentStats | null;
-  supportedFormats: SupportedFormat[];
   documents: DocumentData[];
   initialLoading: boolean;
   refreshing: boolean;

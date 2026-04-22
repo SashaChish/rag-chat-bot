@@ -37,13 +37,15 @@ rag-chatbot/
 │   └── page.tsx         # Main application page
 ├── components/          # React components (Chat, Upload, DocumentList, MessageList)
 ├── lib/
-│   ├── icons/           # Heroicon components
+│   ├── icons/           # Tabler icon components (@tabler/icons-react)
 │   ├── llamaindex/      # RAG pipeline (indexing, chat engines, vectorstore)
+│   ├── theme/           # Mantine theme configuration
 │   ├── utils/           # File validation, encoding utilities
 │   ├── query-client.ts  # TanStack Query configuration
 │   └── types/           # TypeScript definitions
 ├── data/chroma/         # ChromaDB storage (auto-created)
-├── next.config.ts       # Next.js config (serverExternalPackages, strict mode)
+├── next.config.ts       # Next.js config (serverExternalPackages, optimizePackageImports)
+└── postcss.config.mjs   # PostCSS config (postcss-preset-mantine)
 └── eslint.config.mjs    # ESLint flat config
 ```
 
@@ -74,11 +76,15 @@ Hookify rules in `.claude/` block problematic patterns:
 
 - Function components with TypeScript props interfaces
 - Custom hooks in `lib/hooks/` with `use-*.ts` naming
+- Mantine UI v7 for all components (Paper, Group, Stack, Text, Button, Modal, etc.)
+- MantineProvider wraps app in `components/Providers.tsx` with violet theme
+- @tabler/icons-react for icons (not @heroicons)
 - TanStack Query for all data fetching and server state management (`useQuery`, `useMutation`) - never use raw `fetch` in components; extract data fetching into custom hooks or use TanStack Query directly
 
 ### Testing
 
 - Vitest for unit tests, Playwright for E2E
+- MantineProvider required in test wrappers for component tests
 - `as unknown as` allowed in `__tests__/` for mocking external types
 - Focus on business logic, not TypeScript's type system
 
@@ -100,6 +106,8 @@ Before marking tasks complete:
 - **Multi-provider LLM**: OpenAI (embeddings required), optional Anthropic/Groq/Ollama
 - **Turbopack**: Default bundler (Next.js 16+); no webpack config needed
 - **ESLint flat config**: Uses `eslint.config.mjs` with `typescript-eslint` and `@next/eslint-plugin-next`
+- **Mantine UI v7**: All styling via Mantine components and theme; no Tailwind/CSS modules
+- **AppShell layout**: Responsive layout with collapsible navbar via Mantine AppShell and useDisclosure
 
 ## Environment
 

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { MantineProvider } from '@mantine/core';
 import MessageList from '@/components/MessageList/MessageList';
 import type { ChatUIMessage } from '@/lib/types/components';
 
@@ -10,6 +11,10 @@ vi.mock('@/components/MessageList/MessageList.utils', () => ({
   getSimilarityPercentage: vi.fn((score) => Math.round(score * 100)),
   isValidScore: vi.fn((score) => score !== null && score !== undefined),
 }));
+
+function Wrapper({ children }: { children: React.ReactNode }) {
+  return <MantineProvider>{children}</MantineProvider>;
+}
 
 const createMockMessage = (
   overrides: Partial<ChatUIMessage> = {}
@@ -29,7 +34,7 @@ describe('MessageList', () => {
   });
 
   it('should render empty state when no messages', () => {
-    render(<MessageList messages={[]} scrollAnchorRef={mockScrollAnchorRef} />);
+    render(<MessageList messages={[]} scrollAnchorRef={mockScrollAnchorRef} />, { wrapper: Wrapper });
 
     expect(screen.getByText('No messages yet')).toBeInTheDocument();
     expect(screen.getByText('Upload a document and start asking questions!')).toBeInTheDocument();
@@ -41,7 +46,7 @@ describe('MessageList', () => {
       createMockMessage({ id: '2', role: 'assistant', content: 'Hi there' }),
     ];
 
-    render(<MessageList messages={messages} scrollAnchorRef={mockScrollAnchorRef} />);
+    render(<MessageList messages={messages} scrollAnchorRef={mockScrollAnchorRef} />, { wrapper: Wrapper });
 
     expect(screen.getByText('Hello')).toBeInTheDocument();
     expect(screen.getByText('Hi there')).toBeInTheDocument();
@@ -53,7 +58,7 @@ describe('MessageList', () => {
       createMockMessage({ role: 'assistant' }),
     ];
 
-    render(<MessageList messages={messages} scrollAnchorRef={mockScrollAnchorRef} />);
+    render(<MessageList messages={messages} scrollAnchorRef={mockScrollAnchorRef} />, { wrapper: Wrapper });
 
     expect(screen.getByText('You')).toBeInTheDocument();
     expect(screen.getByText('AI Assistant')).toBeInTheDocument();
@@ -68,7 +73,7 @@ describe('MessageList', () => {
       }),
     ];
 
-    render(<MessageList messages={messages} scrollAnchorRef={mockScrollAnchorRef} />);
+    render(<MessageList messages={messages} scrollAnchorRef={mockScrollAnchorRef} />, { wrapper: Wrapper });
 
     expect(screen.getByText('doc1.txt')).toBeInTheDocument();
   });
@@ -82,7 +87,7 @@ describe('MessageList', () => {
       }),
     ];
 
-    render(<MessageList messages={messages} scrollAnchorRef={mockScrollAnchorRef} />);
+    render(<MessageList messages={messages} scrollAnchorRef={mockScrollAnchorRef} />, { wrapper: Wrapper });
 
     expect(screen.getByText(/score: 0.85/)).toBeInTheDocument();
   });
@@ -101,7 +106,7 @@ describe('MessageList', () => {
       }),
     ];
 
-    render(<MessageList messages={messages} scrollAnchorRef={mockScrollAnchorRef} />);
+    render(<MessageList messages={messages} scrollAnchorRef={mockScrollAnchorRef} />, { wrapper: Wrapper });
 
     expect(screen.getByText('This is a preview of the document content...')).toBeInTheDocument();
   });
@@ -111,7 +116,7 @@ describe('MessageList', () => {
       createMockMessage({ isStreaming: true }),
     ];
 
-    render(<MessageList messages={messages} scrollAnchorRef={mockScrollAnchorRef} />);
+    render(<MessageList messages={messages} scrollAnchorRef={mockScrollAnchorRef} />, { wrapper: Wrapper });
 
     expect(screen.getByText('Thinking')).toBeInTheDocument();
   });
@@ -121,7 +126,7 @@ describe('MessageList', () => {
       createMockMessage({ loadingPhase: 'loadingSources' }),
     ];
 
-    render(<MessageList messages={messages} scrollAnchorRef={mockScrollAnchorRef} />);
+    render(<MessageList messages={messages} scrollAnchorRef={mockScrollAnchorRef} />, { wrapper: Wrapper });
 
     expect(screen.getByText('Loading sources')).toBeInTheDocument();
   });
@@ -133,7 +138,7 @@ describe('MessageList', () => {
       }),
     ];
 
-    render(<MessageList messages={messages} scrollAnchorRef={mockScrollAnchorRef} />);
+    render(<MessageList messages={messages} scrollAnchorRef={mockScrollAnchorRef} />, { wrapper: Wrapper });
 
     const timeElement = screen.getByText(/\d{1,2}:\d{2}/);
     expect(timeElement).toBeInTheDocument();
@@ -141,9 +146,9 @@ describe('MessageList', () => {
 
   it('should render scroll anchor', () => {
     const scrollRef = { current: null };
-    const { container } = render(<MessageList messages={[]} scrollAnchorRef={scrollRef} />);
+    const { container } = render(<MessageList messages={[]} scrollAnchorRef={scrollRef} />, { wrapper: Wrapper });
 
-    expect(container.querySelector('div[ref]') || container.lastChild).toBeDefined();
+    expect(container.lastChild).toBeDefined();
   });
 
   it('should handle multiple sources', () => {
@@ -157,7 +162,7 @@ describe('MessageList', () => {
       }),
     ];
 
-    render(<MessageList messages={messages} scrollAnchorRef={mockScrollAnchorRef} />);
+    render(<MessageList messages={messages} scrollAnchorRef={mockScrollAnchorRef} />, { wrapper: Wrapper });
 
     expect(screen.getByText('doc1.txt')).toBeInTheDocument();
     expect(screen.getByText('doc2.txt')).toBeInTheDocument();
@@ -165,7 +170,7 @@ describe('MessageList', () => {
   });
 
   it('should render without scrollAnchorRef', () => {
-    render(<MessageList messages={[]} />);
+    render(<MessageList messages={[]} />, { wrapper: Wrapper });
 
     expect(screen.getByText('No messages yet')).toBeInTheDocument();
   });

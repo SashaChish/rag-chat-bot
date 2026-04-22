@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MantineProvider } from '@mantine/core';
 import { createElement } from 'react';
 
 const mockMutate = vi.fn();
@@ -18,10 +19,6 @@ const mockStatsData = {
     count: 10,
     documentCount: 3,
   },
-  supportedFormats: [
-    { type: 'PDF', extensions: '.pdf' },
-    { type: 'TEXT', extensions: '.txt' },
-  ],
 };
 
 const mockDocumentsData = {
@@ -57,7 +54,9 @@ const createWrapper = () => {
   });
 
   const Wrapper = ({ children }: { children: React.ReactNode }) =>
-    createElement(QueryClientProvider, { client: queryClient }, children);
+    createElement(MantineProvider, null,
+      createElement(QueryClientProvider, { client: queryClient }, children)
+    );
 
   return { Wrapper, queryClient };
 };
@@ -94,13 +93,13 @@ describe('DocumentList', () => {
     const { Wrapper } = createWrapper();
 
     const DocumentList = (await import('@/components/DocumentList/DocumentList')).default;
-    render(
+    const { container } = render(
       <Wrapper>
         <DocumentList />
       </Wrapper>
     );
 
-    expect(screen.getByText('Loading...')).toBeInTheDocument();
+    expect(container.querySelector('.mantine-Loader-root')).toBeInTheDocument();
   });
 
   it('should render documents after loading', async () => {
@@ -147,7 +146,6 @@ describe('DocumentList', () => {
         ok: true,
         json: () => Promise.resolve({
           stats: { exists: false, collectionName: 'documents', count: 0, documentCount: 0 },
-          supportedFormats: [],
         }),
       });
     });
@@ -294,24 +292,6 @@ describe('DocumentList', () => {
     });
   });
 
-  it('should render supported formats when available', async () => {
-    const { Wrapper } = createWrapper();
-
-    const DocumentList = (await import('@/components/DocumentList/DocumentList')).default;
-    render(
-      <Wrapper>
-        <DocumentList />
-      </Wrapper>
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText('document1.txt')).toBeInTheDocument();
-    });
-
-    const pdfElements = screen.getAllByText('PDF');
-    expect(pdfElements.length).toBeGreaterThan(0);
-  });
-
   it('should handle refresh button click', async () => {
     const { Wrapper } = createWrapper();
 
@@ -403,8 +383,8 @@ describe('DocumentList', () => {
       expect(screen.getByText('Document Details')).toBeInTheDocument();
     });
 
-    const overlay = screen.getByTestId('details-modal-overlay');
-    fireEvent.click(overlay);
+    const overlay = document.querySelector('.mantine-Modal-overlay');
+    if (overlay) fireEvent.click(overlay);
 
     await waitFor(() => {
       expect(screen.queryByText('Document Details')).not.toBeInTheDocument();
@@ -432,8 +412,8 @@ describe('DocumentList', () => {
       expect(screen.getByText('Document Details')).toBeInTheDocument();
     });
 
-    const closeButton = screen.getByText('✕');
-    fireEvent.click(closeButton);
+    const closeButton = document.querySelector('.mantine-CloseButton-root');
+    if (closeButton) fireEvent.click(closeButton);
 
     await waitFor(() => {
       expect(screen.queryByText('Document Details')).not.toBeInTheDocument();
@@ -529,8 +509,8 @@ describe('DocumentList', () => {
       expect(screen.getByText('Document Preview')).toBeInTheDocument();
     });
 
-    const overlay = screen.getByTestId('preview-modal-overlay');
-    fireEvent.click(overlay);
+    const overlay = document.querySelector('.mantine-Modal-overlay');
+    if (overlay) fireEvent.click(overlay);
 
     await waitFor(() => {
       expect(screen.queryByText('Document Preview')).not.toBeInTheDocument();
@@ -686,8 +666,8 @@ describe('DocumentList', () => {
       expect(screen.getByText('Confirm Delete')).toBeInTheDocument();
     });
 
-    const overlay = screen.getByTestId('delete-modal-overlay');
-    fireEvent.click(overlay);
+    const overlay = document.querySelector('.mantine-Modal-overlay');
+    if (overlay) fireEvent.click(overlay);
 
     await waitFor(() => {
       expect(screen.queryByText('Confirm Delete')).not.toBeInTheDocument();

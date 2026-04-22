@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { Paper, Group, Text, Textarea, Select, Divider, Box, Alert } from '@mantine/core';
 import MessageList from '../MessageList/MessageList';
 import { ConfirmModal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import { cn } from '@/lib/utils/cn';
 import { IconButton } from '../ui/IconButton';
 import { SidebarOpenIcon } from '@/lib/icons';
 import type { SourceInfo } from '../../lib/types/core.types';
@@ -160,7 +160,6 @@ export default function Chat({ onToggleSidebar, sidebarToggleVisible }: ChatProp
           }
         }
 
-        // Send done signal with collected sources
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === assistantMessageId
@@ -196,7 +195,7 @@ export default function Chat({ onToggleSidebar, sidebarToggleVisible }: ChatProp
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent): void => {
+  const handleKeyDown = (e: React.KeyboardEvent): void => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
@@ -219,10 +218,14 @@ export default function Chat({ onToggleSidebar, sidebarToggleVisible }: ChatProp
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-white rounded-lg shadow-sm overflow-hidden">
-      <div className="flex-none flex flex-col p-4 border-b border-zinc-200">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-2">
+    <Paper
+      shadow="xs"
+      radius="md"
+      style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}
+    >
+      <Box style={{ flexShrink: 0 }}>
+        <Group justify="space-between" p="md" wrap="nowrap">
+          <Group gap="xs" wrap="nowrap">
             {sidebarToggleVisible && (
               <IconButton
                 icon={<SidebarOpenIcon />}
@@ -232,24 +235,25 @@ export default function Chat({ onToggleSidebar, sidebarToggleVisible }: ChatProp
                 size="small"
               />
             )}
-            <h2 className="m-0 text-xl font-semibold text-zinc-900">Chat with Your Documents</h2>
-          </div>
-          <div className="flex items-center gap-2">
-            <select
+            <Text fw={600} size="xl">Chat with Your Documents</Text>
+          </Group>
+          <Group gap="xs" wrap="nowrap">
+            <Select
+              size="sm"
               value={chatEngineType}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                const { value } = e.target;
+              onChange={(value) => {
                 if (value === "condense" || value === "context") {
                   setChatEngineType(value);
                 }
               }}
-              className="py-2 px-2 bg-white border border-zinc-300 rounded-md text-sm text-zinc-600 cursor-pointer transition-colors hover:border-primary-500 focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/10 disabled:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-70"
+              data={[
+                { value: 'condense', label: 'Condense Question' },
+                { value: 'context', label: 'Context Engine' },
+              ]}
               disabled={isLoading}
               data-testid="engine-selector"
-            >
-              <option value="condense">Condense Question</option>
-              <option value="context">Context Engine</option>
-            </select>
+              allowDeselect={false}
+            />
             {messages.length > 0 && (
               <Button
                 onClick={handleClearChat}
@@ -261,51 +265,56 @@ export default function Chat({ onToggleSidebar, sidebarToggleVisible }: ChatProp
                 Clear Chat
               </Button>
             )}
-          </div>
-        </div>
-        <p className="mt-1 mb-0 text-sm text-zinc-500 leading-relaxed">
+          </Group>
+        </Group>
+        <Text c="dimmed" size="sm" px="md" pb="sm" style={{ lineHeight: 1.6 }}>
           {chatEngineType === "condense"
             ? "Condenses conversation history into a standalone query before retrieving relevant documents. Maintains context while keeping queries focused."
             : "Retrieves relevant documents and provides them as context to LLM along with your conversation history. Explicit context for comprehensive answers."}
-        </p>
-      </div>
+        </Text>
+        <Divider />
+      </Box>
 
       <MessageList messages={messages} scrollAnchorRef={messagesEndRef} />
 
-      <div className="flex-none flex gap-2 p-4 border-t border-zinc-200 bg-white">
-        <textarea
-          value={input}
-          onChange={(e) => {
-            setInput(e.target.value);
-            setInputError("");
-          }}
-          onKeyPress={handleKeyPress}
-          placeholder="Ask a question about your documents..."
-          className={cn(
-            "flex-1 py-3 px-3 border border-zinc-300 rounded-lg resize-none font-inherit text-base",
-            "focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/10",
-            "disabled:bg-zinc-50 disabled:cursor-not-allowed"
-          )}
-          rows={1}
-          disabled={isLoading}
-        />
-        <Button
-          onClick={handleSendMessage}
-          size="large"
-          disabled={isLoading || !input.trim()}
-          loading={isLoading}
-        >
-          {isLoading ? 'Sending...' : 'Send'}
-        </Button>
-      </div>
+      <Box style={{ flexShrink: 0 }}>
+        <Divider />
+        <Group p="md" gap="sm" wrap="nowrap">
+          <Textarea
+            value={input}
+            onChange={(e) => {
+              setInput(e.currentTarget.value);
+              setInputError("");
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder="Ask a question about your documents..."
+            autosize
+            minRows={1}
+            maxRows={4}
+            disabled={isLoading}
+            style={{ flex: 1 }}
+          />
+          <Button
+            onClick={handleSendMessage}
+            size="large"
+            disabled={isLoading || !input.trim()}
+            loading={isLoading}
+          >
+            {isLoading ? 'Sending...' : 'Send'}
+          </Button>
+        </Group>
+      </Box>
 
       {inputError && (
-        <div
-          className="py-3 px-4 mx-4 bg-danger-100 text-danger-800 rounded-lg text-sm border-l-[3px] border-danger-600 animate-[slideDown_0.2s_ease-out]"
+        <Alert
+          color="red"
+          mx="md"
+          mb="md"
           data-testid="input-error"
+          style={{ borderLeft: '3px solid var(--mantine-color-red-6)' }}
         >
           {inputError}
-        </div>
+        </Alert>
       )}
 
       <ConfirmModal
@@ -318,6 +327,6 @@ export default function Chat({ onToggleSidebar, sidebarToggleVisible }: ChatProp
         cancelText="Cancel"
         variant="danger"
       />
-    </div>
+    </Paper>
   );
 }

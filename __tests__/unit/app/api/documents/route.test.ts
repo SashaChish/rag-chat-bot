@@ -33,10 +33,6 @@ const mockValidateFile = vi.fn().mockReturnValue(true);
 vi.mock("@/lib/llamaindex/loaders", () => ({
   loadDocumentFromBuffer: mockLoadDocumentFromBuffer,
   validateFile: mockValidateFile,
-  getSupportedFormatsList: vi.fn().mockReturnValue([
-    { type: "PDF", extensions: ".pdf" },
-    { type: "TEXT", extensions: ".txt" },
-  ]),
 }));
 
 vi.mock("@/lib/llamaindex/vectorstore", () => ({

@@ -43,12 +43,6 @@ export interface DocumentListResponse {
   documents: DocumentListEntry[];
 }
 
-export interface SupportedFormat {
-  type: string;
-  extensions: string;
-}
-
 export interface DocumentsGetResponse {
   stats: IndexStats;
-  supportedFormats: SupportedFormat[];
 }

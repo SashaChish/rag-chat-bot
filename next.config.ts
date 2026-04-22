@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "10mb",
     },
+    optimizePackageImports: ['@mantine/core', '@mantine/hooks', '@mantine/dropzone', '@tabler/icons-react'],
   },
   serverExternalPackages: [
     "chromadb",

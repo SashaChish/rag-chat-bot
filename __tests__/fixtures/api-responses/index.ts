@@ -20,7 +20,6 @@ export const mockUploadResponse = {
 
 export const mockDocumentStatsResponse = {
   totalDocuments: 5,
-  supportedFormats: ['pdf', 'docx', 'txt', 'md'],
 };
 
 export const mockDocumentListResponse = [

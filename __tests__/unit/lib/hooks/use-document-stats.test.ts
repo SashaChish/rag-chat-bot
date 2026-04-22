@@ -9,10 +9,6 @@ const mockStatsData = {
     collectionName: 'documents',
     count: 10,
   },
-  supportedFormats: [
-    { type: 'PDF', extensions: '.pdf' },
-    { type: 'TEXT', extensions: '.txt' },
-  ],
 };
 
 const createWrapper = () => {
@@ -60,7 +56,6 @@ describe('useDocumentStats', () => {
 
     const { data } = result.current;
     expect(data?.stats).toEqual(mockStatsData.stats);
-    expect(data?.supportedFormats).toEqual(mockStatsData.supportedFormats);
     expect(global.fetch).toHaveBeenCalledWith('/api/documents');
   });
 

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import type { DocumentStats, SupportedFormat } from '@/components/DocumentList/DocumentList.types';
+import type { DocumentStats } from '@/components/DocumentList/DocumentList.types';
 
 export function useDocumentStats() {
   return useQuery({
@@ -9,7 +9,7 @@ export function useDocumentStats() {
       if (!response.ok) {
         throw new Error('Failed to load document stats');
       }
-      return response.json() as Promise<{ stats: DocumentStats; supportedFormats: SupportedFormat[] }>;
+      return response.json() as Promise<{ stats: DocumentStats }>;
     },
   });
 }

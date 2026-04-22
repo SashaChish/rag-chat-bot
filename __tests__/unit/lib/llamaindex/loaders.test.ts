@@ -14,18 +14,6 @@ describe("loaders", () => {
     vi.resetModules();
   });
 
-  describe("SUPPORTED_FORMATS", () => {
-    it("should contain expected formats", async () => {
-      const { SUPPORTED_FORMATS } = await import("@/lib/llamaindex/loaders");
-
-      expect(SUPPORTED_FORMATS.PDF).toContain("pdf");
-      expect(SUPPORTED_FORMATS.TEXT).toContain("txt");
-      expect(SUPPORTED_FORMATS.MARKDOWN).toContain("md");
-      expect(SUPPORTED_FORMATS.MARKDOWN).toContain("markdown");
-      expect(SUPPORTED_FORMATS.DOCX).toContain("docx");
-    });
-  });
-
   describe("SUPPORTED_EXTENSIONS", () => {
     it("should contain all supported extensions", async () => {
       const { SUPPORTED_EXTENSIONS } = await import("@/lib/llamaindex/loaders");
@@ -130,32 +118,6 @@ describe("loaders", () => {
     });
   });
 
-  describe("getSupportedFormatsList", () => {
-    it("should return list of supported formats", async () => {
-      const { getSupportedFormatsList } =
-        await import("@/lib/llamaindex/loaders");
-
-      const formats = getSupportedFormatsList();
-
-      expect(formats).toContainEqual({ type: "PDF", extensions: ".pdf" });
-      expect(formats).toContainEqual({ type: "TEXT", extensions: ".txt" });
-      expect(formats).toContainEqual({
-        type: "MARKDOWN",
-        extensions: ".md, .markdown",
-      });
-      expect(formats).toContainEqual({ type: "DOCX", extensions: ".docx" });
-    });
-
-    it("should return correct number of formats", async () => {
-      const { getSupportedFormatsList } =
-        await import("@/lib/llamaindex/loaders");
-
-      const formats = getSupportedFormatsList();
-
-      expect(formats).toHaveLength(4);
-    });
-  });
-
   describe("loadDocument", () => {
     it("should be defined", async () => {
       const { loadDocument } = await import("@/lib/llamaindex/loaders");
@@ -166,7 +128,7 @@ describe("loaders", () => {
       const { loadDocument } = await import("@/lib/llamaindex/loaders");
 
       await expect(loadDocument("/nonexistent/path/file.txt")).rejects.toThrow(
-        "File not found"
+        "File not found",
       );
     });
 
@@ -218,7 +180,7 @@ describe("loaders", () => {
       const buffer = Buffer.from("content");
 
       await expect(loadDocumentFromBuffer(buffer, "test.xyz")).rejects.toThrow(
-        "Unsupported file type"
+        "Unsupported file type",
       );
     });
 
@@ -271,7 +233,7 @@ describe("loaders", () => {
 
       // The function extracts extension after the last dot, so "noextension" has no extension
       await expect(
-        loadDocumentFromBuffer(buffer, "noextension")
+        loadDocumentFromBuffer(buffer, "noextension"),
       ).rejects.toThrow();
     });
 
@@ -279,7 +241,9 @@ describe("loaders", () => {
       const { loadDocumentFromBuffer } =
         await import("@/lib/llamaindex/loaders");
       // Create a minimal valid PDF buffer (PDF header + some content)
-      const buffer = Buffer.from("%PDF-1.4\n1 0 obj\n<<\n/Type /Catalog\n>>\nendobj\ntrailer\n<<\n/Root 1 0 R\n>>\n%%EOF");
+      const buffer = Buffer.from(
+        "%PDF-1.4\n1 0 obj\n<<\n/Type /Catalog\n>>\nendobj\ntrailer\n<<\n/Root 1 0 R\n>>\n%%EOF",
+      );
 
       // This test verifies that PDF files are handled - it may fail if PDF.js is not available
       // but we're testing that the function attempts to process PDF files

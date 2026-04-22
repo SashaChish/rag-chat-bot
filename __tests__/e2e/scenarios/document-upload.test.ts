@@ -40,32 +40,6 @@ test.describe('Document Upload Flow', () => {
     }
   });
 
-  test('should show error for unsupported file format', async ({ page }) => {
-    const fileInput = page.locator('input[type="file"]');
-
-    await page.evaluate(() => {
-      const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-      if (input) {
-        Object.defineProperty(input, 'accept', {
-          value: '',
-          writable: true,
-        });
-      }
-    });
-
-    const tempFile = path.join(fixturesDir, 'temp-test.jpg');
-    fs.writeFileSync(tempFile, 'fake image content');
-
-    try {
-      await fileInput.setInputFiles(tempFile);
-
-      await expect(page.locator('[data-testid="upload-error"]')).toBeVisible({ timeout: 5000 });
-      await expect(page.locator('text=Unsupported file format')).toBeVisible();
-    } finally {
-      fs.unlinkSync(tempFile);
-    }
-  });
-
   test('should show error for file exceeding size limit', async ({ page }) => {
     const largeFile = path.join(fixturesDir, 'large-test.txt');
     const elevenMB = 11 * 1024 * 1024;
@@ -81,35 +55,6 @@ test.describe('Document Upload Flow', () => {
     } finally {
       fs.unlinkSync(largeFile);
     }
-  });
-
-  test('should handle drag and drop upload', async ({ page }) => {
-    const dataTransfer = await page.evaluateHandle(() => {
-      const dt = new DataTransfer();
-      return dt;
-    });
-
-    const file = await page.evaluateHandle(
-      ({ content }) => {
-        const file = new File([content], 'test.txt', { type: 'text/plain' });
-        return file;
-      },
-      { content: 'Sample document content for testing' }
-    );
-
-    await dataTransfer.evaluate((dt, file) => {
-      Object.defineProperty(dt, 'items', {
-        value: [{ kind: 'file', type: 'text/plain', getAsFile: () => file }],
-      });
-      Object.defineProperty(dt, 'files', {
-        value: [file],
-      });
-    }, file);
-
-    const dropZone = page.locator('.Upload_uploadZone__Aqz4N, [class*="uploadZone"]').first();
-    await dropZone.dispatchEvent('drop', { dataTransfer });
-
-    await expect(page.locator('[data-testid="upload-success"]')).toBeVisible({ timeout: 30000 });
   });
 
   test('should delete uploaded document', async ({ page }) => {

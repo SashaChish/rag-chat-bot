@@ -1,8 +1,20 @@
-'use client';
+"use client";
 
 import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { cn } from '@/lib/utils/cn';
+import {
+  Paper,
+  Group,
+  Stack,
+  Text,
+  Badge,
+  ScrollArea,
+  Center,
+  Loader,
+  Alert,
+  Divider,
+  Box,
+} from '@mantine/core';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { ConfirmModal, ContentModal } from '../ui/Modal';
@@ -17,14 +29,8 @@ import {
   DownloadIcon,
   DeleteIcon,
 } from '@/lib/icons';
-import type {
-  DocumentData,
-  SupportedFormat,
-} from './DocumentList.types';
-import {
-  getFileIcon,
-  formatDocumentDate,
-} from './DocumentList.utils';
+import type { DocumentData } from './DocumentList.types';
+import { getFileIcon, formatDocumentDate } from './DocumentList.utils';
 import { useDocumentStats } from '@/lib/hooks/use-document-stats';
 import { useDocumentList } from '@/lib/hooks/use-document-list';
 import { useDocumentPreview } from '@/lib/hooks/use-document-preview';
@@ -34,33 +40,26 @@ import { useDocumentDownload } from '@/lib/hooks/use-document-download';
 export default function DocumentList() {
   const queryClient = useQueryClient();
   const { mutate: downloadDoc } = useDocumentDownload();
-
   const { data: statsData, isLoading, error: statsError, refetch } = useDocumentStats();
   const { data: documentsData, isFetching, error: documentsError, refetch: refetchDocuments } = useDocumentList();
   const { mutate: deleteDoc } = useDocumentDelete();
-  const [selectedDocument, setSelectedDocument] = useState<DocumentData | null>(
-    null,
-  );
-  const [showDetails, setShowDetails] = useState<boolean>(false);
-  const [showPreview, setShowPreview] = useState<boolean>(false);
+  const [selectedDocument, setSelectedDocument] = useState<DocumentData | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const { data: previewData, isLoading: previewLoading } = useDocumentPreview(
     selectedDocument?.file_name,
     { enabled: showPreview && !!selectedDocument },
   );
   const previewContent = previewData?.content || "";
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
-  const [documentToDelete, setDocumentToDelete] = useState<DocumentData | null>(
-    null,
-  );
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<DocumentData | null>(null);
 
   useEffect(() => {
     const handleDocumentUploaded = (): void => {
       queryClient.invalidateQueries({ queryKey: ['documents-stats'] });
       queryClient.invalidateQueries({ queryKey: ['documents-list'] });
     };
-
     window.addEventListener("documentUploaded", handleDocumentUploaded);
-
     return (): void => {
       window.removeEventListener("documentUploaded", handleDocumentUploaded);
     };
@@ -106,24 +105,26 @@ export default function DocumentList() {
     setDocumentToDelete(null);
   };
 
-  const { stats, supportedFormats } = statsData || {};
+  const { stats } = statsData || {};
   const { documents } = documentsData || {};
 
   if (isLoading) {
     return (
-      <div className="p-4 bg-white rounded-xl shadow-sm max-h-screen overflow-y-auto">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="m-0 text-zinc-900">Documents</h3>
-        </div>
-        <div className="text-center py-8 text-zinc-500">Loading...</div>
-      </div>
+      <Paper shadow="xs" radius="md" p="md">
+        <Group justify="space-between" mb="md">
+          <Text fw={600} size="lg">Documents</Text>
+        </Group>
+        <Center py="xl">
+          <Loader size="sm" />
+        </Center>
+      </Paper>
     );
   }
 
   return (
-    <div className="p-4 bg-white rounded-xl shadow-sm max-h-screen overflow-y-auto">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="m-0 text-zinc-900">Documents</h3>
+    <Paper shadow="xs" radius="md" p="md" style={{ maxHeight: '100vh', overflowY: 'auto' }}>
+      <Group justify="space-between" mb="md">
+        <Text fw={600} size="lg">Documents</Text>
         <Button
           onClick={() => {
             refetch();
@@ -133,138 +134,127 @@ export default function DocumentList() {
           color="default"
           size="small"
           disabled={isFetching}
-          leftIcon={
-            <RefreshIcon className={cn(isFetching && 'animate-spin')} />
-          }
+          leftIcon={<RefreshIcon />}
         >
           Refresh
         </Button>
-      </div>
+      </Group>
 
       {(statsError || documentsError) && (
-        <div className="flex items-center gap-2 py-3 px-3 bg-danger-50 border border-danger-100 rounded-md text-danger-800 mb-4">
-          <WarningIcon />
-          <span>
-            {statsError instanceof Error
-              ? statsError.message
-              : documentsError instanceof Error
-                ? documentsError.message
-                : "Failed to load documents"}
-          </span>
-        </div>
+        <Alert
+          icon={<WarningIcon />}
+          color="red"
+          mb="md"
+        >
+          {statsError instanceof Error
+            ? statsError.message
+            : documentsError instanceof Error
+              ? documentsError.message
+              : "Failed to load documents"}
+        </Alert>
       )}
 
       {stats?.exists ? (
-        <div className="flex flex-col gap-3 mb-4">
-          <div className="flex items-center gap-3 py-3 px-3 bg-zinc-50 rounded-lg">
-            <StatsIcon />
-            <div className="flex-1">
-              <div className="font-semibold text-zinc-900 text-sm">{stats.count} Chunks</div>
-              <div className="text-zinc-500 text-[13px]">
-                From {documents?.length || 0} documents
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 py-3 px-3 bg-zinc-50 rounded-lg">
-            <StorageIcon />
-            <div className="flex-1">
-              <div className="font-semibold text-zinc-900 text-sm">
-                {stats.collectionName || "documents"}
-              </div>
-              <div className="text-zinc-500 text-[13px]">Active collection</div>
-            </div>
-          </div>
-        </div>
+        <Stack gap="sm" mb="md">
+          <Paper bg="gray.0" radius="md" p="sm">
+            <Group gap="sm">
+              <StatsIcon />
+              <Box style={{ flex: 1 }}>
+                <Text fw={600} size="sm">{stats.count} Chunks</Text>
+                <Text c="dimmed" size="xs">From {documents?.length || 0} documents</Text>
+              </Box>
+            </Group>
+          </Paper>
+          <Paper bg="gray.0" radius="md" p="sm">
+            <Group gap="sm">
+              <StorageIcon />
+              <Box style={{ flex: 1 }}>
+                <Text fw={600} size="sm">{stats.collectionName || "documents"}</Text>
+                <Text c="dimmed" size="xs">Active collection</Text>
+              </Box>
+            </Group>
+          </Paper>
+        </Stack>
       ) : (
-        <div className="text-center py-8 px-4 text-zinc-500">
-          <EmptyStateIcon className="w-8 h-8 mx-auto mb-2" />
-          <p className="m-0.5">No documents indexed yet</p>
-          <p className="text-sm text-zinc-400 m-0.5">Upload documents to get started</p>
-        </div>
+        <Center py="xl">
+          <Stack align="center" gap="xs">
+            <EmptyStateIcon />
+            <Text c="dimmed">No documents indexed yet</Text>
+            <Text c="dimmed" size="sm">Upload documents to get started</Text>
+          </Stack>
+        </Center>
       )}
 
       {documents && documents.length > 0 && (
-        <div className="my-4 border border-zinc-200 rounded-lg overflow-hidden" data-testid="document-list">
+        <Paper withBorder my="md" data-testid="document-list">
           {isFetching && !isLoading ? (
-            <div className="text-center py-8 text-zinc-500">Refreshing...</div>
+            <Center py="xl">
+              <Text c="dimmed">Refreshing...</Text>
+            </Center>
           ) : (
-            <div className="flex flex-col">
-              {documents.map((doc: DocumentData) => (
-                <div key={doc.id} className="flex items-center justify-between py-3 px-4 border-b border-zinc-200 last:border-b-0 transition-colors hover:bg-zinc-50">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className="text-xl flex-shrink-0">
-                      {getFileIcon(doc.file_type)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-zinc-900 text-sm mb-1 truncate">{doc.file_name}</div>
-                      <div className="flex items-center gap-2 flex-wrap text-xs">
-                        <span className="py-0.5 px-1.5 bg-primary-100 text-primary-700 rounded font-medium text-[11px] uppercase">
-                          {doc.file_type}
-                        </span>
-                        <span className="text-zinc-500">
-                          {formatDocumentDate(doc.upload_date)}
-                        </span>
-                        {doc.chunk_count > 0 && (
-                          <span className="text-zinc-500">
-                            {doc.chunk_count} chunk
-                            {doc.chunk_count !== 1 ? "s" : ""}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 flex-shrink-0 ml-2">
-                    <IconButton
-                      icon={<InfoIcon />}
-                      aria-label={`View details for ${doc.file_name}`}
-                      onClick={() => handleViewDetails(doc)}
-                      color="default"
-                      size="small"
-                    />
-                    <IconButton
-                      icon={<PreviewIcon />}
-                      aria-label={`Preview ${doc.file_name}`}
-                      onClick={() => handlePreview(doc)}
-                      color="default"
-                      size="small"
-                    />
-                    {doc.can_download && (
+            <Stack gap={0}>
+              {documents.map((doc: DocumentData, index: number) => (
+                <Box key={doc.id}>
+                  <Group p="sm" justify="space-between" wrap="nowrap">
+                    <Group gap="sm" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+                      <Box style={{ flexShrink: 0 }}>
+                        {getFileIcon(doc.file_type)}
+                      </Box>
+                      <Box style={{ flex: 1, minWidth: 0 }}>
+                        <Text fw={500} size="sm" truncate>{doc.file_name}</Text>
+                        <Group gap="xs" wrap="wrap">
+                          <Badge color="violet" size="xs" variant="light">
+                            {doc.file_type}
+                          </Badge>
+                          <Text c="dimmed" size="xs">{formatDocumentDate(doc.upload_date)}</Text>
+                          {doc.chunk_count > 0 && (
+                            <Text c="dimmed" size="xs">
+                              {doc.chunk_count} chunk{doc.chunk_count !== 1 ? "s" : ""}
+                            </Text>
+                          )}
+                        </Group>
+                      </Box>
+                    </Group>
+                    <Group gap={4} wrap="nowrap">
                       <IconButton
-                        icon={<DownloadIcon />}
-                        aria-label={`Download ${doc.file_name}`}
-                        onClick={() => handleDownload(doc)}
+                        icon={<InfoIcon />}
+                        aria-label={`View details for ${doc.file_name}`}
+                        onClick={() => handleViewDetails(doc)}
                         color="default"
                         size="small"
                       />
-                    )}
-                    <IconButton
-                      icon={<DeleteIcon className="text-red-500" />}
-                      aria-label={`Delete ${doc.file_name}`}
-                      onClick={() => confirmDelete(doc)}
-                      color="danger"
-                      size="small"
-                      data-testid="delete-document-button"
-                    />
-                  </div>
-                </div>
+                      <IconButton
+                        icon={<PreviewIcon />}
+                        aria-label={`Preview ${doc.file_name}`}
+                        onClick={() => handlePreview(doc)}
+                        color="default"
+                        size="small"
+                      />
+                      {doc.can_download && (
+                        <IconButton
+                          icon={<DownloadIcon />}
+                          aria-label={`Download ${doc.file_name}`}
+                          onClick={() => handleDownload(doc)}
+                          color="default"
+                          size="small"
+                        />
+                      )}
+                      <IconButton
+                        icon={<DeleteIcon />}
+                        aria-label={`Delete ${doc.file_name}`}
+                        onClick={() => confirmDelete(doc)}
+                        color="danger"
+                        size="small"
+                        data-testid="delete-document-button"
+                      />
+                    </Group>
+                  </Group>
+                  {index < documents.length - 1 && <Divider />}
+                </Box>
               ))}
-            </div>
+            </Stack>
           )}
-        </div>
-      )}
-
-      {supportedFormats && supportedFormats.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-zinc-200">
-          <h4 className="m-0 mb-2 text-sm text-zinc-600">Supported Formats</h4>
-          <div className="flex flex-wrap gap-2">
-            {supportedFormats.map((format: SupportedFormat) => (
-              <div key={format.type} className="flex flex-col gap-0.5 py-2 px-3 bg-primary-50 rounded-md">
-                <span className="font-medium text-primary-700 text-[13px]">{format.type}</span>
-                <span className="text-zinc-500 text-xs">{format.extensions}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        </Paper>
       )}
 
       <ContentModal
@@ -272,46 +262,26 @@ export default function DocumentList() {
         onClose={closeDetails}
         title="Document Details"
         size="medium"
-        contentClassName="px-5"
         testId="details-modal"
       >
         {selectedDocument && (
-          <>
-            <div className="flex justify-between items-start py-3 border-b border-zinc-100 last:border-b-0">
-              <span className="font-medium text-zinc-600 text-sm flex-shrink-0 mr-4">File Name:</span>
-              <span className="text-zinc-500 text-sm text-right break-words flex-1">
-                {selectedDocument.file_name}
-              </span>
-            </div>
-            <div className="flex justify-between items-start py-3 border-b border-zinc-100 last:border-b-0">
-              <span className="font-medium text-zinc-600 text-sm flex-shrink-0 mr-4">File Type:</span>
-              <span className="text-zinc-500 text-sm text-right break-words flex-1">
-                {selectedDocument.file_type}
-              </span>
-            </div>
-            <div className="flex justify-between items-start py-3 border-b border-zinc-100 last:border-b-0">
-              <span className="font-medium text-zinc-600 text-sm flex-shrink-0 mr-4">Upload Date:</span>
-              <span className="text-zinc-500 text-sm text-right break-words flex-1">
-                {new Date(selectedDocument.upload_date).toLocaleString()}
-              </span>
-            </div>
-            <div className="flex justify-between items-start py-3 border-b border-zinc-100 last:border-b-0">
-              <span className="font-medium text-zinc-600 text-sm flex-shrink-0 mr-4">Chunks:</span>
-              <span className="text-zinc-500 text-sm text-right break-words flex-1">
-                {selectedDocument.chunk_count}
-              </span>
-            </div>
-            {selectedDocument.file_size && (
-              <div className="flex justify-between items-start py-3 border-b border-zinc-100 last:border-b-0">
-                <span className="font-medium text-zinc-600 text-sm flex-shrink-0 mr-4">File Size:</span>
-                <span className="text-zinc-500 text-sm text-right break-words flex-1">
-                  {selectedDocument.file_size}
-                </span>
-              </div>
-            )}
+          <Stack gap={0}>
+            {[
+              { label: 'File Name', value: selectedDocument.file_name },
+              { label: 'File Type', value: selectedDocument.file_type },
+              { label: 'Upload Date', value: new Date(selectedDocument.upload_date).toLocaleString() },
+              { label: 'Chunks', value: String(selectedDocument.chunk_count) },
+              ...(selectedDocument.file_size ? [{ label: 'File Size', value: selectedDocument.file_size }] : []),
+            ].map(({ label, value }, index, arr) => (
+              <Group key={label} py="sm" justify="space-between" wrap="nowrap">
+                <Text fw={500} c="dimmed" size="sm" style={{ flexShrink: 0 }}>{label}:</Text>
+                <Text c="dimmed" size="sm" ta="right" style={{ wordBreak: 'break-word', flex: 1 }}>{value}</Text>
+                {index < arr.length - 1 && <Divider />}
+              </Group>
+            ))}
             {selectedDocument.can_download && (
-              <div className="flex justify-between items-start py-3 border-b border-zinc-100 last:border-b-0">
-                <span className="font-medium text-zinc-600 text-sm flex-shrink-0 mr-4">Download:</span>
+              <Group py="sm" justify="space-between" wrap="nowrap">
+                <Text fw={500} c="dimmed" size="sm" style={{ flexShrink: 0 }}>Download:</Text>
                 <Button
                   onClick={() => handleDownload(selectedDocument)}
                   variant="text"
@@ -320,9 +290,9 @@ export default function DocumentList() {
                 >
                   Download file
                 </Button>
-              </div>
+              </Group>
             )}
-          </>
+          </Stack>
         )}
       </ContentModal>
 
@@ -334,24 +304,22 @@ export default function DocumentList() {
         testId="preview-modal"
       >
         {selectedDocument && (
-          <>
-            <p className="font-medium text-zinc-900 mb-4 text-base">
-              {selectedDocument.file_name}
-            </p>
-            <div className="bg-zinc-50 border border-zinc-200 rounded-lg p-4 max-h-[400px] overflow-y-auto">
-              {previewLoading ? (
-                <p className="text-zinc-500 italic m-0">Loading preview...</p>
-              ) : previewContent ? (
-                <pre className="m-0 whitespace-pre-wrap break-words font-mono text-sm leading-relaxed text-zinc-600">
-                  {previewContent}
-                </pre>
-              ) : (
-                <p className="text-zinc-500 italic m-0">
-                  No content available for preview
-                </p>
-              )}
-            </div>
-          </>
+          <Stack>
+            <Text fw={600} size="md" mb="xs">{selectedDocument.file_name}</Text>
+            <ScrollArea h={400} style={{ background: 'var(--mantine-color-gray-0)' }} type="auto">
+              <Paper bg="gray.0" withBorder p="md" radius="md">
+                {previewLoading ? (
+                  <Text c="dimmed" fs="italic">Loading preview...</Text>
+                ) : previewContent ? (
+                  <Text ff="monospace" size="sm" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.6 }} c="dimmed">
+                    {previewContent}
+                  </Text>
+                ) : (
+                  <Text c="dimmed" fs="italic">No content available for preview</Text>
+                )}
+              </Paper>
+            </ScrollArea>
+          </Stack>
         )}
       </ContentModal>
 
@@ -374,6 +342,6 @@ export default function DocumentList() {
         variant="danger"
         testId="delete-modal"
       />
-    </div>
+    </Paper>
   );
 }

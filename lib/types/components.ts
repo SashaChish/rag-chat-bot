@@ -1,19 +1,5 @@
-/**
- * React Component Types
- * Type definitions for React components in RAG chatbot
- */
-
-import type { ReactNode } from 'react';
-import type { SourceInfo, ChatMessage, DocumentListEntry } from './core.types';
-import type { DocumentUploadResponse } from './api';
-
-/**
- * Chat component props
- */
-export interface ChatProps {
-  onSendMessage?: (message: string) => void;
-  supportedFormats?: string[];
-}
+import type { ReactNode } from "react";
+import type { SourceInfo, ChatMessage, DocumentListEntry } from "./core.types";
 
 /**
  * Message list component props
@@ -32,28 +18,28 @@ export interface ChatUIMessage extends ChatMessage {
   sources?: SourceInfo[];
   isStreaming?: boolean;
   error?: boolean;
-  loadingPhase?: 'thinking' | 'loadingSources' | null;
+  loadingPhase?: "thinking" | "loadingSources" | null;
 }
 
 /**
  * Chat UI loading phase
  */
-export type LoadingPhase = 'thinking' | 'loadingSources' | null;
+export type LoadingPhase = "thinking" | "loadingSources" | null;
 
 /**
  * Component size
  */
-export type ComponentSize = 'small' | 'medium' | 'large';
+export type ComponentSize = "small" | "medium" | "large";
 
 /**
  * Button variant style
  */
-export type ButtonVariant = 'filled' | 'outlined' | 'text';
+export type ButtonVariant = "filled" | "outlined" | "text";
 
 /**
  * Button color theme
  */
-export type ButtonColor = 'primary' | 'danger' | 'success' | 'default';
+export type ButtonColor = "primary" | "danger" | "success" | "default";
 
 /**
  * Button component props
@@ -66,7 +52,7 @@ export interface ButtonProps {
   variant?: ButtonVariant;
   color?: ButtonColor;
   size?: ComponentSize;
-  type?: 'button' | 'submit' | 'reset';
+  type?: "button" | "submit" | "reset";
   className?: string;
   fullWidth?: boolean;
   leftIcon?: ReactNode;
@@ -96,20 +82,6 @@ export interface TextareaProps {
   rows?: number;
 }
 
-/**
- * Upload component props
- */
-export interface UploadProps {
-  onUpload?: (file: File) => Promise<void>;
-  onUploadSuccess?: (data: DocumentUploadResponse) => void;
-  maxSize?: number;
-  allowedTypes?: string[];
-  supportedFormats?: string[];
-}
-
-/**
- * Document list component props
- */
 export interface DocumentListProps {
   documents: DocumentListEntry[];
   loading?: boolean;
@@ -117,14 +89,8 @@ export interface DocumentListProps {
   onDocumentDownload?: (document: DocumentListEntry) => void;
 }
 
-/**
- * Modal variant type
- */
-export type ModalVariant = 'default' | 'danger' | 'warning' | 'success';
+export type ModalVariant = "default" | "danger" | "warning" | "success";
 
-/**
- * Confirm modal props (for confirmation dialogs)
- */
 export interface ConfirmModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -146,7 +112,7 @@ export interface ContentModalProps {
   children: ReactNode;
   className?: string;
   contentClassName?: string;
-  size?: 'small' | 'medium' | 'large';
+  size?: "small" | "medium" | "large";
 }
 
 /**

@@ -4,7 +4,6 @@ import { VectorStoreIndex } from "llamaindex";
 import {
   loadDocumentFromBuffer,
   validateFile,
-  getSupportedFormatsList,
 } from "@/lib/llamaindex/loaders";
 import { getChromaVectorStore, getStorageContext, getCollectionStats, getAllDocuments, getDocumentContent } from "@/lib/llamaindex/vectorstore";
 import { generateDocumentId } from "@/lib/llamaindex/utils";
@@ -131,8 +130,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const stats = await getCollectionStats();
 
-    const formats = getSupportedFormatsList();
-
     const response: DocumentsGetResponse = {
       stats: {
         exists: stats.exists,
@@ -140,7 +137,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         count: stats.count,
         documentCount: stats.documentCount,
       },
-      supportedFormats: formats,
     };
 
     return NextResponse.json(response);

@@ -8,4 +8,3 @@ export * from './date.utils';
 export * from './format.utils';
 export * from './file-encoding';
 export * from './file-validation';
-export { cn } from './cn';

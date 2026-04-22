@@ -1,44 +1,3 @@
-@import "tailwindcss";
-
-@theme {
-  --font-sans: var(--font-inter);
-
-  /* Primary - Violet/Purple Gradient */
-  --color-primary-50: #faf5ff;
-  --color-primary-100: #f3e8ff;
-  --color-primary-200: #e9d5ff;
-  --color-primary-300: #d8b4fe;
-  --color-primary-400: #c084fc;
-  --color-primary-500: #a855f7;
-  --color-primary-600: #9333ea;
-  --color-primary-700: #7e22ce;
-  --color-primary-800: #6b21a8;
-  --color-primary-900: #581c87;
-
-  /* Accent - Vibrant purple for gradients */
-  --color-accent-500: #8b5cf6;
-  --color-accent-600: #7c3aed;
-
-  /* Semantic Colors */
-  --color-success-50: #f0fdf4;
-  --color-success-500: #10b981;
-  --color-success-600: #059669;
-  --color-warning-500: #f59e0b;
-  --color-warning-600: #d97706;
-  --color-danger-50: #fef2f2;
-  --color-danger-100: #fee2e2;
-  --color-danger-200: #fecaca;
-  --color-danger-500: #ef4444;
-  --color-danger-600: #dc2626;
-  --color-danger-700: #b91c1c;
-  --color-danger-800: #991b1b;
-
-  /* Shadows with violet tint */
-  --shadow-glow: 0 0 20px rgba(139, 92, 246, 0.3);
-  --shadow-glow-lg: 0 0 40px rgba(139, 92, 246, 0.4);
-}
-
-/* Global reset and base styles */
 * {
   box-sizing: border-box;
 }
@@ -51,8 +10,6 @@ html {
 body {
   margin: 0;
   padding: 0;
-  background: #f9fafb;
-  color: #111827;
   height: 100%;
   overflow: hidden;
 }
@@ -79,14 +36,4 @@ body {
 
 *::-webkit-scrollbar-thumb:hover {
   background: #9ca3af;
-}
-
-@keyframes slideInLeft {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(0); }
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
 }

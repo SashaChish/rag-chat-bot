@@ -205,13 +205,3 @@ export function validateFile(file: File): boolean {
 
   return true;
 }
-
-export function getSupportedFormatsList(): Array<{
-  type: string;
-  extensions: string;
-}> {
-  return Object.entries(SUPPORTED_FORMATS).map(([type, extensions]) => ({
-    type,
-    extensions: extensions.map((ext) => `.${ext}`).join(", "),
-  }));
-}

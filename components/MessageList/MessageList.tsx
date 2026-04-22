@@ -1,9 +1,9 @@
 "use client";
 
+import { Paper, Stack, Group, Text, Progress, Loader, ScrollArea, Box, Center } from '@mantine/core';
 import type { SourceInfo } from "../../lib/types/core.types";
 import type { MessageListProps } from "../../lib/types/components";
 import type { SimilarityBarProps } from "./MessageList.types";
-import { cn } from "@/lib/utils/cn";
 import { ChatEmptyIcon } from "@/lib/icons";
 import {
   formatContent,
@@ -23,16 +23,14 @@ const SimilarityBar = ({ score }: SimilarityBarProps) => {
   const color = getSimilarityColor(numericScore);
 
   return (
-    <div className="w-full bg-zinc-200 rounded-full h-2 mt-1 overflow-hidden">
-      <div
-        style={{
-          width: `${percentage}%`,
-          backgroundColor: color,
-        }}
-        className="h-full rounded-full transition-all duration-300"
-        aria-label={`Similarity score: ${percentage}%`}
-      />
-    </div>
+    <Progress
+      value={percentage}
+      size="xs"
+      mt={4}
+      style={{ backgroundColor: 'var(--mantine-color-gray-2)' }}
+      color={color}
+      aria-label={`Similarity score: ${percentage}%`}
+    />
   );
 };
 
@@ -41,111 +39,131 @@ export default function MessageList({
   scrollAnchorRef,
 }: MessageListProps) {
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-4">
-      {messages.length === 0 && (
-        <div className="text-center p-12 text-zinc-500">
-          <ChatEmptyIcon className="w-16 h-16 mx-auto mb-4" />
-          <h3 className="m-0 mb-2 text-zinc-600">No messages yet</h3>
-          <p className="m-0">Upload a document and start asking questions!</p>
-        </div>
-      )}
+    <ScrollArea style={{ flex: 1 }} p="md">
+      <Stack gap="md">
+        {messages.length === 0 && (
+          <Center py="xl">
+            <Stack align="center" gap="sm">
+              <ChatEmptyIcon />
+              <Text fw={600} c="dimmed" size="lg">No messages yet</Text>
+              <Text c="dimmed">Upload a document and start asking questions!</Text>
+            </Stack>
+          </Center>
+        )}
 
-      {messages.map((message) => (
-        <div
-          key={message.id}
-          className={cn(
-            "flex flex-col gap-2 animate-[slideIn_0.3s_ease-out]",
-            message.role === "user" && "items-end",
-            message.role === "assistant" && "items-start",
-            message.error && "bg-danger-50",
-          )}
-          data-testid={
-            message.role === "assistant" ? "chat-response" : undefined
-          }
-        >
-          <div
-            className={cn(
-              "flex justify-between items-center gap-4 text-sm",
-              message.role === "user" && "flex-row-reverse",
-            )}
+        {messages.map((message) => (
+          <Box
+            key={message.id}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              alignItems: message.role === "user" ? 'flex-end' : 'flex-start',
+            }}
+            data-testid={message.role === "assistant" ? "chat-response" : undefined}
           >
-            <span className="font-semibold text-zinc-600">
-              {message.role === "user" ? "You" : "AI Assistant"}
-            </span>
-            <span className="text-xs text-zinc-400">
-              {new Date(message.timestamp).toLocaleTimeString()}
-            </span>
-          </div>
-
-          <div
-            className={cn(
-              "py-3 px-4 rounded-2xl max-w-[80%] leading-relaxed break-words",
-              message.role === "user" &&
-                "bg-gradient-to-r from-primary-500 to-accent-600 text-white rounded-br-sm",
-              message.role === "assistant" &&
-                !message.error &&
-                "bg-zinc-100 text-zinc-800 rounded-bl-sm",
-              message.error && "bg-danger-100 text-danger-800",
-              (message.isStreaming || message.loadingPhase) && "loading",
-            )}
-          >
-            {(message.isStreaming || message.loadingPhase) && (
-              <span className="loading-dots" data-testid="streaming-indicator">
-                {message.loadingPhase === "loadingSources"
-                  ? "Loading sources"
-                  : "Thinking"}
-              </span>
-            )}
-            <span
-              dangerouslySetInnerHTML={{
-                __html: formatContent(
-                  typeof message.content === "string"
-                    ? message.content
-                    : JSON.stringify(message.content),
-                ),
-              }}
-            />
-          </div>
-
-          {message.sources && message.sources.length > 0 && (
-            <div
-              className="mt-2 py-2 px-3 bg-primary-50 rounded-lg border-l-[3px] border-primary-500"
-              data-testid="sources-section"
+            <Group
+              justify="space-between"
+              gap="md"
+              style={{ width: '100%', flexDirection: message.role === "user" ? 'row-reverse' : 'row' }}
             >
-              <div className="text-sm text-zinc-600 mb-3 font-semibold">
-                {getSourceExplanation(message.sources)?.text}
-              </div>
-              <div className="flex flex-col gap-4">
-                {message.sources.map((source: SourceInfo, index: number) => (
-                  <div
-                    key={index}
-                    className="bg-white border border-zinc-300 rounded-lg p-3 transition-all hover:shadow-md hover:-translate-y-px"
-                    data-testid="source-item"
-                  >
-                    <div className="flex justify-between items-center mb-2 gap-2">
-                      <span className="font-semibold text-primary-700 text-sm">
-                        {source.filename}
-                      </span>
-                      {source.score && (
-                        <span className="text-sm text-zinc-500 font-medium">
-                          score: {source.score}
-                        </span>
+              <Text fw={600} c="dimmed" size="sm">
+                {message.role === "user" ? "You" : "AI Assistant"}
+              </Text>
+              <Text size="xs" c="dimmed">
+                {new Date(message.timestamp).toLocaleTimeString()}
+              </Text>
+            </Group>
+
+            <Paper
+              radius="lg"
+              py="sm"
+              px="md"
+              style={{
+                maxWidth: '80%',
+                lineHeight: 1.6,
+                wordBreak: 'break-word',
+                background: message.role === "user"
+                  ? 'linear-gradient(to right, #a855f7, #7c3aed)'
+                  : message.error
+                    ? 'var(--mantine-color-red-1)'
+                    : 'var(--mantine-color-gray-1)',
+                color: message.role === "user"
+                  ? 'white'
+                  : message.error
+                    ? 'var(--mantine-color-red-8)'
+                    : 'var(--mantine-color-dark)',
+                borderBottomRightRadius: message.role === "user" ? 4 : undefined,
+                borderBottomLeftRadius: message.role === "assistant" && !message.error ? 4 : undefined,
+              }}
+            >
+              {(message.isStreaming || message.loadingPhase) && (
+                <Group gap="xs" mb={4} data-testid="streaming-indicator">
+                  <Loader type="dots" size="xs" />
+                  <Text size="sm" inherit>
+                    {message.loadingPhase === "loadingSources"
+                      ? "Loading sources"
+                      : "Thinking"}
+                  </Text>
+                </Group>
+              )}
+              <span
+                dangerouslySetInnerHTML={{
+                  __html: formatContent(
+                    typeof message.content === "string"
+                      ? message.content
+                      : JSON.stringify(message.content),
+                  ),
+                }}
+              />
+            </Paper>
+
+            {message.sources && message.sources.length > 0 && (
+              <Paper
+                bg="violet.0"
+                radius="md"
+                p="sm"
+                mt={8}
+                style={{ borderLeft: '3px solid var(--mantine-color-violet-5)' }}
+                data-testid="sources-section"
+              >
+                <Text size="sm" c="dimmed" fw={600} mb="sm">
+                  {getSourceExplanation(message.sources)?.text}
+                </Text>
+                <Stack gap="sm">
+                  {message.sources.map((source: SourceInfo, index: number) => (
+                    <Paper
+                      key={index}
+                      withBorder
+                      radius="md"
+                      p="sm"
+                      data-testid="source-item"
+                    >
+                      <Group justify="space-between" mb="xs" wrap="nowrap">
+                        <Text fw={600} c="violet.7" size="sm">
+                          {source.filename}
+                        </Text>
+                        {source.score && (
+                          <Text size="sm" c="dimmed" fw={500}>
+                            score: {source.score}
+                          </Text>
+                        )}
+                      </Group>
+                      {source.score && <SimilarityBar score={source.score} />}
+                      {source.preview && (
+                        <Text c="dimmed" size="sm" fs="italic" mt="sm" style={{ lineHeight: 1.6 }}>
+                          {source.preview}
+                        </Text>
                       )}
-                    </div>
-                    {source.score && <SimilarityBar score={source.score} />}
-                    {source.preview && (
-                      <div className="text-sm text-zinc-500 italic mt-3 leading-relaxed">
-                        {source.preview}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      ))}
-      <div ref={scrollAnchorRef} />
-    </div>
+                    </Paper>
+                  ))}
+                </Stack>
+              </Paper>
+            )}
+          </Box>
+        ))}
+        <div ref={scrollAnchorRef} />
+      </Stack>
+    </ScrollArea>
   );
 }

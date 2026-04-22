@@ -5,25 +5,19 @@
 
 import type { DocumentData } from "./DocumentList.types";
 import { formatDate } from "../../lib/utils/date.utils";
-import {
-  PdfFileIcon,
-  DocxFileIcon,
-  MarkdownFileIcon,
-  TextFileIcon,
-  DefaultFileIcon,
-} from "@/lib/icons";
+import { IconFileTypePdf, IconFile, IconFileText } from '@tabler/icons-react';
 
 /**
  * Get file icon component based on file type
  */
 export function getFileIcon(fileType: string) {
   const iconMap: Record<string, React.ReactElement> = {
-    PDF: <PdfFileIcon />,
-    TEXT: <TextFileIcon />,
-    MARKDOWN: <MarkdownFileIcon />,
-    DOCX: <DocxFileIcon />,
+    PDF: <IconFileTypePdf size={20} aria-hidden="true" />,
+    TEXT: <IconFile size={20} aria-hidden="true" />,
+    MARKDOWN: <IconFileText size={20} aria-hidden="true" />,
+    DOCX: <IconFile size={20} aria-hidden="true" />,
   };
-  return iconMap[fileType] || <DefaultFileIcon />;
+  return iconMap[fileType] || <IconFile size={20} aria-hidden="true" />;
 }
 
 /**

@@ -1,16 +1,23 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Paper, Group, Text, Textarea, Select, Divider, Box, Alert } from '@mantine/core';
-import MessageList from '../MessageList/MessageList';
-import { ConfirmModal } from '../ui/Modal';
-import { Button } from '../ui/Button';
-import { IconButton } from '../ui/IconButton';
-import { SidebarOpenIcon } from '@/lib/icons';
-import type { SourceInfo } from '../../lib/types/core.types';
-import type { ChatUIMessage, ChatProps } from './Chat.types';
+import {
+  Paper,
+  Group,
+  Text,
+  Textarea,
+  Select,
+  Divider,
+  Box,
+  Alert,
+} from "@mantine/core";
+import MessageList from "../MessageList/MessageList";
+import { ConfirmModal } from "../ui/Modal";
+import { Button } from "../ui/Button";
+import type { SourceInfo } from "../../lib/types/core.types";
+import type { ChatUIMessage } from "./Chat.types";
 
-export default function Chat({ onToggleSidebar, sidebarToggleVisible }: ChatProps) {
+export default function Chat() {
   const [messages, setMessages] = useState<ChatUIMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -221,21 +228,19 @@ export default function Chat({ onToggleSidebar, sidebarToggleVisible }: ChatProp
     <Paper
       shadow="xs"
       radius="md"
-      style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        overflow: "hidden",
+      }}
     >
       <Box style={{ flexShrink: 0 }}>
         <Group justify="space-between" p="md" wrap="nowrap">
           <Group gap="xs" wrap="nowrap">
-            {sidebarToggleVisible && (
-              <IconButton
-                icon={<SidebarOpenIcon />}
-                aria-label="Open documents panel"
-                onClick={onToggleSidebar}
-                color="default"
-                size="small"
-              />
-            )}
-            <Text fw={600} size="xl">Chat with Your Documents</Text>
+            <Text fw={600} size="xl">
+              Chat with Your Documents
+            </Text>
           </Group>
           <Group gap="xs" wrap="nowrap">
             <Select
@@ -247,8 +252,8 @@ export default function Chat({ onToggleSidebar, sidebarToggleVisible }: ChatProp
                 }
               }}
               data={[
-                { value: 'condense', label: 'Condense Question' },
-                { value: 'context', label: 'Context Engine' },
+                { value: "condense", label: "Condense Question" },
+                { value: "context", label: "Context Engine" },
               ]}
               disabled={isLoading}
               data-testid="engine-selector"
@@ -258,7 +263,7 @@ export default function Chat({ onToggleSidebar, sidebarToggleVisible }: ChatProp
               <Button
                 onClick={handleClearChat}
                 variant="text"
-                color="default"
+                color="gray"
                 size="small"
                 data-testid="clear-chat-button"
               >
@@ -300,7 +305,7 @@ export default function Chat({ onToggleSidebar, sidebarToggleVisible }: ChatProp
             disabled={isLoading || !input.trim()}
             loading={isLoading}
           >
-            {isLoading ? 'Sending...' : 'Send'}
+            {isLoading ? "Sending..." : "Send"}
           </Button>
         </Group>
       </Box>
@@ -311,7 +316,7 @@ export default function Chat({ onToggleSidebar, sidebarToggleVisible }: ChatProp
           mx="md"
           mb="md"
           data-testid="input-error"
-          style={{ borderLeft: '3px solid var(--mantine-color-red-6)' }}
+          style={{ borderLeft: "3px solid var(--mantine-color-red-6)" }}
         >
           {inputError}
         </Alert>

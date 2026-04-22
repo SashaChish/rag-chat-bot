@@ -31,8 +31,8 @@ function ConfirmModal({
   cancelText = "Cancel",
   variant = "default",
   testId = "confirm-modal",
+  confirmButtonProps,
 }: ConfirmModalProps) {
-  const confirmColor = variant === "danger" ? "danger" : "primary";
   const borderColor = variantBorderColors[variant];
 
   return (
@@ -47,19 +47,32 @@ function ConfirmModal({
       data-testid={testId}
       styles={{
         body: {
-          borderLeft: borderColor !== "transparent" ? `4px solid ${borderColor}` : undefined,
-          paddingLeft: borderColor !== "transparent" ? "calc(var(--mantine-spacing-md) - 4px)" : undefined,
+          borderLeft:
+            borderColor !== "transparent"
+              ? `4px solid ${borderColor}`
+              : undefined,
+          paddingLeft:
+            borderColor !== "transparent"
+              ? "calc(var(--mantine-spacing-md) - 4px)"
+              : undefined,
         },
       }}
     >
-      <p style={{ margin: 0, color: "var(--mantine-color-gray-6)", fontSize: "15px", lineHeight: 1.6 }}>
+      <p
+        style={{
+          margin: 0,
+          color: "var(--mantine-color-gray-6)",
+          fontSize: "15px",
+          lineHeight: 1.6,
+        }}
+      >
         {message}
       </p>
       <Group justify="flex-end" gap="sm" mt="md">
-        <Button variant="outlined" color="default" onClick={onClose}>
+        <Button variant="outlined" color="gray" onClick={onClose}>
           {cancelText}
         </Button>
-        <Button color={confirmColor} onClick={onConfirm}>
+        <Button {...confirmButtonProps} onClick={onConfirm}>
           {confirmText}
         </Button>
       </Group>
@@ -89,9 +102,7 @@ function ContentModal({
       className={className}
       data-testid={testId}
     >
-      <div className={contentClassName}>
-        {children}
-      </div>
+      <div className={contentClassName}>{children}</div>
     </Modal>
   );
 }

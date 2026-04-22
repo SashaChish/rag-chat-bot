@@ -60,9 +60,10 @@ describe("validateFileExtension", () => {
     expect(validateFileExtension("test.Txt")).toBe(true);
   });
 
-  it("should use provided format names for validation", () => {
+  it("should validate using FILE_EXTENSIONS constant", () => {
     expect(validateFileExtension("test.pdf")).toBe(true);
-    expect(validateFileExtension("test.txt")).toBe(false);
+    expect(validateFileExtension("test.txt")).toBe(true);
+    expect(validateFileExtension("test.exe")).toBe(false);
   });
 });
 

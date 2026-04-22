@@ -15,7 +15,7 @@ export default function Error({
         Something went wrong
       </Text>
       <Text c="dimmed">{error.message}</Text>
-      <Button onClick={reset} color="violet">
+      <Button onClick={reset} color="primary">
         Try again
       </Button>
     </Stack>

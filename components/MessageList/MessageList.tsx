@@ -4,7 +4,7 @@ import { Paper, Stack, Group, Text, Progress, Loader, ScrollArea, Box, Center } 
 import type { SourceInfo } from "../../lib/types/core.types";
 import type { MessageListProps } from "../../lib/types/components";
 import type { SimilarityBarProps } from "./MessageList.types";
-import { ChatEmptyIcon } from "@/lib/icons";
+import { IconMessageChatbot } from '@tabler/icons-react';
 import {
   formatContent,
   getSourceExplanation,
@@ -44,7 +44,7 @@ export default function MessageList({
         {messages.length === 0 && (
           <Center py="xl">
             <Stack align="center" gap="sm">
-              <ChatEmptyIcon />
+              <IconMessageChatbot size={64} aria-hidden="true" />
               <Text fw={600} c="dimmed" size="lg">No messages yet</Text>
               <Text c="dimmed">Upload a document and start asking questions!</Text>
             </Stack>

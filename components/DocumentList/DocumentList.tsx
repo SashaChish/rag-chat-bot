@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Paper,
   Group,
@@ -14,36 +14,48 @@ import {
   Alert,
   Divider,
   Box,
-} from '@mantine/core';
-import { Button } from '../ui/Button';
-import { IconButton } from '../ui/IconButton';
-import { ConfirmModal, ContentModal } from '../ui/Modal';
+} from "@mantine/core";
+import { Button } from "../ui/Button";
+import { IconButton } from "../ui/IconButton";
+import { ConfirmModal, ContentModal } from "../ui/Modal";
 import {
-  RefreshIcon,
-  WarningIcon,
-  StatsIcon,
-  StorageIcon,
-  EmptyStateIcon,
-  InfoIcon,
-  PreviewIcon,
-  DownloadIcon,
-  DeleteIcon,
-} from '@/lib/icons';
-import type { DocumentData } from './DocumentList.types';
-import { getFileIcon, formatDocumentDate } from './DocumentList.utils';
-import { useDocumentStats } from '@/lib/hooks/use-document-stats';
-import { useDocumentList } from '@/lib/hooks/use-document-list';
-import { useDocumentPreview } from '@/lib/hooks/use-document-preview';
-import { useDocumentDelete } from '@/lib/hooks/use-document-delete';
-import { useDocumentDownload } from '@/lib/hooks/use-document-download';
+  IconRefresh,
+  IconAlertTriangle,
+  IconChartBar,
+  IconFolder,
+  IconInbox,
+  IconInfoCircle,
+  IconEye,
+  IconDownload,
+  IconTrash,
+} from "@tabler/icons-react";
+import type { DocumentData } from "./DocumentList.types";
+import { getFileIcon, formatDocumentDate } from "./DocumentList.utils";
+import { useDocumentStats } from "@/lib/hooks/use-document-stats";
+import { useDocumentList } from "@/lib/hooks/use-document-list";
+import { useDocumentPreview } from "@/lib/hooks/use-document-preview";
+import { useDocumentDelete } from "@/lib/hooks/use-document-delete";
+import { useDocumentDownload } from "@/lib/hooks/use-document-download";
 
 export default function DocumentList() {
   const queryClient = useQueryClient();
   const { mutate: downloadDoc } = useDocumentDownload();
-  const { data: statsData, isLoading, error: statsError, refetch } = useDocumentStats();
-  const { data: documentsData, isFetching, error: documentsError, refetch: refetchDocuments } = useDocumentList();
+  const {
+    data: statsData,
+    isLoading,
+    error: statsError,
+    refetch,
+  } = useDocumentStats();
+  const {
+    data: documentsData,
+    isFetching,
+    error: documentsError,
+    refetch: refetchDocuments,
+  } = useDocumentList();
   const { mutate: deleteDoc } = useDocumentDelete();
-  const [selectedDocument, setSelectedDocument] = useState<DocumentData | null>(null);
+  const [selectedDocument, setSelectedDocument] = useState<DocumentData | null>(
+    null,
+  );
   const [showDetails, setShowDetails] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const { data: previewData, isLoading: previewLoading } = useDocumentPreview(
@@ -52,12 +64,14 @@ export default function DocumentList() {
   );
   const previewContent = previewData?.content || "";
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [documentToDelete, setDocumentToDelete] = useState<DocumentData | null>(null);
+  const [documentToDelete, setDocumentToDelete] = useState<DocumentData | null>(
+    null,
+  );
 
   useEffect(() => {
     const handleDocumentUploaded = (): void => {
-      queryClient.invalidateQueries({ queryKey: ['documents-stats'] });
-      queryClient.invalidateQueries({ queryKey: ['documents-list'] });
+      queryClient.invalidateQueries({ queryKey: ["documents-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["documents-list"] });
     };
     window.addEventListener("documentUploaded", handleDocumentUploaded);
     return (): void => {
@@ -112,7 +126,9 @@ export default function DocumentList() {
     return (
       <Paper shadow="xs" radius="md" p="md">
         <Group justify="space-between" mb="md">
-          <Text fw={600} size="lg">Documents</Text>
+          <Text fw={600} size="lg">
+            Documents
+          </Text>
         </Group>
         <Center py="xl">
           <Loader size="sm" />
@@ -122,19 +138,26 @@ export default function DocumentList() {
   }
 
   return (
-    <Paper shadow="xs" radius="md" p="md" style={{ maxHeight: '100vh', overflowY: 'auto' }}>
+    <Paper
+      shadow="xs"
+      radius="md"
+      p="md"
+      style={{ maxHeight: "100vh", overflowY: "auto" }}
+    >
       <Group justify="space-between" mb="md">
-        <Text fw={600} size="lg">Documents</Text>
+        <Text fw={600} size="lg">
+          Documents
+        </Text>
         <Button
           onClick={() => {
             refetch();
             refetchDocuments();
           }}
           variant="text"
-          color="default"
-          size="small"
+          color="gray"
+          size="sm"
           disabled={isFetching}
-          leftIcon={<RefreshIcon />}
+          leftIcon={<IconRefresh size={16} aria-hidden="true" />}
         >
           Refresh
         </Button>
@@ -142,7 +165,7 @@ export default function DocumentList() {
 
       {(statsError || documentsError) && (
         <Alert
-          icon={<WarningIcon />}
+          icon={<IconAlertTriangle size={20} aria-hidden="true" />}
           color="red"
           mb="md"
         >
@@ -158,19 +181,27 @@ export default function DocumentList() {
         <Stack gap="sm" mb="md">
           <Paper bg="gray.0" radius="md" p="sm">
             <Group gap="sm">
-              <StatsIcon />
+              <IconChartBar size={24} aria-hidden="true" />
               <Box style={{ flex: 1 }}>
-                <Text fw={600} size="sm">{stats.count} Chunks</Text>
-                <Text c="dimmed" size="xs">From {documents?.length || 0} documents</Text>
+                <Text fw={600} size="sm">
+                  {stats.count} Chunks
+                </Text>
+                <Text c="dimmed" size="xs">
+                  From {documents?.length || 0} documents
+                </Text>
               </Box>
             </Group>
           </Paper>
           <Paper bg="gray.0" radius="md" p="sm">
             <Group gap="sm">
-              <StorageIcon />
+              <IconFolder size={24} aria-hidden="true" />
               <Box style={{ flex: 1 }}>
-                <Text fw={600} size="sm">{stats.collectionName || "documents"}</Text>
-                <Text c="dimmed" size="xs">Active collection</Text>
+                <Text fw={600} size="sm">
+                  {stats.collectionName || "documents"}
+                </Text>
+                <Text c="dimmed" size="xs">
+                  Active collection
+                </Text>
               </Box>
             </Group>
           </Paper>
@@ -178,9 +209,11 @@ export default function DocumentList() {
       ) : (
         <Center py="xl">
           <Stack align="center" gap="xs">
-            <EmptyStateIcon />
+            <IconInbox color="blue" size={32} aria-hidden="true" />
             <Text c="dimmed">No documents indexed yet</Text>
-            <Text c="dimmed" size="sm">Upload documents to get started</Text>
+            <Text c="dimmed" size="sm">
+              Upload documents to get started
+            </Text>
           </Stack>
         </Center>
       )}
@@ -196,20 +229,29 @@ export default function DocumentList() {
               {documents.map((doc: DocumentData, index: number) => (
                 <Box key={doc.id}>
                   <Group p="sm" justify="space-between" wrap="nowrap">
-                    <Group gap="sm" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+                    <Group
+                      gap="sm"
+                      wrap="nowrap"
+                      style={{ flex: 1, minWidth: 0 }}
+                    >
                       <Box style={{ flexShrink: 0 }}>
                         {getFileIcon(doc.file_type)}
                       </Box>
                       <Box style={{ flex: 1, minWidth: 0 }}>
-                        <Text fw={500} size="sm" truncate>{doc.file_name}</Text>
+                        <Text fw={500} size="sm" truncate>
+                          {doc.file_name}
+                        </Text>
                         <Group gap="xs" wrap="wrap">
                           <Badge color="violet" size="xs" variant="light">
                             {doc.file_type}
                           </Badge>
-                          <Text c="dimmed" size="xs">{formatDocumentDate(doc.upload_date)}</Text>
+                          <Text c="dimmed" size="xs">
+                            {formatDocumentDate(doc.upload_date)}
+                          </Text>
                           {doc.chunk_count > 0 && (
                             <Text c="dimmed" size="xs">
-                              {doc.chunk_count} chunk{doc.chunk_count !== 1 ? "s" : ""}
+                              {doc.chunk_count} chunk
+                              {doc.chunk_count !== 1 ? "s" : ""}
                             </Text>
                           )}
                         </Group>
@@ -217,35 +259,35 @@ export default function DocumentList() {
                     </Group>
                     <Group gap={4} wrap="nowrap">
                       <IconButton
-                        icon={<InfoIcon />}
-                        aria-label={`View details for ${doc.file_name}`}
+                        icon={<IconInfoCircle size={20} aria-hidden="true" />}
+                        ariaLabel={`View details for ${doc.file_name}`}
                         onClick={() => handleViewDetails(doc)}
-                        color="default"
-                        size="small"
+                        color="gray"
+                        size="sm"
                       />
                       <IconButton
-                        icon={<PreviewIcon />}
-                        aria-label={`Preview ${doc.file_name}`}
+                        icon={<IconEye size={20} aria-hidden="true" />}
+                        ariaLabel={`Preview ${doc.file_name}`}
                         onClick={() => handlePreview(doc)}
-                        color="default"
-                        size="small"
+                        color="gray"
+                        size="sm"
                       />
                       {doc.can_download && (
                         <IconButton
-                          icon={<DownloadIcon />}
-                          aria-label={`Download ${doc.file_name}`}
+                          icon={<IconDownload size={20} aria-hidden="true" />}
+                          ariaLabel={`Download ${doc.file_name}`}
                           onClick={() => handleDownload(doc)}
-                          color="default"
-                          size="small"
+                          color="gray"
+                          size="sm"
                         />
                       )}
                       <IconButton
-                        icon={<DeleteIcon />}
-                        aria-label={`Delete ${doc.file_name}`}
+                        icon={<IconTrash size={20} aria-hidden="true" />}
+                        ariaLabel={`Delete ${doc.file_name}`}
                         onClick={() => confirmDelete(doc)}
-                        color="danger"
-                        size="small"
+                        color="red"
                         data-testid="delete-document-button"
+                        size="sm"
                       />
                     </Group>
                   </Group>
@@ -267,25 +309,40 @@ export default function DocumentList() {
         {selectedDocument && (
           <Stack gap={0}>
             {[
-              { label: 'File Name', value: selectedDocument.file_name },
-              { label: 'File Type', value: selectedDocument.file_type },
-              { label: 'Upload Date', value: new Date(selectedDocument.upload_date).toLocaleString() },
-              { label: 'Chunks', value: String(selectedDocument.chunk_count) },
-              ...(selectedDocument.file_size ? [{ label: 'File Size', value: selectedDocument.file_size }] : []),
+              { label: "File Name", value: selectedDocument.file_name },
+              { label: "File Type", value: selectedDocument.file_type },
+              {
+                label: "Upload Date",
+                value: new Date(selectedDocument.upload_date).toLocaleString(),
+              },
+              { label: "Chunks", value: String(selectedDocument.chunk_count) },
+              ...(selectedDocument.file_size
+                ? [{ label: "File Size", value: selectedDocument.file_size }]
+                : []),
             ].map(({ label, value }, index, arr) => (
               <Group key={label} py="sm" justify="space-between" wrap="nowrap">
-                <Text fw={500} c="dimmed" size="sm" style={{ flexShrink: 0 }}>{label}:</Text>
-                <Text c="dimmed" size="sm" ta="right" style={{ wordBreak: 'break-word', flex: 1 }}>{value}</Text>
+                <Text fw={500} c="dimmed" size="sm" style={{ flexShrink: 0 }}>
+                  {label}:
+                </Text>
+                <Text
+                  c="dimmed"
+                  size="sm"
+                  ta="right"
+                  style={{ wordBreak: "break-word", flex: 1 }}
+                >
+                  {value}
+                </Text>
                 {index < arr.length - 1 && <Divider />}
               </Group>
             ))}
             {selectedDocument.can_download && (
               <Group py="sm" justify="space-between" wrap="nowrap">
-                <Text fw={500} c="dimmed" size="sm" style={{ flexShrink: 0 }}>Download:</Text>
+                <Text fw={500} c="dimmed" size="sm" style={{ flexShrink: 0 }}>
+                  Download:
+                </Text>
                 <Button
                   onClick={() => handleDownload(selectedDocument)}
                   variant="text"
-                  color="primary"
                   size="small"
                 >
                   Download file
@@ -305,17 +362,36 @@ export default function DocumentList() {
       >
         {selectedDocument && (
           <Stack>
-            <Text fw={600} size="md" mb="xs">{selectedDocument.file_name}</Text>
-            <ScrollArea h={400} style={{ background: 'var(--mantine-color-gray-0)' }} type="auto">
+            <Text fw={600} size="md" mb="xs">
+              {selectedDocument.file_name}
+            </Text>
+            <ScrollArea
+              h={400}
+              style={{ background: "var(--mantine-color-gray-0)" }}
+              type="auto"
+            >
               <Paper bg="gray.0" withBorder p="md" radius="md">
                 {previewLoading ? (
-                  <Text c="dimmed" fs="italic">Loading preview...</Text>
+                  <Text c="dimmed" fs="italic">
+                    Loading preview...
+                  </Text>
                 ) : previewContent ? (
-                  <Text ff="monospace" size="sm" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.6 }} c="dimmed">
+                  <Text
+                    ff="monospace"
+                    size="sm"
+                    style={{
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-word",
+                      lineHeight: 1.6,
+                    }}
+                    c="dimmed"
+                  >
                     {previewContent}
                   </Text>
                 ) : (
-                  <Text c="dimmed" fs="italic">No content available for preview</Text>
+                  <Text c="dimmed" fs="italic">
+                    No content available for preview
+                  </Text>
                 )}
               </Paper>
             </ScrollArea>
@@ -335,12 +411,13 @@ export default function DocumentList() {
         message={
           documentToDelete
             ? `Are you sure you want to delete "${documentToDelete.file_name}"? This action cannot be undone.`
-            : ''
+            : ""
         }
         confirmText="Delete"
         cancelText="Cancel"
         variant="danger"
         testId="delete-modal"
+        confirmButtonProps={{ color: "red" }}
       />
     </Paper>
   );

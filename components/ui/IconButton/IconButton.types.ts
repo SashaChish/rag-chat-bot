@@ -1,13 +1,8 @@
-import type { ReactNode, ButtonHTMLAttributes } from 'react';
+import type { ActionIconProps } from "@mantine/core";
+import type { ReactNode } from "react";
 
-export type IconButtonColor = 'default' | 'primary' | 'danger';
-export type IconButtonSize = 'small' | 'medium';
-
-export interface IconButtonProps
-  extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
+export interface IconButtonProps extends ActionIconProps {
   icon: ReactNode;
-  'aria-label': string;
-  color?: IconButtonColor;
-  size?: IconButtonSize;
-  loading?: boolean;
+  onClick: () => void;
+  ariaLabel?: string;
 }

@@ -9,7 +9,6 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     {
       children,
       variant = "filled",
-      color = "primary",
       loading = false,
       fullWidth = false,
       leftIcon,
@@ -30,7 +29,6 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         rightSection={rightIcon}
         className={className}
         variant={variant}
-        color={color}
         {...props}
       >
         {children}

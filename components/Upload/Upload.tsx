@@ -3,7 +3,6 @@
 import { useState, useRef, useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  Paper,
   Progress,
   Alert,
   Group,
@@ -82,10 +81,6 @@ export default function Upload() {
 
       setTimeout(() => setSuccess(null), 3000);
 
-      window.dispatchEvent(
-        new CustomEvent("documentUploaded", { detail: data }),
-      );
-
       queryClient.invalidateQueries({ queryKey: ["documents-stats"] });
       queryClient.invalidateQueries({ queryKey: ["documents-list"] });
 
@@ -139,7 +134,7 @@ export default function Upload() {
   const formatsLabel = "PDF, TEXT, MARKDOWN, DOCX";
 
   return (
-    <Paper shadow="xs" radius="md" p="lg">
+    <>
       {isUploading ? (
         <Stack align="center" gap="sm" py="xl">
           <Loader size="lg" />
@@ -240,6 +235,6 @@ export default function Upload() {
           )}
         </Alert>
       )}
-    </Paper>
+    </>
   );
 }

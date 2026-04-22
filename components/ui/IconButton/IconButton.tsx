@@ -1,44 +1,17 @@
-'use client';
+"use client";
 
-import { forwardRef } from 'react';
-import { ActionIcon } from '@mantine/core';
-import type { IconButtonProps, IconButtonColor, IconButtonSize } from './IconButton.types';
-
-const sizeMap: Record<IconButtonSize, string> = {
-  small: 'sm',
-  medium: 'md',
-};
-
-const colorConfig: Record<IconButtonColor, { color: string; variant: string }> = {
-  default: { color: 'gray', variant: 'subtle' },
-  primary: { color: 'violet', variant: 'subtle' },
-  danger: { color: 'red', variant: 'subtle' },
-};
+import { forwardRef } from "react";
+import { ActionIcon } from "@mantine/core";
+import type { IconButtonProps } from "./IconButton.types";
 
 const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
   (
-    {
-      icon,
-      color = 'default',
-      size = 'small',
-      loading = false,
-      disabled,
-      className,
-      type = 'button',
-      'aria-label': ariaLabel,
-      ...props
-    },
+    { icon, ariaLabel, loading = false, disabled, className, ...props },
     ref,
   ) => {
-    const { color: mantineColor, variant } = colorConfig[color];
-
     return (
       <ActionIcon
         ref={ref}
-        type={type}
-        variant={variant}
-        color={mantineColor}
-        size={sizeMap[size]}
         loading={loading}
         disabled={disabled || loading}
         aria-label={ariaLabel}
@@ -51,6 +24,6 @@ const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
   },
 );
 
-IconButton.displayName = 'IconButton';
+IconButton.displayName = "IconButton";
 
 export default IconButton;

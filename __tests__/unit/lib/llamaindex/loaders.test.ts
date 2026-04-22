@@ -101,9 +101,9 @@ describe("loaders", () => {
     });
 
     it("should throw error for files exceeding max size", async () => {
-      process.env.MAX_FILE_SIZE_MB = "0.001";
       const { validateFile } = await import("@/lib/llamaindex/loaders");
-      const file = new File(["content that is larger than limit"], "test.txt", {
+      const largeContent = "x".repeat(11 * 1024 * 1024);
+      const file = new File([largeContent], "test.txt", {
         type: "text/plain",
       });
 
@@ -164,10 +164,9 @@ describe("loaders", () => {
     });
 
     it("should throw error when buffer exceeds max size", async () => {
-      process.env.MAX_FILE_SIZE_MB = "1";
       const { loadDocumentFromBuffer } =
         await import("@/lib/llamaindex/loaders");
-      const largeBuffer = Buffer.alloc(2 * 1024 * 1024, "a");
+      const largeBuffer = Buffer.alloc(11 * 1024 * 1024, "a");
 
       await expect(
         loadDocumentFromBuffer(largeBuffer, "large.txt"),

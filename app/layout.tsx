@@ -3,7 +3,7 @@ import "./globals.css";
 import "@mantine/core/styles.css";
 import "@mantine/dropzone/styles.css";
 import type { Metadata } from "next";
-import { ColorSchemeScript } from "@mantine/core";
+import { ColorSchemeScript, mantineHtmlProps } from "@mantine/core";
 import { Providers } from "@/components/Providers";
 
 const inter = Inter({
@@ -17,16 +17,18 @@ export const metadata: Metadata = {
   description: "Upload documents and ask questions using AI",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
+    <html lang="en" className={inter.variable} {...mantineHtmlProps}>
       <head>
         <ColorSchemeScript />
       </head>
       <body className={inter.className}>
-        <Providers>
-          {children}
-        </Providers>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

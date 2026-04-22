@@ -1,6 +1,7 @@
-import type { ReactNode } from 'react';
+import type { ReactNode } from "react";
+import type { ButtonProps } from "../Button";
 
-export type ModalVariant = 'default' | 'danger' | 'warning' | 'success';
+export type ModalVariant = "default" | "danger" | "warning" | "success";
 
 export interface ConfirmModalProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ export interface ConfirmModalProps {
   message: string;
   confirmText?: string;
   cancelText?: string;
+  confirmButtonProps?: ButtonProps;
   variant?: ModalVariant;
   testId?: string;
 }
@@ -21,14 +23,12 @@ export interface ContentModalProps {
   children: ReactNode;
   className?: string;
   contentClassName?: string;
-  size?: 'small' | 'medium' | 'large';
+  size?: "small" | "medium" | "large";
   testId?: string;
 }
 
 export type ModalProps = ConfirmModalProps | ContentModalProps;
 
-export function isConfirmModal(
-  props: ModalProps,
-): props is ConfirmModalProps {
-  return 'onConfirm' in props;
+export function isConfirmModal(props: ModalProps): props is ConfirmModalProps {
+  return "onConfirm" in props;
 }

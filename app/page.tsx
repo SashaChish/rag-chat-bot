@@ -1,37 +1,50 @@
 "use client";
 
-import { AppShell, Group, Text, Stack, ScrollArea } from "@mantine/core";
+import {
+  AppShell,
+  Group,
+  Text,
+  Stack,
+  ScrollArea,
+  Center,
+} from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import Chat from "@/components/Chat/Chat";
 import Upload from "@/components/Upload/Upload";
 import DocumentList from "@/components/DocumentList/DocumentList";
 import { IconButton } from "@/components/ui/IconButton";
-import { RobotIcon, SidebarCloseIcon } from "@/lib/icons";
+import {
+  IconSparkles,
+  IconChevronLeft,
+  IconChevronRight,
+} from "@tabler/icons-react";
 
 export default function Home() {
-  const [mobileOpened, { toggle: toggleMobile, close: closeMobile }] =
-    useDisclosure();
+  const [mobileOpened, { toggle: toggleMobile }] = useDisclosure();
   const [desktopOpened, { toggle: toggleDesktop }] = useDisclosure(true);
 
   return (
     <AppShell
-      padding={0}
-      header={{ height: { base: 100 } }}
+      padding="md"
+      header={{ height: { base: 120 } }}
       navbar={{
-        width: 350,
+        width: desktopOpened ? 350 : 60,
         breakpoint: "sm",
-        collapsed: { mobile: !mobileOpened, desktop: !desktopOpened },
+        collapsed: { mobile: !mobileOpened, desktop: false },
       }}
       footer={{ height: { base: 50 } }}
       styles={{
+        navbar: {
+          transition: "width 300ms ease",
+        },
         main: {
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
-          padding: "var(--mantine-spacing-md)",
+          height: "100dvh",
+          boxSizing: "border-box",
           maxWidth: 1400,
           margin: "0 auto",
-          width: "100%",
         },
       }}
     >
@@ -43,7 +56,14 @@ export default function Home() {
           style={{ flexDirection: "column" }}
         >
           <Group gap="md">
-            <RobotIcon />
+            <IconButton
+              icon={<IconChevronRight size={20} aria-hidden="true" />}
+              ariaLabel="Open sidebar"
+              onClick={toggleMobile}
+              color="gray"
+              hiddenFrom="sm"
+            />
+            <IconSparkles size={40} aria-hidden="true" />
             <Text fw={700} size="xl" style={{ fontSize: "2rem" }}>
               RAG Chatbot
             </Text>
@@ -55,52 +75,56 @@ export default function Home() {
       </AppShell.Header>
 
       <AppShell.Navbar>
-        <AppShell.Section>
-          <Group justify="space-between" py="md" px="md" visibleFrom="sm">
-            <Text fw={600} size="lg">
-              Documents
-            </Text>
-            <IconButton
-              icon={<SidebarCloseIcon />}
-              aria-label="Close sidebar"
-              onClick={toggleDesktop}
-              color="default"
-              size="small"
-            />
-          </Group>
-          <Group justify="space-between" py="md" px="md" hiddenFrom="sm">
-            <Text fw={600} size="lg">
-              Documents
-            </Text>
-            <IconButton
-              icon={<SidebarCloseIcon />}
-              aria-label="Close sidebar"
-              onClick={closeMobile}
-              color="default"
-              size="small"
-            />
-          </Group>
-        </AppShell.Section>
+        {desktopOpened ? (
+          <>
+            <AppShell.Section>
+              <Group justify="space-between" py="md" px="md" wrap="nowrap">
+                <Text fw={600} size="lg">
+                  Documents
+                </Text>
+                <Group gap="xs" wrap="nowrap">
+                  <IconButton
+                    icon={<IconChevronLeft size={20} aria-hidden="true" />}
+                    ariaLabel="Collapse sidebar"
+                    onClick={toggleDesktop}
+                    color="gray"
+                    visibleFrom="sm"
+                  />
+                  <IconButton
+                    icon={<IconChevronLeft size={20} aria-hidden="true" />}
+                    ariaLabel="Close sidebar"
+                    onClick={toggleMobile}
+                    color="gray"
+                    hiddenFrom="sm"
+                  />
+                </Group>
+              </Group>
+            </AppShell.Section>
 
-        <AppShell.Section grow component={ScrollArea} p="md">
-          <Stack gap="md">
-            <Upload />
-            <DocumentList />
-          </Stack>
-        </AppShell.Section>
+            <AppShell.Section grow component={ScrollArea} p="md">
+              <Stack gap="md">
+                <Upload />
+                <DocumentList />
+              </Stack>
+            </AppShell.Section>
+          </>
+        ) : (
+          <AppShell.Section>
+            <Center py="md" px="xs">
+              <IconButton
+                icon={<IconChevronRight size={20} aria-hidden="true" />}
+                ariaLabel="Expand sidebar"
+                onClick={toggleDesktop}
+                color="gray"
+                visibleFrom="sm"
+              />
+            </Center>
+          </AppShell.Section>
+        )}
       </AppShell.Navbar>
 
       <AppShell.Main>
-        <Chat
-          onToggleSidebar={() => {
-            if (window.innerWidth < 768) {
-              toggleMobile();
-            } else {
-              toggleDesktop();
-            }
-          }}
-          sidebarToggleVisible={!desktopOpened}
-        />
+        <Chat />
       </AppShell.Main>
 
       <AppShell.Footer>

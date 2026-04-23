@@ -1,16 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { initializeLlamaIndex } from "@/lib/llamaindex/utils";
-import { executeQuery } from "@/lib/llamaindex/index";
-import { hasDocuments } from "@/lib/llamaindex/vectorstore";
+import { executeQuery } from "@/lib/mastra/index";
+import { hasDocuments } from "@/lib/mastra/vectorstore";
 import type { ChatRequest, ChatStatusResponse } from "@/lib/types/api";
-import type {
-  QueryChunk,
-  SourceNode,
-  SourceInfo,
-} from "@/lib/types/core.types";
-import { extractSources } from "@/lib/llamaindex/sources";
-
-initializeLlamaIndex();
+import type { QueryChunk, SourceInfo } from "@/lib/types/core.types";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
@@ -23,7 +15,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       sessionKey = null,
       systemPrompt = null,
     } = body;
-    console.log(body);
+
     if (!message) {
       return NextResponse.json(
         { error: "Message is required" },
@@ -101,34 +93,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
               let extractedSources: SourceInfo[] = [];
 
               for await (const chunk of responseStream) {
-                let text = "";
-
-                if (typeof chunk === "string") {
-                  text = chunk;
-                } else if (chunk && typeof chunk === "object") {
-                  const { message, delta, content } = chunk;
-
-                  if (message?.content) {
-                    text = String(message.content);
-                  } else if (delta) {
-                    text = delta;
-                  } else if (content) {
-                    text =
-                      typeof content === "string" ? content : String(content);
-                  }
-
-                  if (
-                    extractedSources.length === 0 &&
-                    "sourceNodes" in chunk &&
-                    chunk.sourceNodes
-                  ) {
-                    extractedSources = extractSources(
-                      chunk.sourceNodes as SourceNode[],
-                    );
-                  }
+                if (chunk.done) {
+                  extractedSources = chunk.sources ?? [];
+                  continue;
                 }
 
-                if (text && text.length > 0) {
+                const text = chunk.delta ?? "";
+
+                if (text.length > 0) {
                   controller.enqueue(
                     encoder.encode(
                       `data: ${JSON.stringify({ chunk: text })}\n\n`,

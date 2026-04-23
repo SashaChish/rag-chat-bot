@@ -3,6 +3,11 @@
     "mantine": {
       "command": "npx",
       "args": ["-y", "@mantine/mcp-server"]
+    },
+    "mastra": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@mastra/mcp-docs-server@latest"]
     }
   }
 }

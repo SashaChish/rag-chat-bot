@@ -2,15 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { NextRequest } from "next/server";
 import { POST, GET } from "@/app/api/chat/route";
 
-vi.mock("@/lib/llamaindex/utils", () => ({
-  initializeLlamaIndex: vi.fn(),
-}));
-
-vi.mock("@/lib/llamaindex/index", () => ({
+vi.mock("@/lib/mastra/index", () => ({
   executeQuery: vi.fn(),
 }));
 
-vi.mock("@/lib/llamaindex/vectorstore", () => ({
+vi.mock("@/lib/mastra/vectorstore", () => ({
   hasDocuments: vi.fn(),
 }));
 
@@ -56,7 +52,7 @@ describe("/api/chat", () => {
     });
 
     it("should return message when no documents exist", async () => {
-      const { hasDocuments } = await import("@/lib/llamaindex/vectorstore");
+      const { hasDocuments } = await import("@/lib/mastra/vectorstore");
       vi.mocked(hasDocuments).mockResolvedValue(false);
 
       const request = createMockRequest({ message: "Hello" });
@@ -68,25 +64,9 @@ describe("/api/chat", () => {
       expect(data.sources).toEqual([]);
     });
 
-    it("should return 400 for invalid chat engine type", async () => {
-      const { hasDocuments } = await import("@/lib/llamaindex/vectorstore");
-      vi.mocked(hasDocuments).mockResolvedValue(true);
-
-      const request = createMockRequest({
-        message: "Hello",
-        chatEngineType: "invalid",
-      });
-
-      const response = await POST(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(400);
-      expect(data.error).toContain("Invalid chat engine type");
-    });
-
     it("should execute query with valid request", async () => {
-      const { hasDocuments } = await import("@/lib/llamaindex/vectorstore");
-      const { executeQuery } = await import("@/lib/llamaindex/index");
+      const { hasDocuments } = await import("@/lib/mastra/vectorstore");
+      const { executeQuery } = await import("@/lib/mastra/index");
 
       vi.mocked(hasDocuments).mockResolvedValue(true);
       vi.mocked(executeQuery).mockResolvedValue({
@@ -115,8 +95,8 @@ describe("/api/chat", () => {
     });
 
     it("should pass conversation history to query", async () => {
-      const { hasDocuments } = await import("@/lib/llamaindex/vectorstore");
-      const { executeQuery } = await import("@/lib/llamaindex/index");
+      const { hasDocuments } = await import("@/lib/mastra/vectorstore");
+      const { executeQuery } = await import("@/lib/mastra/index");
 
       vi.mocked(hasDocuments).mockResolvedValue(true);
       vi.mocked(executeQuery).mockResolvedValue({
@@ -126,8 +106,8 @@ describe("/api/chat", () => {
       });
 
       const history = [
-        { role: "user", content: "Previous question" },
-        { role: "assistant", content: "Previous answer" },
+        { role: "user" as const, content: "Previous question" },
+        { role: "assistant" as const, content: "Previous answer" },
       ];
 
       const request = createMockRequest({
@@ -148,8 +128,8 @@ describe("/api/chat", () => {
     });
 
     it("should handle query errors", async () => {
-      const { hasDocuments } = await import("@/lib/llamaindex/vectorstore");
-      const { executeQuery } = await import("@/lib/llamaindex/index");
+      const { hasDocuments } = await import("@/lib/mastra/vectorstore");
+      const { executeQuery } = await import("@/lib/mastra/index");
 
       vi.mocked(hasDocuments).mockResolvedValue(true);
       vi.mocked(executeQuery).mockResolvedValue({
@@ -171,14 +151,15 @@ describe("/api/chat", () => {
     });
 
     it("should handle streaming request", async () => {
-      const { hasDocuments } = await import("@/lib/llamaindex/vectorstore");
-      const { executeQuery } = await import("@/lib/llamaindex/index");
+      const { hasDocuments } = await import("@/lib/mastra/vectorstore");
+      const { executeQuery } = await import("@/lib/mastra/index");
 
       vi.mocked(hasDocuments).mockResolvedValue(true);
 
       async function* mockGenerator() {
         yield { delta: "Hello" };
         yield { delta: " world" };
+        yield { done: true, sources: [] };
       }
 
       vi.mocked(executeQuery).mockResolvedValue({
@@ -214,7 +195,7 @@ describe("/api/chat", () => {
 
   describe("GET", () => {
     it("should return ready status when documents exist", async () => {
-      const { hasDocuments } = await import("@/lib/llamaindex/vectorstore");
+      const { hasDocuments } = await import("@/lib/mastra/vectorstore");
       vi.mocked(hasDocuments).mockResolvedValue(true);
 
       const response = await GET();
@@ -225,7 +206,7 @@ describe("/api/chat", () => {
     });
 
     it("should return not ready status when no documents", async () => {
-      const { hasDocuments } = await import("@/lib/llamaindex/vectorstore");
+      const { hasDocuments } = await import("@/lib/mastra/vectorstore");
       vi.mocked(hasDocuments).mockResolvedValue(false);
 
       const response = await GET();
@@ -236,7 +217,7 @@ describe("/api/chat", () => {
     });
 
     it("should handle errors", async () => {
-      const { hasDocuments } = await import("@/lib/llamaindex/vectorstore");
+      const { hasDocuments } = await import("@/lib/mastra/vectorstore");
       vi.mocked(hasDocuments).mockRejectedValue(new Error("Check failed"));
 
       const response = await GET();

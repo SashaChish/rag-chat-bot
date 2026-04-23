@@ -5,235 +5,143 @@ A Retrieval-Augmented Generation (RAG) chatbot that allows users to upload docum
 Built with:
 
 - **Next.js** - Full-stack React framework
-- **LlamaIndex.TS** - Primary RAG framework with document loaders, text splitters, and query engines
-- **Chroma** - Local vector database with SQLite backend for zero infrastructure overhead
+- **Mastra** - TypeScript AI framework for document processing, embeddings, and agent-based chat
+- **ChromaDB** - Vector database for similarity search
 
 ## Features
 
-- 📄 **Document Upload** - Upload PDF, TXT, MD, and DOCX files for indexing
-- 🔍 **Semantic Search** - Vector-based retrieval of relevant document chunks
-- 💬 **Chat Interface** - Conversational interface with message history
-- 📚 **Source Citations** - Responses include sources from retrieved documents
-- 🚀 **Fast Setup** - Single-command startup with local Chroma SQLite backend
-- 🔐 **Secure** - API keys stored in environment variables
+- Document upload (PDF, TXT, MD, DOCX) with automatic chunking and indexing
+- Semantic search with source citations
+- Conversational chat with message history
+- Multi-LLM support (OpenAI, Anthropic, Groq, Ollama)
 
 ## Quick Start
 
 ### Prerequisites
 
 - Node.js 18+
-- npm or yarn
+- [ChromaDB](https://www.trychroma.com/) running locally (default: `http://localhost:8000`)
 
 ### Installation
-
-1. Clone the repository:
 
 ```bash
 git clone <repository-url>
 cd rag-chatbot
-```
-
-2. Install dependencies:
-
-```bash
 npm install
-```
-
-3. Set up environment variables:
-
-```bash
 cp .env.example .env
 ```
 
 Edit `.env` and add your API keys:
 
 ```
-OPENAI_API_KEY=your_openai_api_key_here
-ANTHROPIC_API_KEY=your_anthropic_api_key_here  # Optional
+OPENAI_API_KEY=your_openai_api_key_here   # Required for embeddings
+ANTHROPIC_API_KEY=your_anthropic_key      # Optional
+GROQ_API_KEY=your_groq_key                # Optional
 ```
 
-4. Start the development server:
+Start the development server:
 
 ```bash
 npm run dev
 ```
 
-5. Open [http://localhost:3000](http://localhost:3000) in your browser
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Usage
 
-1. **Upload a Document**
-   - Click the upload zone or drag and drop a file
-   - Supported formats: PDF, TXT, MD, DOCX (max 10MB)
-   - The document will be automatically indexed
-
-2. **Ask Questions**
-   - Type your question in the chat input
-   - The system will search your documents and generate a response
-   - Sources are displayed at the bottom of each response
-
-3. **Chat History**
-   - All messages in your current session are displayed
-   - Use "Clear Chat" to start a new conversation
+1. **Upload a Document** — Drag and drop or click the upload zone. Supported formats: PDF, TXT, MD, DOCX (max 10MB).
+2. **Ask Questions** — Type your question in the chat input. The system retrieves relevant chunks and generates a grounded response.
+3. **View Sources** — Each response includes cited sources with filenames and relevance scores.
 
 ## Configuration
 
 ### Environment Variables
 
-| Variable            | Description                  | Default                  |
-| ------------------- | ---------------------------- | ------------------------ |
-| `OPENAI_API_KEY`    | OpenAI API key (required)    | -                        |
-| `ANTHROPIC_API_KEY` | Anthropic API key (optional) | -                        |
-| `GROQ_API_KEY`      | Groq API key (optional)      | -                        |
-| `LLM_PROVIDER`      | Default LLM provider         | `openai`                 |
-| `LLM_MODEL`         | Default model name           | `gpt-4o-mini`            |
-| `EMBEDDING_MODEL`   | Embedding model              | `text-embedding-3-small` |
+| Variable            | Description                                           | Default                 |
+| ------------------- | ----------------------------------------------------- | ----------------------- |
+| `OPENAI_API_KEY`    | OpenAI API key (required for embeddings)              | -                       |
+| `ANTHROPIC_API_KEY` | Anthropic API key                                     | -                       |
+| `GROQ_API_KEY`      | Groq API key                                          | -                       |
+| `LLM_PROVIDER`      | LLM provider: `openai`, `anthropic`, `groq`, `ollama` | `openai`                |
+| `LLM_MODEL`         | Model name override (provider default used if unset)  | -                       |
+| `CHROMA_URL`        | ChromaDB server URL                                   | `http://localhost:8000` |
+| `CHROMA_API_KEY`    | ChromaDB authentication key                           | -                       |
+| `STORAGE_DIR`       | Local storage directory                               | `./data`                |
 
-### Supported LLM Providers
+### Default Models per Provider
 
-- **OpenAI**: GPT models (gpt-4o, gpt-4o-mini, etc.)
-- **Anthropic**: Claude models (claude-3-haiku, claude-3-sonnet, etc.)
-- **Groq**: Fast inference with various models
+| Provider    | Default Model              |
+| ----------- | -------------------------- |
+| `openai`    | `gpt-4o-mini`              |
+| `anthropic` | `claude-sonnet-4-20250514` |
+| `groq`      | `llama-3.3-70b-versatile`  |
+| `ollama`    | `llama3.2`                 |
+
+Embeddings always use `openai/text-embedding-3-small`.
 
 ## Architecture
 
-### Components
-
-- **LlamaIndex.TS Index Manager** (`lib/llamaindex/index.js`) - Manages document indexing and query engines
-- **Document Loader Factory** (`lib/llamaindex/loaders.js`) - Uses LlamaIndex.TS specialized file readers (PDFReader, DocxReader, MarkdownReader, TextFileReader)
-- **Vector Store Manager** (`lib/llamaindex/vectorstore.js`) - Manages Chroma connection and collections
-- **Settings Manager** (`lib/llamaindex/settings.js`) - Configures LLM and embedding models
-- **Chat API** (`app/api/chat/route.js`) - Handles chat message requests
-- **Documents API** (`app/api/documents/route.js`) - Handles file uploads and document management
-- **Chat UI** (`components/Chat.jsx`) - Main chat interface
-- **Upload UI** (`components/Upload.jsx`) - File upload interface
-
-### Data Flow
+### RAG Pipeline
 
 ```
-User Uploads Document
-    ↓
-Upload Component → API: POST /api/documents
-    ↓
-Document Loader → LlamaIndex.TS File Readers (PDFReader/DocxReader/MarkdownReader/TextFileReader)
-    ↓
-Index Manager → Parse → Chunk → Embed
-    ↓
-Vector Store Manager → Chroma with SQLite
+Document Upload → Parse (pdf-parse / mammoth / text) → Chunk (MDocument) → Embed (OpenAI) → Store (ChromaDB)
 
-User Asks Question
-    ↓
-Chat Component → API: POST /api/chat
-    ↓
-LlamaIndex.TS QueryEngine
-    ├─→ Vector Store Manager → Chroma Similarity Search → Top-k Chunks
-    └─→ LlamaIndex.TS Response Synthesis → Combine Context + Question
-         ↓
-LLM Provider → Generate Response
-    ↓
-Response to Frontend → Display in Chat UI with Citations
+User Query → Embed query → ChromaDB similarity search (top 3) → Build context → Agent generates response with citations
 ```
+
+### Key Modules
+
+| Module                      | Purpose                                   |
+| --------------------------- | ----------------------------------------- |
+| `lib/mastra/config.ts`      | LLM provider and model configuration      |
+| `lib/mastra/vectorstore.ts` | ChromaDB operations (CRUD, queries)       |
+| `lib/mastra/loaders.ts`     | Document parsing (PDF, DOCX, MD, TXT)     |
+| `lib/mastra/index.ts`       | RAG pipeline (indexing + query execution) |
+| `lib/mastra/agent.ts`       | Mastra Agent factory                      |
+| `lib/mastra/chat.ts`        | Chat message format conversion            |
+| `lib/mastra/prompts.ts`     | System prompt management                  |
+| `lib/mastra/sources.ts`     | Source attribution extraction             |
+
+### API Routes
+
+- `POST /api/chat` — Chat with streaming SSE or JSON response
+- `POST /api/documents` — Upload documents
+- `GET /api/documents` — List documents and stats
+- `GET /api/documents/[id]` — Get document info or download
+- `DELETE /api/documents/[id]` — Delete a document
+- `POST /api/documents/action/clean` — Clear all documents
 
 ## Project Structure
 
 ```
 rag-chatbot/
 ├── app/
-│   ├── api/
-│   │   ├── chat/
-│   │   │   └── route.js
-│   │   └── documents/
-│   │       ├── route.js
-│   │       └── [id]/route.js
-│   └── page.jsx
+│   ├── api/              # Chat and document API routes
+│   └── page.tsx          # Main application page
 ├── components/
-│   ├── Chat.jsx
-│   ├── MessageList.jsx
-│   ├── Upload.jsx
-│   └── DocumentList.jsx
+│   ├── Chat/             # Chat interface
+│   ├── Upload/           # File upload
+│   ├── DocumentList/     # Document management
+│   ├── MessageList/      # Message display with sources
+│   └── ui/               # Shared UI components (Button, Modal, IconButton)
 ├── lib/
-│   ├── llamaindex/
-│   │   ├── index.js
-│   │   ├── loaders.js
-│   │   ├── vectorstore.js
-│   │   ├── settings.js
-│   │   └── utils.js
-│   └── upload.js
-├── data/
-│   └── chroma/           # Chroma SQLite persistence
-├── public/
-│   └── uploads/          # Temporary file storage
-├── .env.example
-├── package.json
-└── README.md
-```
-
-## Deployment
-
-### Vercel
-
-1. Set environment variables in your Vercel project settings
-2. Deploy using the Vercel CLI:
-
-```bash
-vercel
-```
-
-### Railway
-
-1. Create a new Railway project
-2. Connect your GitHub repository
-3. Set environment variables in Railway dashboard
-4. Deploy
-
-### Local/Other Platforms
-
-```bash
-npm run build
-npm start
+│   ├── mastra/           # RAG pipeline modules
+│   ├── constants/        # File limits, format strings
+│   ├── hooks/            # React hooks (TanStack Query)
+│   ├── theme/            # Mantine theme config
+│   ├── types/            # TypeScript definitions
+│   └── utils/            # Formatting, date, file utilities
+└── data/chroma/          # ChromaDB storage (auto-created)
 ```
 
 ## Development
 
-### Available Scripts
-
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm start` - Start production server
-- `npm run lint` - Run ESLint
-
-### Adding Features
-
-The codebase is organized around LlamaIndex.TS abstractions:
-
-- Document loaders in `lib/llamaindex/loaders.js`
-- Vector store operations in `lib/llamaindex/vectorstore.js`
-- Query engine logic in `lib/llamaindex/index.js`
-
-## Troubleshooting
-
-### No Documents Indexed
-
-If you see "No documents indexed yet":
-
-- Ensure you've successfully uploaded at least one document
-- Check the browser console for upload errors
-- Verify file format is supported
-
-### LLM API Errors
-
-If you receive API errors:
-
-- Verify your API keys are correct in `.env`
-- Check that your API key has sufficient credits
-- Ensure the model name is valid for your provider
-
-## License
-
-MIT
-
-## Credits
-
-- Built with [LlamaIndex.TS](https://github.com/run-llama/LlamaIndex.TS)
-- Vector storage by [Chroma](https://www.trychroma.com/)
-- UI framework [Next.js](https://nextjs.org/)
+```bash
+npm run dev           # Start development server
+npm run build         # Build for production
+npm run lint          # Run ESLint
+npm run type-check    # TypeScript type checking
+npm run test          # Run tests in watch mode
+npm run test:run      # Run all tests once
+npm run test:e2e      # Run Playwright E2E tests
+```

@@ -1,27 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { NextRequest } from "next/server";
 
-vi.mock("@/lib/llamaindex/settings", () => ({
-  initializeSettings: vi.fn(),
-}));
-
-vi.mock("@llamaindex/core/schema", () => ({
-  Document: vi.fn().mockImplementation((params) => params),
-}));
-
-vi.mock("llamaindex", () => ({
-  VectorStoreIndex: {
-    fromDocuments: vi.fn().mockResolvedValue({}),
-  },
-}));
-
 const mockLoadDocumentFromBuffer = vi.fn().mockResolvedValue({
   documents: [
     {
       text: "Test content",
       metadata: {
         file_name: "test.txt",
-        file_type: "TEXT",
+        file_type: "txt",
         upload_date: "2024-01-01T00:00:00Z",
       },
     },
@@ -30,25 +16,25 @@ const mockLoadDocumentFromBuffer = vi.fn().mockResolvedValue({
 
 const mockValidateFile = vi.fn().mockReturnValue(true);
 
-vi.mock("@/lib/llamaindex/loaders", () => ({
+const mockAddDocuments = vi.fn().mockResolvedValue({
+  success: true,
+  documentsAdded: 1,
+  chunksProcessed: 3,
+});
+
+const mockClearIndexCache = vi.fn();
+
+vi.mock("@/lib/mastra/loaders", () => ({
   loadDocumentFromBuffer: mockLoadDocumentFromBuffer,
   validateFile: mockValidateFile,
 }));
 
-vi.mock("@/lib/llamaindex/vectorstore", () => ({
-  getChromaVectorStore: vi.fn().mockResolvedValue({
-    getCollection: vi.fn().mockResolvedValue({
-      count: vi.fn().mockResolvedValue(5),
-      get: vi.fn().mockResolvedValue({ ids: [], metadatas: [], documents: [] }),
-      delete: vi.fn().mockResolvedValue(undefined),
-    }),
-  }),
-  getStorageContext: vi.fn().mockResolvedValue({
-    docStore: {
-      addDocuments: vi.fn(),
-    },
-    vectorStores: { TEXT: {} },
-  }),
+vi.mock("@/lib/mastra/index", () => ({
+  addDocuments: mockAddDocuments,
+  clearIndexCache: mockClearIndexCache,
+}));
+
+vi.mock("@/lib/mastra/vectorstore", () => ({
   getCollectionStats: vi.fn().mockResolvedValue({
     exists: true,
     collectionName: "documents",
@@ -59,7 +45,7 @@ vi.mock("@/lib/llamaindex/vectorstore", () => ({
     documents: [
       {
         file_name: "doc1.txt",
-        file_type: "TEXT",
+        file_type: "txt",
         chunk_count: 3,
         upload_date: "2024-01-01T00:00:00Z",
         first_chunk_id: "chunk-1",
@@ -67,6 +53,7 @@ vi.mock("@/lib/llamaindex/vectorstore", () => ({
     ],
     total_chunks: 3,
   }),
+  getDocumentContent: vi.fn().mockResolvedValue("Document content"),
 }));
 
 vi.mock("@/lib/utils/format.utils", () => ({
@@ -102,7 +89,6 @@ describe("/api/documents", () => {
     process.env = { ...originalEnv };
     vi.spyOn(console, "error").mockImplementation(() => {});
 
-    // Reset mock implementations
     mockValidateFile.mockReturnValue(true);
     mockLoadDocumentFromBuffer.mockResolvedValue({
       documents: [
@@ -110,11 +96,16 @@ describe("/api/documents", () => {
           text: "Test content",
           metadata: {
             file_name: "test.txt",
-            file_type: "TEXT",
+            file_type: "txt",
             upload_date: "2024-01-01T00:00:00Z",
           },
         },
       ],
+    });
+    mockAddDocuments.mockResolvedValue({
+      success: true,
+      documentsAdded: 1,
+      chunksProcessed: 3,
     });
   });
 
@@ -200,7 +191,7 @@ describe("/api/documents", () => {
   describe("GET", () => {
     it("should return 500 on error for stats request", async () => {
       const { getCollectionStats } =
-        await import("@/lib/llamaindex/vectorstore");
+        await import("@/lib/mastra/vectorstore");
       vi.mocked(getCollectionStats).mockRejectedValueOnce(
         new Error("Database error"),
       );
@@ -216,7 +207,7 @@ describe("/api/documents", () => {
     });
 
     it("should return 500 on error for list request", async () => {
-      const { getAllDocuments } = await import("@/lib/llamaindex/vectorstore");
+      const { getAllDocuments } = await import("@/lib/mastra/vectorstore");
       vi.mocked(getAllDocuments).mockRejectedValueOnce(
         new Error("Database error"),
       );

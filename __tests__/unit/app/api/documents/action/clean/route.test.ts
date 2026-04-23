@@ -2,16 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { NextRequest } from 'next/server';
 import { POST } from '@/app/api/documents/action/clean/route';
 
-vi.mock('@/lib/llamaindex/utils', () => ({
-  initializeLlamaIndex: vi.fn(),
-}));
-
-vi.mock('@/lib/llamaindex/vectorstore', () => ({
+vi.mock('@/lib/mastra/vectorstore', () => ({
   getAllDocuments: vi.fn(),
   deleteDocumentByName: vi.fn(),
 }));
 
-vi.mock('@/lib/llamaindex/index', () => ({
+vi.mock('@/lib/mastra/index', () => ({
   clearIndex: vi.fn(),
 }));
 
@@ -46,12 +42,12 @@ describe('/api/documents/action/clean', () => {
     });
 
     it('should list documents with list action', async () => {
-      const { getAllDocuments } = await import('@/lib/llamaindex/vectorstore');
+      const { getAllDocuments } = await import('@/lib/mastra/vectorstore');
       vi.mocked(getAllDocuments).mockResolvedValue({
         documents: [
           {
             file_name: 'doc1.txt',
-            file_type: 'TEXT',
+            file_type: 'txt',
             chunk_count: 3,
             upload_date: '2024-01-01T00:00:00Z',
             first_chunk_id: 'chunk-1',
@@ -88,8 +84,8 @@ describe('/api/documents/action/clean', () => {
     });
 
     it('should delete documents and return results', async () => {
-      const { deleteDocumentByName } = await import('@/lib/llamaindex/vectorstore');
-      const { clearIndex } = await import('@/lib/llamaindex/index');
+      const { deleteDocumentByName } = await import('@/lib/mastra/vectorstore');
+      const { clearIndex } = await import('@/lib/mastra/index');
 
       vi.mocked(deleteDocumentByName)
         .mockResolvedValueOnce(3)
@@ -110,8 +106,8 @@ describe('/api/documents/action/clean', () => {
     });
 
     it('should handle partial delete failures', async () => {
-      const { deleteDocumentByName } = await import('@/lib/llamaindex/vectorstore');
-      const { clearIndex } = await import('@/lib/llamaindex/index');
+      const { deleteDocumentByName } = await import('@/lib/mastra/vectorstore');
+      const { clearIndex } = await import('@/lib/mastra/index');
 
       vi.mocked(deleteDocumentByName)
         .mockResolvedValueOnce(3)
@@ -133,7 +129,7 @@ describe('/api/documents/action/clean', () => {
     });
 
     it('should clear all documents with clear action', async () => {
-      const { clearIndex } = await import('@/lib/llamaindex/index');
+      const { clearIndex } = await import('@/lib/mastra/index');
       vi.mocked(clearIndex).mockResolvedValue({ success: true });
 
       const request = createMockRequest({ action: 'clear' });
@@ -145,7 +141,7 @@ describe('/api/documents/action/clean', () => {
     });
 
     it('should handle clear failure', async () => {
-      const { clearIndex } = await import('@/lib/llamaindex/index');
+      const { clearIndex } = await import('@/lib/mastra/index');
       vi.mocked(clearIndex).mockResolvedValue({
         success: false,
         error: 'Clear failed',

@@ -19,9 +19,11 @@ Are you replacing existing functionality?
 
 ### 🔍 Search Before Creating:
 Before adding new utility functions, check existing modules:
-- `lib/llamaindex/utils.js` - Common utilities
-- `lib/llamaindex/loaders.js` - Document loading utilities
-- Other `lib/llamaindex/*.js` files
+- `lib/mastra/config.ts` - Model router configuration
+- `lib/mastra/loaders.ts` - Document loading utilities
+- `lib/mastra/vectorstore.ts` - ChromaDB vector operations
+- `lib/mastra/index.ts` - RAG pipeline (indexing + query)
+- Other `lib/mastra/*.ts` files
 
 ### ❌ Dead Code Patterns:
 - Commented-out code blocks (remove them, don't comment)

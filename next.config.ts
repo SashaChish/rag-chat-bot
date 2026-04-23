@@ -9,13 +9,6 @@ const nextConfig: NextConfig = {
     },
     optimizePackageImports: ['@mantine/core', '@mantine/hooks', '@mantine/dropzone', '@tabler/icons-react'],
   },
-  serverExternalPackages: [
-    "chromadb",
-    "chromadb-default-embed",
-    "@chroma-core/default-embed",
-    "@huggingface/transformers",
-    "onnxruntime-node",
-  ],
 };
 
 export default nextConfig;

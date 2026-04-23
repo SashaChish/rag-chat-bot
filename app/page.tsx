@@ -79,7 +79,7 @@ export default function Home() {
             <Text c="dimmed" size="sm">
               Powered by{" "}
               <Text component="span" fw={600} c="violet" inherit>
-                LlamaIndex.TS
+                Mastra
               </Text>{" "}
               and{" "}
               <Text component="span" fw={600} c="violet" inherit>

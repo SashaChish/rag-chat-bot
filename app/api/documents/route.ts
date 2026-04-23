@@ -1,23 +1,18 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { Document } from "@llamaindex/core/schema";
-import { VectorStoreIndex } from "llamaindex";
-import { loadDocumentFromBuffer, validateFile } from "@/lib/llamaindex/loaders";
+import { loadDocumentFromBuffer, validateFile } from "@/lib/mastra/loaders";
+import { addDocuments, clearIndexCache } from "@/lib/mastra/index";
 import {
-  getChromaVectorStore,
-  getStorageContext,
   getCollectionStats,
   getAllDocuments,
   getDocumentContent,
-} from "@/lib/llamaindex/vectorstore";
+} from "@/lib/mastra/vectorstore";
 import { formatFileSize } from "@/lib/utils/format.utils";
-import { initializeSettings } from "@/lib/llamaindex/settings";
 import type {
   DocumentUploadResponse,
   DocumentsGetResponse,
   DocumentListResponse,
 } from "@/lib/types/api";
 
-initializeSettings();
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const formData = await request.formData();
@@ -43,46 +38,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       throw new Error("No content could be extracted from file");
     }
 
-    const uploadDate = new Date().toISOString();
-
-    const storageContext = await getStorageContext();
-
-    const fullText = documents
-      .map((d) => d.text)
-      .filter(Boolean)
-      .join("\n\n");
-
-    const documentDocId = `doc_${Date.now()}`;
-    const fullDocument = new Document({
-      text: fullText,
-      id_: documentDocId,
-      metadata: {
-        file_name: file.name,
-        file_type: file.type,
-        upload_date: uploadDate,
-        original_file_buffer: buffer.toString("base64"),
-      },
-    });
-
-    await storageContext.docStore.addDocuments([fullDocument], false);
-
-    const lightweightDocument = new Document({
-      text: fullText,
-      metadata: {
-        file_name: file.name,
-        file_type: file.type,
-        upload_date: uploadDate,
-      },
-    });
-
-    const vectorStore = await getChromaVectorStore();
-
-    await VectorStoreIndex.fromDocuments([lightweightDocument], {
-      storageContext,
-      vectorStores: {
-        TEXT: vectorStore,
-      },
-    });
+    clearIndexCache();
+    const result = await addDocuments(documents);
 
     const documentId = crypto.randomUUID();
 
@@ -93,7 +50,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       originalName: file.name,
       size: formatFileSize(file.size),
       type: file.type,
-      chunksProcessed: documents.length,
+      chunksProcessed: result.chunksProcessed,
       message: "Document uploaded and indexed successfully",
     };
 

@@ -1,31 +1,8 @@
-/**
- * Core RAG Types
- * Type definitions for LlamaIndex.TS document processing, query engines, and chat engines
- * Uses LlamaIndex built-in types where available
- */
+export interface ChatMessage {
+  role: "user" | "assistant" | "system";
+  content: string;
+}
 
-// Import LlamaIndex built-in types
-import type {
-  NodeWithScore,
-  ChatMessage as LlamaIndexChatMessage,
-  CondenseQuestionChatEngine,
-  ContextChatEngine,
-} from "llamaindex";
-
-// Chat engine return type - union of supported chat engine types
-export type ChatEngineReturnType =
-  | CondenseQuestionChatEngine
-  | ContextChatEngine;
-
-/**
- * Use LlamaIndex's ChatMessage type for compatibility
- */
-export type ChatMessage = LlamaIndexChatMessage;
-
-/**
- * Custom metadata interface with project-specific fields
- * Used as generic parameter for LlamaIndex types
- */
 export interface DocumentMetadata {
   file_name: string;
   file_path?: string;
@@ -39,20 +16,18 @@ export interface DocumentMetadata {
   [key: string]: unknown;
 }
 
-/**
- * RAG document interface with text and custom metadata
- * This interface is compatible with how documents are created for indexing
- */
 export interface RAGDocument {
   text: string;
   metadata: DocumentMetadata;
 }
 
-export type SourceNode = NodeWithScore<DocumentMetadata>;
+export interface MastraQueryResult {
+  id: string;
+  score: number;
+  metadata?: Record<string, unknown>;
+  document?: string;
+}
 
-/**
- * Source information extracted from query results (application-specific for UI display)
- */
 export interface SourceInfo {
   filename: string;
   fileType: string;
@@ -62,49 +37,23 @@ export interface SourceInfo {
   metadata?: DocumentMetadata;
 }
 
-/**
- * Query response structure (application-specific with streaming support)
- */
 export interface QueryResponse {
-  response: string | AsyncGenerator<QueryChunk> | ReadableStream<QueryChunk>;
+  response: string | AsyncGenerator<QueryChunk>;
   sources: SourceInfo[];
   streaming: boolean;
   error?: string;
 }
 
-/**
- * Query chunk for streaming responses (application-specific for SSE)
- * Can be either a text chunk or a structured chunk with metadata
- */
 export interface QueryChunk {
   delta?: string;
-  response?: string;
-  content?: string;
-  value?: string;
-  text?: string;
-  message?: ChatMessage;
-  sourceNodes?: SourceNode[];
+  done?: boolean;
+  sources?: SourceInfo[];
 }
 
-/**
- * Query engine type options
- * @deprecated Use ChatEngineType instead - chat engines provide all query engine functionality plus conversation history
- */
-export type QueryEngineType = "default" | "router" | "subquestion";
-
-/**
- * Chat engine type options
- */
 export type ChatEngineType = "condense" | "context";
 
-/**
- * LLM provider options
- */
-export type LLMProvider = "openai" | "anthropic";
+export type LLMProvider = "openai" | "anthropic" | "groq" | "ollama";
 
-/**
- * Index statistics
- */
 export interface IndexStats {
   exists: boolean;
   collectionName: string;
@@ -112,9 +61,6 @@ export interface IndexStats {
   documentCount: number;
 }
 
-/**
- * Document list entry
- */
 export interface DocumentListEntry {
   id: string;
   file_name: string;

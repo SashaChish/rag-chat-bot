@@ -1,5 +1,5 @@
-import type { ChatMessage } from "llamaindex";
 import type {
+  ChatMessage,
   ChatEngineType,
   DocumentListEntry,
   IndexStats,

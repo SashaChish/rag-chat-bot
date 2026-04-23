@@ -1,10 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { initializeLlamaIndex } from '@/lib/llamaindex/utils';
-import { getAllDocuments, deleteDocumentByName } from '@/lib/llamaindex/vectorstore';
-import { clearIndex } from '@/lib/llamaindex/index';
+import { getAllDocuments, deleteDocumentByName } from '@/lib/mastra/vectorstore';
+import { clearIndex } from '@/lib/mastra/index';
 import type { DocumentListEntry } from '@/lib/types/core.types';
-
-initializeLlamaIndex();
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
@@ -73,7 +70,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           }
         }
 
-        // Clear index cache to force rebuild
         await clearIndex("documents");
 
         return NextResponse.json({
@@ -83,7 +79,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         });
 
       case "clear":
-        // Clear all documents
         const clearResult = await clearIndex("documents");
         return NextResponse.json({
           success: clearResult.success,

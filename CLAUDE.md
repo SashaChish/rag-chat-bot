@@ -8,7 +8,7 @@ cp .env.example .env  # Add OPENAI_API_KEY (required for embeddings)
 npm run dev
 ```
 
-Application runs at `http://localhost:3000`. ChromaDB storage is auto-created in `./data/chroma/`.
+Application runs at `http://localhost:3000`. ChromaDB connects to the remote server configured via `CHROMA_URL`.
 
 ## Development Commands
 
@@ -40,13 +40,12 @@ rag-chatbot/
 │   ├── constants/       # App-wide constants (file limits, format strings)
 │   ├── hooks/           # Custom React hooks
 │   ├── icons/           # Tabler icon components (@tabler/icons-react)
-│   ├── llamaindex/      # RAG pipeline (indexing, chat engines, vectorstore)
+│   ├── mastra/          # RAG pipeline (indexing, chat, vectorstore, loaders)
 │   ├── theme/           # Mantine theme configuration
 │   ├── utils/           # Formatting, date, and file encoding utilities
 │   ├── query-client.ts  # TanStack Query configuration
 │   └── types/           # TypeScript definitions
-├── data/chroma/         # ChromaDB storage (auto-created)
-├── next.config.ts       # Next.js config (serverExternalPackages, optimizePackageImports)
+├── next.config.ts       # Next.js config (optimizePackageImports)
 └── postcss.config.mjs   # PostCSS config (postcss-preset-mantine)
 └── eslint.config.mjs    # ESLint flat config
 ```
@@ -104,10 +103,9 @@ Before marking tasks complete:
 ## Architecture Decisions
 
 - **Serverless-compatible**: No global state; indexes created on-demand from ChromaDB
-- **ChromaVectorStore**: Manages ChromaDB client internally - no manual ChromaClient
-- **Native module isolation**: `serverExternalPackages` in `next.config.ts` excludes ChromaDB/ONNX from bundling
-- **Chat engines**: Preferred over query engines (includes conversation history + system prompts)
-- **Multi-provider LLM**: OpenAI (embeddings required), optional Anthropic/Groq/Ollama
+- **Mastra RAG pipeline**: `lib/mastra/` handles chunking (MDocument), embeddings (Vercel AI SDK), vector storage (@mastra/chroma), and chat (Mastra Agent)
+- **Agent-based chat**: Mastra Agent with model router strings (`"openai/gpt-4o-mini"`) for multi-LLM support
+- **Multi-provider LLM**: OpenAI (embeddings required), optional Anthropic/Groq/Ollama via Mastra model router
 - **Turbopack**: Default bundler (Next.js 16+); no webpack config needed
 - **ESLint flat config**: Uses `eslint.config.mjs` with `typescript-eslint` and `@next/eslint-plugin-next`
 - **Mantine UI v7**: All styling via Mantine components and theme; no Tailwind/CSS modules. Theme uses Radix Colors palette (violet, gray, red, green, blue, amber) — never hardcode hex values in components, use Mantine color props or CSS variables (`var(--mantine-color-{name}-{shade})`) instead.

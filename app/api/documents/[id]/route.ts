@@ -1,9 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { deleteDocument } from "@/lib/llamaindex/index";
-import { getCollection, getStorageContext } from "@/lib/llamaindex/vectorstore";
-import { initializeSettings } from "@/lib/llamaindex/settings";
-
-initializeSettings();
+import { deleteDocument } from "@/lib/mastra/index";
+import { getDocumentContent, getCollectionStats } from "@/lib/mastra/vectorstore";
 
 export async function DELETE(
   _request: NextRequest,
@@ -26,17 +23,6 @@ export async function DELETE(
         { error: deleteResult.error || "Failed to delete document" },
         { status: 500 },
       );
-    }
-
-    const { docStore } = await getStorageContext();
-    const docInfos = docStore.getAllRefDocInfo();
-
-    for (const [docId] of Object.entries(docInfos)) {
-      const doc = await docStore.getDocument(docId, false);
-      if (doc && doc.metadata.file_name === id) {
-        await docStore.deleteDocument(docId, false);
-        break;
-      }
     }
 
     return NextResponse.json({
@@ -71,73 +57,32 @@ export async function GET(
     }
 
     if (action === "download") {
-      const { docStore } = await getStorageContext();
-      const docInfos = docStore.getAllRefDocInfo();
+      const content = await getDocumentContent(id);
 
-      let matchingDocument = null;
-      for (const [docId] of Object.entries(docInfos)) {
-        const doc = await docStore.getDocument(docId, false);
-        if (doc && doc.metadata.file_name === id) {
-          matchingDocument = doc;
-          break;
-        }
-      }
-
-      if (!matchingDocument) {
+      if (!content) {
         return NextResponse.json(
           { error: "Document not found" },
           { status: 404 },
         );
       }
 
-      const originalFileBase64 = matchingDocument.metadata.original_file_buffer as string;
-
-      if (!originalFileBase64) {
-        const textBuffer = Buffer.from("", "utf-8");
-        const response = new NextResponse(new Uint8Array(textBuffer));
-        response.headers.set("Content-Type", "text/plain");
-        response.headers.set(
-          "Content-Disposition",
-          `attachment; filename="${id}"`,
-        );
-        response.headers.set("Content-Length", textBuffer.length.toString());
-        return response;
-      }
-
-      const fileBuffer = Buffer.from(originalFileBase64, "base64");
-      const fileName = matchingDocument.metadata.file_name as string;
-      const fileType = matchingDocument.metadata.file_type as string;
-
-      const response = new NextResponse(new Uint8Array(fileBuffer));
-      response.headers.set("Content-Type", fileType);
+      const textBuffer = Buffer.from(content, "utf-8");
+      const response = new NextResponse(new Uint8Array(textBuffer));
+      response.headers.set("Content-Type", "text/plain");
       response.headers.set(
         "Content-Disposition",
-        `attachment; filename="${fileName}"`,
+        `attachment; filename="${id}"`,
       );
-      response.headers.set("Content-Length", fileBuffer.length.toString());
-
+      response.headers.set("Content-Length", textBuffer.length.toString());
       return response;
     }
 
-    const coll = await getCollection();
-    const results = await coll.get();
+    const stats = await getCollectionStats();
 
-    const { metadatas } = results || {};
-    if (!metadatas || metadatas.length === 0) {
-      return NextResponse.json(
-        { error: "Document not found" },
-        { status: 404 },
-      );
-    }
-
-    const { ids } = results || {};
-    const { file_name, file_type, upload_date } = metadatas[0] || {};
     return NextResponse.json({
       id,
-      file_name,
-      file_type,
-      upload_date,
-      chunk_count: ids?.length || 0,
+      exists: stats.exists,
+      chunk_count: stats.count,
     });
   } catch (error) {
     console.error("Error getting document:", error);

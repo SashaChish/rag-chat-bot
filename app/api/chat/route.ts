@@ -3,7 +3,12 @@ import { initializeLlamaIndex } from "@/lib/llamaindex/utils";
 import { executeQuery } from "@/lib/llamaindex/index";
 import { hasDocuments } from "@/lib/llamaindex/vectorstore";
 import type { ChatRequest, ChatStatusResponse } from "@/lib/types/api";
-import type { QueryChunk } from "@/lib/types/core.types";
+import type {
+  QueryChunk,
+  SourceNode,
+  SourceInfo,
+} from "@/lib/types/core.types";
+import { extractSources } from "@/lib/llamaindex/sources";
 
 initializeLlamaIndex();
 
@@ -18,7 +23,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       sessionKey = null,
       systemPrompt = null,
     } = body;
-
+    console.log(body);
     if (!message) {
       return NextResponse.json(
         { error: "Message is required" },
@@ -93,6 +98,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
               const responseStream =
                 result.response as AsyncGenerator<QueryChunk>;
 
+              let extractedSources: SourceInfo[] = [];
+
               for await (const chunk of responseStream) {
                 let text = "";
 
@@ -109,6 +116,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                     text =
                       typeof content === "string" ? content : String(content);
                   }
+
+                  if (
+                    extractedSources.length === 0 &&
+                    "sourceNodes" in chunk &&
+                    chunk.sourceNodes
+                  ) {
+                    extractedSources = extractSources(
+                      chunk.sourceNodes as SourceNode[],
+                    );
+                  }
                 }
 
                 if (text && text.length > 0) {
@@ -122,7 +139,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
               controller.enqueue(
                 encoder.encode(
-                  `data: ${JSON.stringify({ done: true, sources: [] })}\n\n`,
+                  `data: ${JSON.stringify({ done: true, sources: extractedSources })}\n\n`,
                 ),
               );
             } else {

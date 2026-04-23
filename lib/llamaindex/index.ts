@@ -9,7 +9,6 @@ import type {
   QueryResponse,
   ChatMessage,
   ChatEngineType,
-  IndexStats,
   RAGDocument,
   QueryChunk,
 } from "../types/core.types";
@@ -60,29 +59,6 @@ async function getOrCreateIndex(): Promise<VectorStoreIndex> {
 export function clearIndexCache(): void {
   cachedIndex = null;
   indexCacheTimestamp = 0;
-}
-
-export async function getIndexStats(
-  collectionName: string = "documents",
-): Promise<IndexStats> {
-  try {
-    const collection = await getChromaCollection();
-    const count = await collection.count();
-
-    return {
-      exists: true,
-      collectionName,
-      count,
-      documentCount: 0,
-    };
-  } catch (_error) {
-    return {
-      exists: false,
-      collectionName,
-      count: 0,
-      documentCount: 0,
-    };
-  }
 }
 
 export async function deleteDocument(
@@ -211,12 +187,10 @@ export async function executeQuery(
         );
 
         if (streaming) {
-          const response = (await (
-            chatEngine as CondenseQuestionChatEngine | ContextChatEngine
-          ).chat({
+          const response = await chatEngine.chat({
             message: query,
             stream: true,
-          })) as AsyncIterable<unknown>;
+          });
 
           return {
             response: response as AsyncGenerator<QueryChunk>,

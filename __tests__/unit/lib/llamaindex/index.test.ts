@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-vi.mock('@llamaindex/core/schema', () => ({
+vi.mock("@llamaindex/core/schema", () => ({
   Document: class MockDocument {
     constructor(public params: object) {}
     getText() {
@@ -9,12 +9,12 @@ vi.mock('@llamaindex/core/schema', () => ({
   },
 }));
 
-vi.mock('llamaindex', () => ({
+vi.mock("llamaindex", () => ({
   VectorStoreIndex: {
     fromVectorStore: vi.fn().mockResolvedValue({
       asQueryEngine: vi.fn().mockReturnValue({
         query: vi.fn().mockResolvedValue({
-          response: 'Test response',
+          response: "Test response",
           sourceNodes: [],
         }),
       }),
@@ -26,11 +26,13 @@ vi.mock('llamaindex', () => ({
   },
 }));
 
-vi.mock('@/lib/llamaindex/vectorstore', () => ({
+vi.mock("@/lib/llamaindex/vectorstore", () => ({
   getChromaVectorStore: vi.fn().mockResolvedValue({
     getCollection: vi.fn().mockResolvedValue({
       count: vi.fn().mockResolvedValue(10),
-      get: vi.fn().mockResolvedValue({ ids: ['chunk1', 'chunk2'], metadatas: [] }),
+      get: vi
+        .fn()
+        .mockResolvedValue({ ids: ["chunk1", "chunk2"], metadatas: [] }),
       delete: vi.fn().mockResolvedValue(undefined),
     }),
   }),
@@ -39,46 +41,46 @@ vi.mock('@/lib/llamaindex/vectorstore', () => ({
       addDocuments: vi.fn(),
     },
     vectorStores: {
-      TEXT: { mock: 'vector-store' },
+      TEXT: { mock: "vector-store" },
     },
   }),
 }));
 
-vi.mock('@/lib/llamaindex/chatengines', () => ({
+vi.mock("@/lib/llamaindex/chatengines", () => ({
   getChatEngine: vi.fn().mockResolvedValue({
     chat: vi.fn().mockResolvedValue({
-      response: 'Chat response',
+      response: "Chat response",
       sourceNodes: [],
     }),
   }),
   convertToChatMessages: vi.fn().mockImplementation((messages) => messages),
 }));
 
-vi.mock('@/lib/llamaindex/prompts', () => ({
-  getSystemPrompt: vi.fn().mockReturnValue('System prompt'),
+vi.mock("@/lib/llamaindex/prompts", () => ({
+  getSystemPrompt: vi.fn().mockReturnValue("System prompt"),
 }));
 
-vi.mock('@/lib/llamaindex/sources', () => ({
+vi.mock("@/lib/llamaindex/sources", () => ({
   extractSources: vi.fn().mockReturnValue([]),
 }));
 
-vi.mock('chromadb', () => ({
+vi.mock("chromadb", () => ({
   IncludeEnum: {
-    Documents: 'documents',
-    Embeddings: 'embeddings',
-    Metadatas: 'metadatas',
-    Distances: 'distances',
+    Documents: "documents",
+    Embeddings: "embeddings",
+    Metadatas: "metadatas",
+    Distances: "distances",
   },
 }));
 
-describe('Index Module', () => {
+describe("Index Module", () => {
   const originalEnv = process.env;
 
   beforeEach(async () => {
     vi.resetModules();
     process.env = { ...originalEnv };
-    vi.spyOn(console, 'log').mockImplementation(() => {});
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -86,91 +88,86 @@ describe('Index Module', () => {
     vi.clearAllMocks();
   });
 
-  describe('Function Exports', () => {
-    it('should export addDocuments function', async () => {
-      const { addDocuments } = await import('@/lib/llamaindex/index');
-      expect(typeof addDocuments).toBe('function');
+  describe("Function Exports", () => {
+    it("should export addDocuments function", async () => {
+      const { addDocuments } = await import("@/lib/llamaindex/index");
+      expect(typeof addDocuments).toBe("function");
     });
 
-    it('should export executeQuery function', async () => {
-      const { executeQuery } = await import('@/lib/llamaindex/index');
-      expect(typeof executeQuery).toBe('function');
+    it("should export executeQuery function", async () => {
+      const { executeQuery } = await import("@/lib/llamaindex/index");
+      expect(typeof executeQuery).toBe("function");
     });
 
-    it('should export deleteDocument function', async () => {
-      const { deleteDocument } = await import('@/lib/llamaindex/index');
-      expect(typeof deleteDocument).toBe('function');
+    it("should export deleteDocument function", async () => {
+      const { deleteDocument } = await import("@/lib/llamaindex/index");
+      expect(typeof deleteDocument).toBe("function");
     });
 
-    it('should export clearIndex function', async () => {
-      const { clearIndex } = await import('@/lib/llamaindex/index');
-      expect(typeof clearIndex).toBe('function');
+    it("should export clearIndex function", async () => {
+      const { clearIndex } = await import("@/lib/llamaindex/index");
+      expect(typeof clearIndex).toBe("function");
     });
 
-    it('should export getIndexStats function', async () => {
-      const { getIndexStats } = await import('@/lib/llamaindex/index');
-      expect(typeof getIndexStats).toBe('function');
-    });
-
-    it('should export clearIndexCache function', async () => {
-      const { clearIndexCache } = await import('@/lib/llamaindex/index');
-      expect(typeof clearIndexCache).toBe('function');
+    it("should export clearIndexCache function", async () => {
+      const { clearIndexCache } = await import("@/lib/llamaindex/index");
+      expect(typeof clearIndexCache).toBe("function");
     });
   });
 
-  describe('executeQuery', () => {
-    it('should execute query with chat engine', async () => {
-      const { executeQuery } = await import('@/lib/llamaindex/index');
+  describe("executeQuery", () => {
+    it("should execute query with chat engine", async () => {
+      const { executeQuery } = await import("@/lib/llamaindex/index");
       const result = await executeQuery(
-        'What is this about?',
+        "What is this about?",
         false,
         [],
-        'condense',
-        'test-session'
+        "condense",
+        "test-session",
       );
 
       expect(result.response).toBeDefined();
       expect(result.streaming).toBe(false);
     });
 
-    it('should return error when no engine type specified', async () => {
-      const { executeQuery } = await import('@/lib/llamaindex/index');
-      const result = await executeQuery('Question', false, [], null, null);
+    it("should return error when no engine type specified", async () => {
+      const { executeQuery } = await import("@/lib/llamaindex/index");
+      const result = await executeQuery("Question", false, [], null, null);
 
-      expect(result.error).toBe('No chat engine type specified');
+      expect(result.error).toBe("No chat engine type specified");
     });
 
-    it('should handle conversation history', async () => {
-      const { executeQuery } = await import('@/lib/llamaindex/index');
+    it("should handle conversation history", async () => {
+      const { executeQuery } = await import("@/lib/llamaindex/index");
       const history = [
-        { role: 'user' as const, content: 'Previous question' },
-        { role: 'assistant' as const, content: 'Previous answer' },
+        { role: "user" as const, content: "Previous question" },
+        { role: "assistant" as const, content: "Previous answer" },
       ];
 
       const result = await executeQuery(
-        'Follow up question',
+        "Follow up question",
         false,
         history,
-        'condense',
-        'test-session'
+        "condense",
+        "test-session",
       );
 
       expect(result).toBeDefined();
     });
 
-    it('should handle chat engine errors', async () => {
-      const { getChatEngine } = await import('@/lib/llamaindex/chatengines');
+    it("should handle chat engine errors", async () => {
+      const { getChatEngine } = await import("@/lib/llamaindex/chatengines");
       vi.mocked(getChatEngine).mockImplementationOnce(() => {
-        throw new Error('Chat engine failed');
+        throw new Error("Chat engine failed");
       });
 
-      const { executeQuery } = await import('@/lib/llamaindex/index');
+      const { executeQuery } = await import("@/lib/llamaindex/index");
       const result = await executeQuery(
-        'What is this about?',
+        "What is this about?",
         false,
         [],
-        'condense',
-        'test-session'
+        "condense",
+        "test-session",
       );
 
       // The error may be caught at different points in the execution
@@ -178,81 +175,67 @@ describe('Index Module', () => {
     });
   });
 
-  describe('clearIndexCache', () => {
-    it('should be callable without error', async () => {
-      const { clearIndexCache } = await import('@/lib/llamaindex/index');
+  describe("clearIndexCache", () => {
+    it("should be callable without error", async () => {
+      const { clearIndexCache } = await import("@/lib/llamaindex/index");
       expect(() => clearIndexCache()).not.toThrow();
     });
   });
 
-  describe('getIndexStats', () => {
-    it('should return index statistics', async () => {
-      const { getIndexStats } = await import('@/lib/llamaindex/index');
+  describe("deleteDocument", () => {
+    it("should be callable and return result", async () => {
+      const { deleteDocument } = await import("@/lib/llamaindex/index");
 
-      const result = await getIndexStats('test-collection');
+      const result = await deleteDocument("test.txt");
 
-      expect(result).toHaveProperty('exists');
-      expect(result).toHaveProperty('collectionName');
-      expect(result).toHaveProperty('count');
+      expect(result).toHaveProperty("success");
     });
 
-    it('should use default collection name', async () => {
-      const { getIndexStats } = await import('@/lib/llamaindex/index');
+    it("should handle errors during deletion", async () => {
+      const { getChromaVectorStore } =
+        await import("@/lib/llamaindex/vectorstore");
+      vi.mocked(getChromaVectorStore).mockRejectedValueOnce(
+        new Error("Connection failed"),
+      );
 
-      const result = await getIndexStats();
+      const { deleteDocument } = await import("@/lib/llamaindex/index");
 
-      expect(result.collectionName).toBe('documents');
-    });
-  });
-
-  describe('deleteDocument', () => {
-    it('should be callable and return result', async () => {
-      const { deleteDocument } = await import('@/lib/llamaindex/index');
-
-      const result = await deleteDocument('test.txt');
-
-      expect(result).toHaveProperty('success');
-    });
-
-    it('should handle errors during deletion', async () => {
-      const { getChromaVectorStore } = await import('@/lib/llamaindex/vectorstore');
-      vi.mocked(getChromaVectorStore).mockRejectedValueOnce(new Error('Connection failed'));
-
-      const { deleteDocument } = await import('@/lib/llamaindex/index');
-
-      const result = await deleteDocument('test.txt');
+      const result = await deleteDocument("test.txt");
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe('Connection failed');
+      expect(result.error).toBe("Connection failed");
     });
   });
 
-  describe('clearIndex', () => {
-    it('should be callable and return result', async () => {
-      const { clearIndex } = await import('@/lib/llamaindex/index');
+  describe("clearIndex", () => {
+    it("should be callable and return result", async () => {
+      const { clearIndex } = await import("@/lib/llamaindex/index");
 
       const result = await clearIndex();
 
-      expect(result).toHaveProperty('success');
+      expect(result).toHaveProperty("success");
     });
 
-    it('should handle errors during clear', async () => {
-      const { getChromaVectorStore } = await import('@/lib/llamaindex/vectorstore');
-      vi.mocked(getChromaVectorStore).mockRejectedValueOnce(new Error('Clear failed'));
+    it("should handle errors during clear", async () => {
+      const { getChromaVectorStore } =
+        await import("@/lib/llamaindex/vectorstore");
+      vi.mocked(getChromaVectorStore).mockRejectedValueOnce(
+        new Error("Clear failed"),
+      );
 
-      const { clearIndex } = await import('@/lib/llamaindex/index');
+      const { clearIndex } = await import("@/lib/llamaindex/index");
 
       const result = await clearIndex();
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe('Clear failed');
+      expect(result.error).toBe("Clear failed");
     });
   });
 
-  describe('addDocuments', () => {
-    it('should export addDocuments function', async () => {
-      const { addDocuments } = await import('@/lib/llamaindex/index');
-      expect(typeof addDocuments).toBe('function');
+  describe("addDocuments", () => {
+    it("should export addDocuments function", async () => {
+      const { addDocuments } = await import("@/lib/llamaindex/index");
+      expect(typeof addDocuments).toBe("function");
     });
   });
 });

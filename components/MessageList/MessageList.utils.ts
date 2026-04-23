@@ -64,9 +64,9 @@ export function getSourceExplanation(sources?: SourceInfo[]): SourceExplanation 
  * Get color for similarity score
  */
 export function getSimilarityColor(score: number): string {
-  if (score >= 0.7) return '#10b981'; // Green
-  if (score >= 0.4) return '#f59e0b'; // Yellow/orange
-  return '#9ca3af'; // Gray
+  if (score >= 0.7) return 'green';
+  if (score >= 0.4) return 'amber';
+  return 'gray';
 }
 
 /**

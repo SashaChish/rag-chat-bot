@@ -12,16 +12,13 @@ import type {
 const topK = 3;
 
 export function convertToChatMessages(history: ChatMessage[]): ChatMessage[] {
-  if (!Array.isArray(history)) {
-    return [];
-  }
-
   return history.map((message) => {
     const role =
       typeof message.role === "string" ? message.role.toLowerCase() : "user";
     const content = typeof message.content === "string" ? message.content : "";
 
     let messageRole: "user" | "assistant" | "system";
+
     if (role === "user" || role === "human") {
       messageRole = "user";
     } else if (role === "assistant" || role === "ai") {
@@ -98,10 +95,6 @@ export async function getChatEngine(
   systemPrompt?: string | null,
 ): Promise<ChatEngineReturnType> {
   const cacheKey = `${sessionKey}-${type}`;
-
-  if (type === "condense" && chatHistory.length > 0) {
-    return createCondenseChatEngine(index, chatHistory, systemPrompt);
-  }
 
   if (chatEngineCache.has(cacheKey)) {
     return chatEngineCache.get(cacheKey)!;

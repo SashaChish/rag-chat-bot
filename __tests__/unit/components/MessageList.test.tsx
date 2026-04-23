@@ -7,7 +7,7 @@ import type { ChatUIMessage } from '@/lib/types/components';
 vi.mock('@/components/MessageList/MessageList.utils', () => ({
   formatContent: vi.fn((content) => content),
   getSourceExplanation: vi.fn(() => ({ text: 'Sources explanation' })),
-  getSimilarityColor: vi.fn(() => '#22c55e'),
+  getSimilarityColor: vi.fn(() => 'green'),
   getSimilarityPercentage: vi.fn((score) => Math.round(score * 100)),
   isValidScore: vi.fn((score) => score !== null && score !== undefined),
 }));

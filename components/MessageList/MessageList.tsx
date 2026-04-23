@@ -1,10 +1,20 @@
 "use client";
 
-import { Paper, Stack, Group, Text, Progress, Loader, ScrollArea, Box, Center } from '@mantine/core';
+import {
+  Paper,
+  Stack,
+  Group,
+  Text,
+  Progress,
+  Loader,
+  ScrollArea,
+  Box,
+  Center,
+} from "@mantine/core";
 import type { SourceInfo } from "../../lib/types/core.types";
 import type { MessageListProps } from "../../lib/types/components";
 import type { SimilarityBarProps } from "./MessageList.types";
-import { IconMessageChatbot } from '@tabler/icons-react';
+import { IconMessageChatbot } from "@tabler/icons-react";
 import {
   formatContent,
   getSourceExplanation,
@@ -27,7 +37,7 @@ const SimilarityBar = ({ score }: SimilarityBarProps) => {
       value={percentage}
       size="xs"
       mt={4}
-      style={{ backgroundColor: 'var(--mantine-color-gray-2)' }}
+      style={{ backgroundColor: "var(--mantine-color-gray-2)" }}
       color={color}
       aria-label={`Similarity score: ${percentage}%`}
     />
@@ -45,8 +55,12 @@ export default function MessageList({
           <Center py="xl">
             <Stack align="center" gap="sm">
               <IconMessageChatbot size={64} aria-hidden="true" />
-              <Text fw={600} c="dimmed" size="lg">No messages yet</Text>
-              <Text c="dimmed">Upload a document and start asking questions!</Text>
+              <Text fw={600} c="dimmed" size="lg">
+                No messages yet
+              </Text>
+              <Text c="dimmed">
+                Upload a document and start asking questions!
+              </Text>
             </Stack>
           </Center>
         )}
@@ -55,17 +69,22 @@ export default function MessageList({
           <Box
             key={message.id}
             style={{
-              display: 'flex',
-              flexDirection: 'column',
+              display: "flex",
+              flexDirection: "column",
               gap: 8,
-              alignItems: message.role === "user" ? 'flex-end' : 'flex-start',
+              alignItems: message.role === "user" ? "flex-end" : "flex-start",
             }}
-            data-testid={message.role === "assistant" ? "chat-response" : undefined}
+            data-testid={
+              message.role === "assistant" ? "chat-response" : undefined
+            }
           >
             <Group
               justify="space-between"
               gap="md"
-              style={{ width: '100%', flexDirection: message.role === "user" ? 'row-reverse' : 'row' }}
+              style={{
+                width: "100%",
+                flexDirection: message.role === "user" ? "row-reverse" : "row",
+              }}
             >
               <Text fw={600} c="dimmed" size="sm">
                 {message.role === "user" ? "You" : "AI Assistant"}
@@ -80,21 +99,27 @@ export default function MessageList({
               py="sm"
               px="md"
               style={{
-                maxWidth: '80%',
+                maxWidth: "80%",
                 lineHeight: 1.6,
-                wordBreak: 'break-word',
-                background: message.role === "user"
-                  ? 'linear-gradient(to right, #a855f7, #7c3aed)'
-                  : message.error
-                    ? 'var(--mantine-color-red-1)'
-                    : 'var(--mantine-color-gray-1)',
-                color: message.role === "user"
-                  ? 'white'
-                  : message.error
-                    ? 'var(--mantine-color-red-8)'
-                    : 'var(--mantine-color-dark)',
-                borderBottomRightRadius: message.role === "user" ? 4 : undefined,
-                borderBottomLeftRadius: message.role === "assistant" && !message.error ? 4 : undefined,
+                wordBreak: "break-word",
+                background:
+                  message.role === "user"
+                    ? "linear-gradient(to right, var(--mantine-color-violet-5), var(--mantine-color-violet-7))"
+                    : message.error
+                      ? "var(--mantine-color-red-1)"
+                      : "var(--mantine-color-gray-1)",
+                color:
+                  message.role === "user"
+                    ? "white"
+                    : message.error
+                      ? "var(--mantine-color-red-8)"
+                      : "var(--mantine-color-dark)",
+                borderBottomRightRadius:
+                  message.role === "user" ? 4 : undefined,
+                borderBottomLeftRadius:
+                  message.role === "assistant" && !message.error
+                    ? 4
+                    : undefined,
               }}
             >
               {(message.isStreaming || message.loadingPhase) && (
@@ -124,7 +149,9 @@ export default function MessageList({
                 radius="md"
                 p="sm"
                 mt={8}
-                style={{ borderLeft: '3px solid var(--mantine-color-violet-5)' }}
+                style={{
+                  borderLeft: "3px solid var(--mantine-color-violet-5)",
+                }}
                 data-testid="sources-section"
               >
                 <Text size="sm" c="dimmed" fw={600} mb="sm">
@@ -151,7 +178,13 @@ export default function MessageList({
                       </Group>
                       {source.score && <SimilarityBar score={source.score} />}
                       {source.preview && (
-                        <Text c="dimmed" size="sm" fs="italic" mt="sm" style={{ lineHeight: 1.6 }}>
+                        <Text
+                          c="dimmed"
+                          size="sm"
+                          fs="italic"
+                          mt="sm"
+                          style={{ lineHeight: 1.6 }}
+                        >
                           {source.preview}
                         </Text>
                       )}

@@ -115,28 +115,28 @@ describe('getSourceExplanation', () => {
 
 describe('getSimilarityColor', () => {
   it('should return green for high scores (>= 0.7)', () => {
-    expect(getSimilarityColor(0.7)).toBe('#10b981');
-    expect(getSimilarityColor(0.8)).toBe('#10b981');
-    expect(getSimilarityColor(1.0)).toBe('#10b981');
+    expect(getSimilarityColor(0.7)).toBe('green');
+    expect(getSimilarityColor(0.8)).toBe('green');
+    expect(getSimilarityColor(1.0)).toBe('green');
   });
 
   it('should return yellow/orange for medium scores (>= 0.4)', () => {
-    expect(getSimilarityColor(0.4)).toBe('#f59e0b');
-    expect(getSimilarityColor(0.5)).toBe('#f59e0b');
-    expect(getSimilarityColor(0.6)).toBe('#f59e0b');
+    expect(getSimilarityColor(0.4)).toBe('amber');
+    expect(getSimilarityColor(0.5)).toBe('amber');
+    expect(getSimilarityColor(0.6)).toBe('amber');
   });
 
   it('should return gray for low scores (< 0.4)', () => {
-    expect(getSimilarityColor(0.0)).toBe('#9ca3af');
-    expect(getSimilarityColor(0.1)).toBe('#9ca3af');
-    expect(getSimilarityColor(0.39)).toBe('#9ca3af');
+    expect(getSimilarityColor(0.0)).toBe('gray');
+    expect(getSimilarityColor(0.1)).toBe('gray');
+    expect(getSimilarityColor(0.39)).toBe('gray');
   });
 
   it('should handle edge cases', () => {
-    expect(getSimilarityColor(0)).toBe('#9ca3af');
-    expect(getSimilarityColor(0.399)).toBe('#9ca3af');
-    expect(getSimilarityColor(0.4)).toBe('#f59e0b');
-    expect(getSimilarityColor(0.7)).toBe('#10b981');
+    expect(getSimilarityColor(0)).toBe('gray');
+    expect(getSimilarityColor(0.399)).toBe('gray');
+    expect(getSimilarityColor(0.4)).toBe('amber');
+    expect(getSimilarityColor(0.7)).toBe('green');
   });
 });
 

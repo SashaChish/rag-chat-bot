@@ -110,7 +110,7 @@ Before marking tasks complete:
 - **Multi-provider LLM**: OpenAI (embeddings required), optional Anthropic/Groq/Ollama
 - **Turbopack**: Default bundler (Next.js 16+); no webpack config needed
 - **ESLint flat config**: Uses `eslint.config.mjs` with `typescript-eslint` and `@next/eslint-plugin-next`
-- **Mantine UI v7**: All styling via Mantine components and theme; no Tailwind/CSS modules
+- **Mantine UI v7**: All styling via Mantine components and theme; no Tailwind/CSS modules. Theme uses Radix Colors palette (violet, gray, red, green, blue, amber) — never hardcode hex values in components, use Mantine color props or CSS variables (`var(--mantine-color-{name}-{shade})`) instead.
 - **AppShell layout**: Responsive layout with collapsible navbar via Mantine AppShell and useDisclosure
 
 ## Environment

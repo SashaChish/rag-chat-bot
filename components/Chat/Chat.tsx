@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useId } from "react";
 import {
   Paper,
   Group,
@@ -26,11 +26,9 @@ export default function Chat() {
     "condense",
   );
   const [showClearModal, setShowClearModal] = useState(false);
-  const [sessionKey] = useState<string>(
-    `session-${Date.now()}-${Math.random().toString(36).substring(7)}`,
-  );
+  const sessionKey = useId();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
+  console.log(sessionKey);
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);

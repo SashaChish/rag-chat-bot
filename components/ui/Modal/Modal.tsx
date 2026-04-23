@@ -11,7 +11,7 @@ import type {
 const variantBorderColors: Record<ModalVariant, string> = {
   default: "transparent",
   danger: "var(--mantine-color-red-6)",
-  warning: "var(--mantine-color-yellow-5)",
+  warning: "var(--mantine-color-amber-5)",
   success: "var(--mantine-color-green-5)",
 };
 

@@ -79,31 +79,49 @@ describe("loaders", () => {
       expect(validateFile(file)).toBe(true);
     });
 
-    it("should reject oversized files", async () => {
+    it("should reject oversized files with ValidationError", async () => {
       const { validateFile } = await import("@/lib/mastra/loaders");
       const bigFile = {
         name: "big.pdf",
         size: 11 * 1024 * 1024,
       } as File;
-      expect(() => validateFile(bigFile)).toThrow("exceeds maximum");
+      try {
+        validateFile(bigFile);
+        expect.unreachable("Should have thrown");
+      } catch (error) {
+        expect((error as Error).message).toContain("exceeds maximum");
+        expect((error as { code: string }).code).toBe("VALIDATION_ERROR");
+      }
     });
 
-    it("should reject unsupported formats", async () => {
+    it("should reject unsupported formats with ValidationError", async () => {
       const { validateFile } = await import("@/lib/mastra/loaders");
       const file = {
         name: "image.png",
         size: 100,
       } as File;
-      expect(() => validateFile(file)).toThrow("Unsupported file format");
+      try {
+        validateFile(file);
+        expect.unreachable("Should have thrown");
+      } catch (error) {
+        expect((error as Error).message).toContain("Unsupported file format");
+        expect((error as { code: string }).code).toBe("VALIDATION_ERROR");
+      }
     });
 
-    it("should reject empty files", async () => {
+    it("should reject empty files with ValidationError", async () => {
       const { validateFile } = await import("@/lib/mastra/loaders");
       const file = {
         name: "empty.txt",
         size: 0,
       } as File;
-      expect(() => validateFile(file)).toThrow("File is empty");
+      try {
+        validateFile(file);
+        expect.unreachable("Should have thrown");
+      } catch (error) {
+        expect((error as Error).message).toContain("File is empty");
+        expect((error as { code: string }).code).toBe("VALIDATION_ERROR");
+      }
     });
   });
 
@@ -147,20 +165,15 @@ describe("loaders", () => {
       expect(result.documents[0].metadata.file_type).toBe("txt");
     });
 
-    it("should throw error for empty buffer", async () => {
-      const { loadDocumentFromBuffer } = await import("@/lib/mastra/loaders");
-      const buffer = Buffer.alloc(0);
-      await expect(
-        loadDocumentFromBuffer(buffer, "test.txt"),
-      ).rejects.toThrow("File is empty");
-    });
-
-    it("should throw error for missing filename extension", async () => {
+    it("should throw ValidationError for missing filename extension", async () => {
       const { loadDocumentFromBuffer } = await import("@/lib/mastra/loaders");
       const buffer = Buffer.from("content");
-      await expect(
-        loadDocumentFromBuffer(buffer, "noext"),
-      ).rejects.toThrow();
+      try {
+        await loadDocumentFromBuffer(buffer, "noext");
+        expect.unreachable("Should have thrown");
+      } catch (error) {
+        expect((error as { code: string }).code).toBe("VALIDATION_ERROR");
+      }
     });
 
     it("should set file_name metadata", async () => {
@@ -177,6 +190,17 @@ describe("loaders", () => {
       const result = await loadDocumentFromBuffer(buffer, "test.txt");
 
       expect(result.documents[0].metadata.upload_date).toBeTruthy();
+    });
+
+    it("should throw ValidationError for unsupported file type", async () => {
+      const { loadDocumentFromBuffer } = await import("@/lib/mastra/loaders");
+      const buffer = Buffer.from("content");
+      try {
+        await loadDocumentFromBuffer(buffer, "test.xyz");
+        expect.unreachable("Should have thrown");
+      } catch (error) {
+        expect((error as { code: string }).code).toBe("VALIDATION_ERROR");
+      }
     });
   });
 });

@@ -1,94 +1,36 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { deleteDocument } from "@/lib/mastra/index";
-import { getDocumentContent, getCollectionStats } from "@/lib/mastra/vectorstore";
+import { withErrorHandler } from "@/lib/api/handler";
+import {
+  deleteDocumentByName,
+  getDocumentStats,
+} from "@/lib/mastra/vectorstore";
 
-export async function DELETE(
+async function deleteDocument(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  context?: { params: Promise<Record<string, string>> },
 ): Promise<NextResponse> {
-  try {
-    const { id } = await params;
+  const { id } = await context!.params;
 
-    if (!id) {
-      return NextResponse.json(
-        { error: "Document ID is required" },
-        { status: 400 },
-      );
-    }
+  await deleteDocumentByName(id);
 
-    const deleteResult = await deleteDocument(id);
-
-    if (!deleteResult.success) {
-      return NextResponse.json(
-        { error: deleteResult.error || "Failed to delete document" },
-        { status: 500 },
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: "Document deleted successfully",
-    });
-  } catch (error) {
-    console.error("Error deleting document:", error);
-    return NextResponse.json(
-      {
-        error: (error as Error).message || "Failed to delete document",
-      },
-      { status: 500 },
-    );
-  }
+  return NextResponse.json({
+    success: true,
+    message: "Document deleted successfully",
+  });
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+async function getDocument(
+  _request: NextRequest,
+  context?: { params: Promise<Record<string, string>> },
 ): Promise<NextResponse> {
-  try {
-    const { id } = await params;
-    const { searchParams } = new URL(request.url);
-    const action = searchParams.get("action");
+  const { id } = await context!.params;
+  const stats = await getDocumentStats(id);
 
-    if (!id) {
-      return NextResponse.json(
-        { error: "Document ID is required" },
-        { status: 400 },
-      );
-    }
-
-    if (action === "download") {
-      const content = await getDocumentContent(id);
-
-      if (!content) {
-        return NextResponse.json(
-          { error: "Document not found" },
-          { status: 404 },
-        );
-      }
-
-      const textBuffer = Buffer.from(content, "utf-8");
-      const response = new NextResponse(new Uint8Array(textBuffer));
-      response.headers.set("Content-Type", "text/plain");
-      response.headers.set(
-        "Content-Disposition",
-        `attachment; filename="${id}"`,
-      );
-      response.headers.set("Content-Length", textBuffer.length.toString());
-      return response;
-    }
-
-    const stats = await getCollectionStats();
-
-    return NextResponse.json({
-      id,
-      exists: stats.exists,
-      chunk_count: stats.count,
-    });
-  } catch (error) {
-    console.error("Error getting document:", error);
-    return NextResponse.json(
-      { error: "Failed to retrieve document information" },
-      { status: 500 },
-    );
-  }
+  return NextResponse.json({
+    id,
+    ...stats,
+  });
 }
+
+export const DELETE = withErrorHandler(deleteDocument);
+export const GET = withErrorHandler(getDocument);

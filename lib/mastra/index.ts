@@ -1,20 +1,24 @@
 import { MDocument } from "@mastra/rag";
 import { embedMany } from "ai";
-import type { RAGDocument, ChatMessage, ChatEngineType, QueryResponse, SourceInfo } from "../types/core.types";
+import type {
+  RAGDocument,
+  ChatMessage,
+  ChatEngineType,
+  QueryResponse,
+  SourceInfo,
+} from "../types/core.types";
 import { getEmbeddingModel } from "./config";
 import {
+  INDEX_NAME,
   getVectorStore,
   hasDocuments,
   ensureIndex,
-  clearCollection,
-  deleteDocumentByName as vsDeleteDocumentByName,
 } from "./vectorstore";
 import { extractSources } from "./sources";
 import { createAgent } from "./agent";
 import { convertToChatMessages } from "./chat";
 import { embed } from "ai";
 
-const INDEX_NAME = "documents";
 const TOP_K = 3;
 
 const CHUNK_SIZE = parseInt(process.env.CHUNK_SIZE || "512", 10);
@@ -24,17 +28,6 @@ export interface AddDocumentsResult {
   success: boolean;
   documentsAdded: number;
   chunksProcessed: number;
-}
-
-export interface DeleteDocumentResult {
-  success: boolean;
-  chunksDeleted: number;
-  error?: string;
-}
-
-export interface ClearIndexResult {
-  success: boolean;
-  error?: string;
 }
 
 export async function addDocuments(
@@ -88,7 +81,9 @@ export async function addDocuments(
   await store.upsert({
     indexName: INDEX_NAME,
     vectors: embeddings,
-    metadata: allChunks.map((c) => c.metadata as Record<string, string | number | boolean>),
+    metadata: allChunks.map(
+      (c) => c.metadata as Record<string, string | number | boolean>,
+    ),
     documents: allChunks.map((c) => c.text),
   });
 
@@ -99,53 +94,39 @@ export async function addDocuments(
   };
 }
 
-export async function deleteDocument(
-  documentId: string,
-): Promise<DeleteDocumentResult> {
-  try {
-    const deletedCount = await vsDeleteDocumentByName(documentId);
-    return { success: true, chunksDeleted: deletedCount };
-  } catch (error) {
-    return {
-      success: false,
-      chunksDeleted: 0,
-      error: (error as Error).message,
-    };
-  }
-}
-
-export async function clearIndex(
-  _collectionName: string = INDEX_NAME,
-): Promise<ClearIndexResult> {
-  try {
-    await clearCollection();
-    return { success: true };
-  } catch (error) {
-    return {
-      success: false,
-      error: (error as Error).message,
-    };
-  }
-}
-
 export function clearIndexCache(): void {
   clearChatEngineCache();
 }
 
-// --- Chat Engine Cache ---
-
 type RAGAgent = ReturnType<typeof createAgent>;
 
-const chatEngineCache = new Map<string, RAGAgent>();
+interface CacheEntry {
+  agent: RAGAgent;
+  lastAccessed: number;
+}
 
-function getAgent(
-  sessionKey: string,
-  systemPrompt: string | null,
-): RAGAgent {
+const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+const chatEngineCache = new Map<string, CacheEntry>();
+
+function pruneCache(): void {
+  const now = Date.now();
+  for (const [key, entry] of chatEngineCache) {
+    if (now - entry.lastAccessed > CACHE_TTL_MS) {
+      chatEngineCache.delete(key);
+    }
+  }
+}
+
+function getAgent(sessionKey: string, systemPrompt: string | null): RAGAgent {
+  pruneCache();
+
   const cacheKey = sessionKey;
 
-  if (chatEngineCache.has(cacheKey)) {
-    return chatEngineCache.get(cacheKey)!;
+  const cached = chatEngineCache.get(cacheKey);
+  if (cached) {
+    cached.lastAccessed = Date.now();
+    return cached.agent;
   }
 
   const agent = createAgent({
@@ -154,7 +135,7 @@ function getAgent(
     instructions: systemPrompt ?? undefined,
   });
 
-  chatEngineCache.set(cacheKey, agent);
+  chatEngineCache.set(cacheKey, { agent, lastAccessed: Date.now() });
   return agent;
 }
 
@@ -166,10 +147,24 @@ export function clearChatEngineCache(sessionKey?: string): void {
   }
 }
 
+// --- Singleton Condenser Agent ---
+
+const condenserAgent = createAgent({
+  id: "query-condenser",
+  name: "query-condenser",
+  instructions:
+    "Given a conversation history and a follow-up question, rephrase the follow-up question to be a standalone question that can be understood without the conversation history. Return ONLY the rephrased question, nothing else.",
+});
+
 // --- Query Execution ---
 
 async function retrieveContext(query: string): Promise<{
-  results: { id: string; score: number; metadata?: Record<string, unknown>; document?: string }[];
+  results: {
+    id: string;
+    score: number;
+    metadata?: Record<string, unknown>;
+    document?: string;
+  }[];
   sources: SourceInfo[];
   contextText: string;
 }> {
@@ -207,14 +202,7 @@ async function buildCondensedQuery(
     .map((m) => `${m.role}: ${m.content}`)
     .join("\n");
 
-  const condensingAgent = createAgent({
-    id: "query-condenser",
-    name: "query-condenser",
-    instructions:
-      "Given a conversation history and a follow-up question, rephrase the follow-up question to be a standalone question that can be understood without the conversation history. Return ONLY the rephrased question, nothing else.",
-  });
-
-  const result = await condensingAgent.generate(
+  const result = await condenserAgent.generate(
     `Conversation history:\n${historyText}\n\nFollow-up question: ${query}`,
   );
 

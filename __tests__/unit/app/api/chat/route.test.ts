@@ -38,7 +38,7 @@ describe("/api/chat", () => {
       const data = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data.error).toBe("Message is required");
+      expect(data.error.code).toBe("VALIDATION_ERROR");
     });
 
     it("should return 400 when message is empty", async () => {
@@ -48,7 +48,7 @@ describe("/api/chat", () => {
       const data = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data.error).toBe("Message is required");
+      expect(data.error.code).toBe("VALIDATION_ERROR");
     });
 
     it("should return message when no documents exist", async () => {
@@ -147,7 +147,7 @@ describe("/api/chat", () => {
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.error).toBe("Query failed");
+      expect(data.error.code).toBe("QUERY_FAILED");
     });
 
     it("should handle streaming request", async () => {
@@ -187,9 +187,7 @@ describe("/api/chat", () => {
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.error).toBe(
-        "Failed to process your request. Please try again.",
-      );
+      expect(data.error.code).toBe("INTERNAL_ERROR");
     });
   });
 
@@ -198,7 +196,7 @@ describe("/api/chat", () => {
       const { hasDocuments } = await import("@/lib/mastra/vectorstore");
       vi.mocked(hasDocuments).mockResolvedValue(true);
 
-      const response = await GET();
+      const response = await GET({} as NextRequest);
       const data = await response.json();
 
       expect(data.ready).toBe(true);
@@ -209,7 +207,7 @@ describe("/api/chat", () => {
       const { hasDocuments } = await import("@/lib/mastra/vectorstore");
       vi.mocked(hasDocuments).mockResolvedValue(false);
 
-      const response = await GET();
+      const response = await GET({} as NextRequest);
       const data = await response.json();
 
       expect(data.ready).toBe(false);
@@ -220,11 +218,11 @@ describe("/api/chat", () => {
       const { hasDocuments } = await import("@/lib/mastra/vectorstore");
       vi.mocked(hasDocuments).mockRejectedValue(new Error("Check failed"));
 
-      const response = await GET();
+      const response = await GET({} as NextRequest);
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.error).toBe("Failed to check status");
+      expect(data.error.code).toBe("INTERNAL_ERROR");
     });
   });
 });

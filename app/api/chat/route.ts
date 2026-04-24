@@ -1,176 +1,118 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { withErrorHandler } from "@/lib/api/handler";
+import { validateBody } from "@/lib/api/validate";
+import { chatRequestSchema } from "@/lib/api/schemas";
 import { executeQuery } from "@/lib/mastra/index";
 import { hasDocuments } from "@/lib/mastra/vectorstore";
-import type { ChatRequest, ChatStatusResponse } from "@/lib/types/api";
+import { createSSEStream, createSSEResponse } from "@/lib/api/streaming";
+import type { ChatStatusResponse } from "@/lib/types/api";
 import type { QueryChunk, SourceInfo } from "@/lib/types/core.types";
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
-  try {
-    const body = (await request.json()) as ChatRequest;
-    const {
-      message,
-      conversationHistory = [],
-      streaming = false,
-      chatEngineType = "condense",
-      sessionKey = null,
-      systemPrompt = null,
-    } = body;
+async function postChat(request: NextRequest): Promise<NextResponse> {
+  const rawBody = await request.json();
+  const {
+    message,
+    conversationHistory = [],
+    streaming = false,
+    chatEngineType = "condense",
+    sessionKey = null,
+    systemPrompt = null,
+  } = validateBody(chatRequestSchema, rawBody);
 
-    if (!message) {
-      return NextResponse.json(
-        { error: "Message is required" },
-        { status: 400 },
-      );
+  const docsExist = await hasDocuments();
+
+  const noDocsMessage =
+    "I don't have any documents to search through yet. Please upload some documents first, and then I can help answer your questions!";
+
+  if (!docsExist) {
+    if (streaming) {
+      const stream = createSSEStream(async function* () {
+        yield JSON.stringify({ response: noDocsMessage, sources: [] });
+      });
+      return createSSEResponse(stream);
     }
 
-    const docsExist = await hasDocuments();
+    return NextResponse.json({
+      response: noDocsMessage,
+      sources: [],
+    });
+  }
 
-    if (!docsExist) {
-      const noDocsMessage =
-        "I don't have any documents to search through yet. Please upload some documents first, and then I can help answer your questions!";
+  const result = await executeQuery(
+    message,
+    streaming,
+    conversationHistory,
+    chatEngineType,
+    sessionKey,
+    systemPrompt,
+  );
 
-      if (streaming) {
-        const encoder = new TextEncoder();
-        const noDocsStream = new ReadableStream({
-          start(controller) {
-            controller.enqueue(
-              encoder.encode(
-                `data: ${JSON.stringify({ response: noDocsMessage, sources: [] })}\n\n`,
-              ),
-            );
-            controller.close();
-          },
-        });
-
-        return new NextResponse(noDocsStream, {
-          headers: {
-            "Content-Type": "text/event-stream",
-            "Cache-Control": "no-cache",
-          },
-        });
-      } else {
-        return NextResponse.json({
-          response: noDocsMessage,
-          sources: [],
-        });
-      }
-    }
-
-    const result = await executeQuery(
-      message,
-      streaming,
-      conversationHistory,
-      chatEngineType,
-      sessionKey,
-      systemPrompt,
-    );
-
-    if (result.error) {
-      const errorMsg =
-        typeof result.error === "string" ? result.error : "An error occurred";
-      console.error("Query error:", errorMsg);
-
-      if (streaming) {
-        return new NextResponse(JSON.stringify({ error: errorMsg }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
-      } else {
-        return NextResponse.json({ error: errorMsg }, { status: 500 });
-      }
-    }
+  if (result.error) {
+    const errorMsg =
+      typeof result.error === "string" ? result.error : "An error occurred";
+    console.error("Query error:", errorMsg);
 
     if (streaming) {
-      const encoder = new TextEncoder();
-
-      const stream = new ReadableStream({
-        async start(controller) {
-          try {
-            if (result.streaming && result.response) {
-              const responseStream =
-                result.response as AsyncGenerator<QueryChunk>;
-
-              let extractedSources: SourceInfo[] = [];
-
-              for await (const chunk of responseStream) {
-                if (chunk.done) {
-                  extractedSources = chunk.sources ?? [];
-                  continue;
-                }
-
-                const text = chunk.delta ?? "";
-
-                if (text.length > 0) {
-                  controller.enqueue(
-                    encoder.encode(
-                      `data: ${JSON.stringify({ chunk: text })}\n\n`,
-                    ),
-                  );
-                }
-              }
-
-              controller.enqueue(
-                encoder.encode(
-                  `data: ${JSON.stringify({ done: true, sources: extractedSources })}\n\n`,
-                ),
-              );
-            } else {
-              controller.enqueue(
-                encoder.encode(
-                  `data: ${JSON.stringify({ response: result.response, sources: result.sources })}\n\n`,
-                ),
-              );
-            }
-
-            controller.close();
-          } catch (error) {
-            console.error("Error in streaming:", error);
-            controller.error(error);
-          }
-        },
+      return new NextResponse(JSON.stringify({ error: errorMsg }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
       });
-
-      return new NextResponse(stream, {
-        headers: {
-          "Content-Type": "text/event-stream",
-          "Cache-Control": "no-cache",
-          Connection: "keep-alive",
-        },
-      });
-    } else {
-      const response = {
-        response: result.response as string,
-        sources: result.sources,
-      };
-
-      return NextResponse.json(response);
     }
-  } catch (error) {
-    console.error("Error in chat API:", error);
+
     return NextResponse.json(
-      { error: "Failed to process your request. Please try again." },
+      { error: { code: "QUERY_FAILED" as const, message: errorMsg } },
       { status: 500 },
     );
   }
-}
 
-export async function GET(): Promise<NextResponse> {
-  try {
-    const docsExist = await hasDocuments();
+  if (streaming) {
+    const stream = createSSEStream(async function* () {
+      if (result.streaming && result.response) {
+        const responseStream = result.response as AsyncGenerator<QueryChunk>;
+        let extractedSources: SourceInfo[] = [];
 
-    const response: ChatStatusResponse = {
-      ready: docsExist,
-      message: docsExist
-        ? "Ready to answer questions"
-        : "Please upload documents first",
-    };
+        for await (const chunk of responseStream) {
+          if (chunk.done) {
+            extractedSources = chunk.sources ?? [];
+            continue;
+          }
 
-    return NextResponse.json(response);
-  } catch (error) {
-    console.error("Error in chat status check:", error);
-    return NextResponse.json(
-      { error: "Failed to check status" },
-      { status: 500 },
-    );
+          const text = chunk.delta ?? "";
+          if (text.length > 0) {
+            yield JSON.stringify({ chunk: text });
+          }
+        }
+
+        yield JSON.stringify({ done: true, sources: extractedSources });
+      } else {
+        yield JSON.stringify({
+          response: result.response,
+          sources: result.sources,
+        });
+      }
+    });
+
+    return createSSEResponse(stream);
   }
+
+  return NextResponse.json({
+    response: result.response as string,
+    sources: result.sources,
+  });
 }
+
+async function getStatus(): Promise<NextResponse> {
+  const docsExist = await hasDocuments();
+
+  const response: ChatStatusResponse = {
+    ready: docsExist,
+    message: docsExist
+      ? "Ready to answer questions"
+      : "Please upload documents first",
+  };
+
+  return NextResponse.json(response);
+}
+
+export const POST = withErrorHandler(postChat);
+export const GET = withErrorHandler(getStatus);

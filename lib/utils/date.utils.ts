@@ -1,17 +1,17 @@
+import dayjs from "dayjs";
+
+const DATE_FORMAT = "MMM D, YYYY";
+const DATETIME_FORMAT = "MMM D, YYYY h:mm A";
+const TIME_FORMAT = "h:mm A";
+
 export function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  return dayjs(dateString).format(DATE_FORMAT);
 }
 
 export function formatDateTime(dateString: string): string {
-  return new Date(dateString).toLocaleString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return dayjs(dateString).format(DATETIME_FORMAT);
+}
+
+export function formatTime(dateString: string): string {
+  return dayjs(dateString).format(TIME_FORMAT);
 }

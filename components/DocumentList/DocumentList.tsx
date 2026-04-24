@@ -30,7 +30,8 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 import type { DocumentData } from "./DocumentList.types";
-import { getFileIcon, formatDocumentDate } from "./DocumentList.utils";
+import { getFileIcon } from "./DocumentList.utils";
+import { formatDate, formatDateTime } from "@/lib/utils/date.utils";
 import { useDocumentStats } from "@/lib/hooks/use-document-stats";
 import { useDocumentList } from "@/lib/hooks/use-document-list";
 import { useDocumentPreview } from "@/lib/hooks/use-document-preview";
@@ -246,7 +247,7 @@ export default function DocumentList() {
                             {doc.file_type}
                           </Badge>
                           <Text c="dimmed" size="xs">
-                            {formatDocumentDate(doc.upload_date)}
+                            {formatDate(doc.upload_date)}
                           </Text>
                           {doc.chunk_count > 0 && (
                             <Text c="dimmed" size="xs">
@@ -313,7 +314,7 @@ export default function DocumentList() {
               { label: "File Type", value: selectedDocument.file_type },
               {
                 label: "Upload Date",
-                value: new Date(selectedDocument.upload_date).toLocaleString(),
+                value: formatDateTime(selectedDocument.upload_date),
               },
               { label: "Chunks", value: String(selectedDocument.chunk_count) },
               ...(selectedDocument.file_size

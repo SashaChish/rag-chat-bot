@@ -29,7 +29,7 @@ npm run test:e2e         # Run Playwright E2E tests
 rag-chatbot/
 ├── __tests__/           # Unit tests, E2E tests, fixtures, mocks
 ├── app/
-│   ├── api/             # Chat and document API routes
+│   ├── api/             # REST API routes (chat, documents CRUD)
 │   ├── error.tsx        # Root error boundary
 │   ├── layout.tsx       # Root layout with next/font
 │   ├── loading.tsx      # Root loading state
@@ -37,6 +37,7 @@ rag-chatbot/
 │   └── page.tsx         # Main application page
 ├── components/          # React components (Chat, Upload, DocumentList, MessageList)
 ├── lib/
+│   ├── api/             # API infrastructure (errors, handler, schemas, streaming, validation)
 │   ├── constants/       # App-wide constants (file limits, format strings)
 │   ├── hooks/           # Custom React hooks
 │   ├── icons/           # Tabler icon components (@tabler/icons-react)
@@ -45,6 +46,7 @@ rag-chatbot/
 │   ├── utils/           # Formatting, date, and file encoding utilities
 │   ├── query-client.ts  # TanStack Query configuration
 │   └── types/           # TypeScript definitions
+├── middleware.ts         # CORS middleware for /api/* routes
 ├── next.config.ts       # Next.js config (optimizePackageImports)
 └── postcss.config.mjs   # PostCSS config (postcss-preset-mantine)
 └── eslint.config.mjs    # ESLint flat config
@@ -103,6 +105,10 @@ Before marking tasks complete:
 ## Architecture Decisions
 
 - **Serverless-compatible**: No global state; indexes created on-demand from ChromaDB
+- **Centralized API error handling**: `lib/api/errors.ts` provides `AppError` hierarchy (`ValidationError`, `NotFoundError`); all routes use `withErrorHandler()` from `lib/api/handler.ts`; errors return `{ error: { code, message } }`
+- **Input validation with Zod**: Request bodies validated via `lib/api/schemas.ts` schemas and `validateBody()` from `lib/api/validate.ts`
+- **RESTful API routes**: Each endpoint handles one operation — no `?action=` dispatch. Route map: `GET/POST /api/documents`, `GET /api/documents/list`, `GET /api/documents/[id]`, `DELETE /api/documents/[id]`, `GET /api/documents/[id]/preview`, `GET /api/documents/[id]/download`, `POST /api/documents/bulk-delete`, `POST /api/documents/clear`, `GET/POST /api/chat`
+- **CORS via middleware**: `middleware.ts` handles OPTIONS for all `/api/*` routes
 - **Mastra RAG pipeline**: `lib/mastra/` handles chunking (MDocument), embeddings (Vercel AI SDK), vector storage (@mastra/chroma), and chat (Mastra Agent)
 - **Agent-based chat**: Mastra Agent with model router strings (`"openai/gpt-4o-mini"`) for multi-LLM support
 - **Multi-provider LLM**: OpenAI (embeddings required), optional Anthropic/Groq/Ollama via Mastra model router

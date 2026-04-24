@@ -55,16 +55,15 @@ describe("vectorstore", () => {
 
   describe("hasDocuments", () => {
     it("should return true when index has documents", async () => {
-      mockListIndexes.mockResolvedValue(["documents"]);
       mockDescribeIndex.mockResolvedValue({ count: 5, dimension: 1536 });
 
       const { hasDocuments } = await importFreshVectorstore();
       const result = await hasDocuments();
       expect(result).toBe(true);
+      expect(mockListIndexes).not.toHaveBeenCalled();
     });
 
     it("should return false when index is empty", async () => {
-      mockListIndexes.mockResolvedValue(["documents"]);
       mockDescribeIndex.mockResolvedValue({ count: 0, dimension: 1536 });
 
       const { hasDocuments } = await importFreshVectorstore();
@@ -72,8 +71,8 @@ describe("vectorstore", () => {
       expect(result).toBe(false);
     });
 
-    it("should return false when index does not exist", async () => {
-      mockListIndexes.mockResolvedValue([]);
+    it("should return false when index does not exist (describeIndex throws)", async () => {
+      mockDescribeIndex.mockRejectedValue(new Error("Not found"));
 
       const { hasDocuments } = await importFreshVectorstore();
       const result = await hasDocuments();
@@ -81,7 +80,7 @@ describe("vectorstore", () => {
     });
 
     it("should return false on error", async () => {
-      mockListIndexes.mockRejectedValue(new Error("Connection failed"));
+      mockDescribeIndex.mockRejectedValue(new Error("Connection failed"));
 
       const { hasDocuments } = await importFreshVectorstore();
       const result = await hasDocuments();
@@ -122,27 +121,96 @@ describe("vectorstore", () => {
       expect(result.documents[0].file_name).toBe("test.pdf");
       expect(result.documents[0].chunk_count).toBe(2);
       expect(result.total_chunks).toBe(2);
+      expect(mockGet).toHaveBeenCalledWith({
+        indexName: "documents",
+        limit: 2,
+      });
     });
   });
 
   describe("deleteDocumentByName", () => {
-    it("should call deleteVectors with correct filter", async () => {
+    it("should query chunk count before deletion and return it", async () => {
+      mockGet.mockResolvedValue([
+        { id: "1", metadata: { file_name: "test.pdf" } },
+        { id: "2", metadata: { file_name: "test.pdf" } },
+        { id: "3", metadata: { file_name: "test.pdf" } },
+      ]);
       mockDeleteVectors.mockResolvedValue(undefined);
-      mockGet.mockResolvedValue([]);
 
       const { deleteDocumentByName } = await importFreshVectorstore();
       const result = await deleteDocumentByName("test.pdf");
 
+      expect(mockGet).toHaveBeenCalledWith({
+        indexName: "documents",
+        filter: { file_name: "test.pdf" },
+      });
       expect(mockDeleteVectors).toHaveBeenCalledWith({
         indexName: "documents",
         filter: { file_name: "test.pdf" },
       });
-      expect(result).toBe(1);
+      expect(result).toBe(3);
+    });
+
+    it("should return 0 for non-existent documents", async () => {
+      mockGet.mockResolvedValue([]);
+      mockDeleteVectors.mockResolvedValue(undefined);
+
+      const { deleteDocumentByName } = await importFreshVectorstore();
+      const result = await deleteDocumentByName("nonexistent.pdf");
+
+      expect(result).toBe(0);
+    });
+  });
+
+  describe("getDocumentStats", () => {
+    it("should return stats for existing document", async () => {
+      mockGet.mockResolvedValue([
+        {
+          id: "chunk-1",
+          metadata: { file_name: "test.pdf", file_type: "pdf", upload_date: "2026-04-01" },
+          document: "text 1",
+        },
+        {
+          id: "chunk-2",
+          metadata: { file_name: "test.pdf", file_type: "pdf", upload_date: "2026-04-01" },
+          document: "text 2",
+        },
+      ]);
+
+      const { getDocumentStats } = await importFreshVectorstore();
+      const stats = await getDocumentStats("test.pdf");
+
+      expect(stats.exists).toBe(true);
+      expect(stats.chunk_count).toBe(2);
+      expect(stats.file_type).toBe("pdf");
+      expect(stats.upload_date).toBe("2026-04-01");
+    });
+
+    it("should return not-exists for missing documents", async () => {
+      mockGet.mockResolvedValue([]);
+
+      const { getDocumentStats } = await importFreshVectorstore();
+      const stats = await getDocumentStats("missing.pdf");
+
+      expect(stats.exists).toBe(false);
+      expect(stats.chunk_count).toBe(0);
+      expect(stats.file_type).toBeNull();
+      expect(stats.upload_date).toBeNull();
+    });
+
+    it("should return not-exists on error", async () => {
+      mockGet.mockRejectedValue(new Error("Connection failed"));
+
+      const { getDocumentStats } = await importFreshVectorstore();
+      const stats = await getDocumentStats("test.pdf");
+
+      expect(stats.exists).toBe(false);
+      expect(stats.chunk_count).toBe(0);
     });
   });
 
   describe("getCollectionStats", () => {
-    it("should return correct stats when index exists", async () => {
+    it("should return correct stats using lightweight count path", async () => {
       mockListIndexes.mockResolvedValue(["documents"]);
       mockDescribeIndex.mockResolvedValue({ count: 10, dimension: 1536 });
       mockGet.mockResolvedValue([
@@ -156,6 +224,11 @@ describe("vectorstore", () => {
 
       expect(stats.exists).toBe(true);
       expect(stats.count).toBe(10);
+      expect(stats.documentCount).toBe(2);
+      expect(mockGet).toHaveBeenCalledWith({
+        indexName: "documents",
+        limit: 10,
+      });
     });
 
     it("should return empty stats when index does not exist", async () => {
@@ -166,6 +239,19 @@ describe("vectorstore", () => {
 
       expect(stats.exists).toBe(false);
       expect(stats.count).toBe(0);
+    });
+
+    it("should return zero documentCount when collection has no vectors", async () => {
+      mockListIndexes.mockResolvedValue(["documents"]);
+      mockDescribeIndex.mockResolvedValue({ count: 0, dimension: 1536 });
+
+      const { getCollectionStats } = await importFreshVectorstore();
+      const stats = await getCollectionStats();
+
+      expect(stats.exists).toBe(true);
+      expect(stats.count).toBe(0);
+      expect(stats.documentCount).toBe(0);
+      expect(mockGet).not.toHaveBeenCalled();
     });
   });
 
@@ -221,6 +307,13 @@ describe("vectorstore", () => {
       const content = await getDocumentContent("test.pdf");
 
       expect(content).toBeNull();
+    });
+  });
+
+  describe("INDEX_NAME", () => {
+    it("should export INDEX_NAME constant", async () => {
+      const { INDEX_NAME } = await importFreshVectorstore();
+      expect(INDEX_NAME).toBe("documents");
     });
   });
 });

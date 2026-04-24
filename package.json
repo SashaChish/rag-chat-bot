@@ -26,11 +26,13 @@
     "@tabler/icons-react": "^3.41.1",
     "@tanstack/react-query": "^5.90.21",
     "ai": "^6.0.168",
+    "dayjs": "^1.11.20",
     "mammoth": "^1.12.0",
     "next": "^16.2.4",
     "pdf-parse": "^2.4.5",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5"
+    "react-dom": "^19.2.5",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "^16.2.4",

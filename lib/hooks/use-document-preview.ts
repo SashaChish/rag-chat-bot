@@ -8,7 +8,7 @@ export function useDocumentPreview(
     queryKey: ['document-preview', fileName],
     queryFn: async () => {
       const response = await fetch(
-        `/api/documents?action=preview&file_name=${encodeURIComponent(fileName!)}`,
+        `/api/documents/${encodeURIComponent(fileName!)}/preview`,
       );
       if (!response.ok) {
         throw new Error('Failed to load preview');

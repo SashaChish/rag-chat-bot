@@ -1,151 +1,65 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { withErrorHandler } from "@/lib/api/handler";
 import { loadDocumentFromBuffer, validateFile } from "@/lib/mastra/loaders";
 import { addDocuments, clearIndexCache } from "@/lib/mastra/index";
-import {
-  getCollectionStats,
-  getAllDocuments,
-  getDocumentContent,
-} from "@/lib/mastra/vectorstore";
+import { getCollectionStats } from "@/lib/mastra/vectorstore";
 import { formatFileSize } from "@/lib/utils/format.utils";
 import type {
   DocumentUploadResponse,
   DocumentsGetResponse,
-  DocumentListResponse,
 } from "@/lib/types/api";
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
-  try {
-    const formData = await request.formData();
-    const file = formData.get("file");
+async function uploadDocument(request: NextRequest): Promise<NextResponse> {
+  const formData = await request.formData();
+  const file = formData.get("file");
 
-    if (!file || !(file instanceof File)) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 });
-    }
-
-    try {
-      validateFile(file);
-    } catch (error) {
-      return NextResponse.json(
-        { error: (error as Error).message },
-        { status: 400 },
-      );
-    }
-
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const { documents } = await loadDocumentFromBuffer(buffer, file.name);
-
-    if (documents.length === 0) {
-      throw new Error("No content could be extracted from file");
-    }
-
-    clearIndexCache();
-    const result = await addDocuments(documents);
-
-    const documentId = crypto.randomUUID();
-
-    const response: DocumentUploadResponse = {
-      success: true,
-      id: documentId,
-      filename: file.name,
-      originalName: file.name,
-      size: formatFileSize(file.size),
-      type: file.type,
-      chunksProcessed: result.chunksProcessed,
-      message: "Document uploaded and indexed successfully",
-    };
-
-    return NextResponse.json(response);
-  } catch (error) {
-    console.error("Error in document upload:", error);
+  if (!file || !(file instanceof File)) {
     return NextResponse.json(
-      {
-        error: (error as Error).message || "Failed to upload document",
-      },
-      { status: 500 },
+      { error: { code: "VALIDATION_ERROR" as const, message: "No file provided" } },
+      { status: 400 },
     );
   }
-}
 
-export async function GET(request: NextRequest): Promise<NextResponse> {
-  try {
-    const { searchParams } = new URL(request.url);
-    const action = searchParams.get("action");
+  validateFile(file);
 
-    if (action === "list") {
-      return await getDocumentList();
-    }
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const { documents } = await loadDocumentFromBuffer(buffer, file.name);
 
-    if (action === "preview") {
-      const fileName = searchParams.get("file_name");
-
-      if (!fileName) {
-        return NextResponse.json(
-          { error: "file_name parameter is required" },
-          { status: 400 },
-        );
-      }
-
-      const content = await getDocumentContent(fileName);
-
-      return NextResponse.json({ content });
-    }
-
-    const stats = await getCollectionStats();
-
-    const response: DocumentsGetResponse = {
-      stats: {
-        exists: stats.exists,
-        collectionName: stats.collectionName,
-        count: stats.count,
-        documentCount: stats.documentCount,
-      },
-    };
-
-    return NextResponse.json(response);
-  } catch (error) {
-    console.error("Error getting documents:", error);
-    return NextResponse.json(
-      { error: "Failed to retrieve document information" },
-      { status: 500 },
-    );
+  if (documents.length === 0) {
+    throw new Error("No content could be extracted from file");
   }
+
+  clearIndexCache();
+  const result = await addDocuments(documents);
+
+  const response: DocumentUploadResponse = {
+    success: true,
+    id: file.name,
+    filename: file.name,
+    originalName: file.name,
+    size: formatFileSize(file.size),
+    type: file.type,
+    chunksProcessed: result.chunksProcessed,
+    message: "Document uploaded and indexed successfully",
+  };
+
+  return NextResponse.json(response);
 }
 
-async function getDocumentList(): Promise<NextResponse> {
-  try {
-    const { documents, total_chunks: _total_chunks } = await getAllDocuments();
+async function getStats(_request: NextRequest): Promise<NextResponse> {
+  const stats = await getCollectionStats();
 
-    const documentEntries = documents.map((doc) => ({
-      id: doc.file_name,
-      file_name: doc.file_name,
-      file_type: doc.file_type,
-      upload_date: doc.upload_date || new Date().toISOString(),
-      chunk_count: doc.chunk_count,
-      content: "",
-      file_size: null,
-      can_download: true,
-    }));
-
-    const response: DocumentListResponse = {
-      documents: documentEntries,
-    };
-
-    return NextResponse.json(response);
-  } catch (_error) {
-    return NextResponse.json(
-      { error: "Failed to retrieve document list" },
-      { status: 500 },
-    );
-  }
-}
-
-export async function OPTIONS(): Promise<NextResponse> {
-  return new NextResponse(null, {
-    status: 200,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
+  const response: DocumentsGetResponse = {
+    stats: {
+      exists: stats.exists,
+      collectionName: stats.collectionName,
+      count: stats.count,
+      documentCount: stats.documentCount,
     },
-  });
+  };
+
+  return NextResponse.json(response);
 }
+
+export const POST = withErrorHandler(uploadDocument);
+export const GET = withErrorHandler(getStats);

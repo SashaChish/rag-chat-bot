@@ -15,6 +15,7 @@ import type { SourceInfo } from "../../lib/types/core.types";
 import type { MessageListProps } from "../../lib/types/components";
 import type { SimilarityBarProps } from "./MessageList.types";
 import { IconMessageChatbot } from "@tabler/icons-react";
+import { formatTime } from "@/lib/utils/date.utils";
 import {
   formatContent,
   getSourceExplanation,
@@ -90,7 +91,7 @@ export default function MessageList({
                 {message.role === "user" ? "You" : "AI Assistant"}
               </Text>
               <Text size="xs" c="dimmed">
-                {new Date(message.timestamp).toLocaleTimeString()}
+                {formatTime(message.timestamp)}
               </Text>
             </Group>
 

@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
 import {
   getFileIcon,
-  formatDocumentDate,
   formatChunkCount,
   hasPreviewContent,
   canDownload,
@@ -51,26 +50,6 @@ describe("getFileIcon", () => {
     const icon = getFileIcon("UNKNOWN");
     const { container } = render(icon);
     expect(container.querySelector("svg")).toBeInTheDocument();
-  });
-});
-
-describe("formatDocumentDate", () => {
-  it("should format date string correctly", () => {
-    const result = formatDocumentDate("2026-03-17T00:00:00Z");
-    expect(typeof result).toBe("string");
-    expect(result.length).toBeGreaterThan(0);
-  });
-
-  it("should handle ISO date strings", () => {
-    const result = formatDocumentDate("2026-03-17T10:30:00Z");
-    expect(typeof result).toBe("string");
-  });
-
-  it("should handle different date formats", () => {
-    const result1 = formatDocumentDate("2026-03-17");
-    const result2 = formatDocumentDate("2026/03/17");
-    expect(typeof result1).toBe("string");
-    expect(typeof result2).toBe("string");
   });
 });
 

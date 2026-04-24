@@ -71,7 +71,7 @@ describe('useDocumentList', () => {
 
     const { data } = result.current;
     expect(data?.documents).toEqual(mockDocumentsData.documents);
-    expect(global.fetch).toHaveBeenCalledWith('/api/documents?action=list');
+    expect(global.fetch).toHaveBeenCalledWith('/api/documents/list');
   });
 
   it('should throw error when fetch fails', async () => {

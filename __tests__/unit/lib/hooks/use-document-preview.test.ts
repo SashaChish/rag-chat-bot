@@ -66,7 +66,7 @@ describe('useDocumentPreview', () => {
     const { data } = result.current;
     expect(data?.content).toBe('Sample preview content');
     expect(global.fetch).toHaveBeenCalledWith(
-      '/api/documents?action=preview&file_name=test.txt',
+      '/api/documents/test.txt/preview',
     );
   });
 
@@ -116,7 +116,7 @@ describe('useDocumentPreview', () => {
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalled());
     expect(global.fetch).toHaveBeenCalledWith(
-      '/api/documents?action=preview&file_name=file%20with%20spaces.pdf',
+      '/api/documents/file%20with%20spaces.pdf/preview',
     );
   });
 });

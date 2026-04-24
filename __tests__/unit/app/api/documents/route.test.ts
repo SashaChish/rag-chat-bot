@@ -41,19 +41,6 @@ vi.mock("@/lib/mastra/vectorstore", () => ({
     count: 5,
     documentCount: 2,
   }),
-  getAllDocuments: vi.fn().mockResolvedValue({
-    documents: [
-      {
-        file_name: "doc1.txt",
-        file_type: "txt",
-        chunk_count: 3,
-        upload_date: "2024-01-01T00:00:00Z",
-        first_chunk_id: "chunk-1",
-      },
-    ],
-    total_chunks: 3,
-  }),
-  getDocumentContent: vi.fn().mockResolvedValue("Document content"),
 }));
 
 vi.mock("@/lib/utils/format.utils", () => ({
@@ -69,16 +56,6 @@ const createFormDataRequest = (file: File | null): NextRequest => {
   return {
     formData: vi.fn().mockResolvedValue(formData),
     url: "http://localhost:3000/api/documents",
-  } as unknown as NextRequest;
-};
-
-const createGetRequest = (action: string | null = null): NextRequest => {
-  const url = action
-    ? `http://localhost:3000/api/documents?action=${action}`
-    : "http://localhost:3000/api/documents";
-
-  return {
-    url,
   } as unknown as NextRequest;
 };
 
@@ -122,12 +99,14 @@ describe("/api/documents", () => {
       const data = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data.error).toBe("No file provided");
+      expect(data.error.code).toBe("VALIDATION_ERROR");
+      expect(data.error.message).toBe("No file provided");
     });
 
     it("should return 400 when file validation fails", async () => {
+      const { ValidationError } = await import("@/lib/api/errors");
       mockValidateFile.mockImplementation(() => {
-        throw new Error("File too large");
+        throw new ValidationError("File too large");
       });
 
       const { POST } = await import("@/app/api/documents/route");
@@ -138,7 +117,8 @@ describe("/api/documents", () => {
       const data = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data.error).toBe("File too large");
+      expect(data.error.code).toBe("VALIDATION_ERROR");
+      expect(data.error.message).toBe("File too large");
     });
 
     it("should return 500 when loadDocumentFromBuffer throws an error", async () => {
@@ -154,7 +134,7 @@ describe("/api/documents", () => {
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.error).toBe("Failed to load document");
+      expect(data.error.code).toBe("INTERNAL_ERROR");
     });
 
     it("should return 500 when documents array is empty", async () => {
@@ -170,26 +150,45 @@ describe("/api/documents", () => {
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.error).toBe("No content could be extracted from file");
+      expect(data.error.code).toBe("INTERNAL_ERROR");
     });
 
-    it("should return 500 on internal error", async () => {
-      mockValidateFile.mockImplementation(() => {
-        throw new Error("Internal error");
-      });
-
+    it("should use file.name as document ID in response", async () => {
       const { POST } = await import("@/app/api/documents/route");
-      const file = new File(["content"], "test.txt", { type: "text/plain" });
+      const file = new File(["content"], "my-doc.txt", { type: "text/plain" });
       const request = createFormDataRequest(file);
 
       const response = await POST(request);
+      const data = await response.json();
 
-      expect(response.status).toBe(400);
+      expect(data.id).toBe("my-doc.txt");
+      expect(data.filename).toBe("my-doc.txt");
     });
   });
 
   describe("GET", () => {
-    it("should return 500 on error for stats request", async () => {
+    it("should return collection stats", async () => {
+      const { getCollectionStats } = await import("@/lib/mastra/vectorstore");
+      vi.mocked(getCollectionStats).mockResolvedValue({
+        exists: true,
+        collectionName: "documents",
+        count: 5,
+        documentCount: 2,
+      });
+
+      const { GET } = await import("@/app/api/documents/route");
+      const request = {} as NextRequest;
+
+      const response = await GET(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.stats.exists).toBe(true);
+      expect(data.stats.count).toBe(5);
+      expect(data.stats.documentCount).toBe(2);
+    });
+
+    it("should handle errors", async () => {
       const { getCollectionStats } =
         await import("@/lib/mastra/vectorstore");
       vi.mocked(getCollectionStats).mockRejectedValueOnce(
@@ -197,60 +196,13 @@ describe("/api/documents", () => {
       );
 
       const { GET } = await import("@/app/api/documents/route");
-      const request = createGetRequest();
+      const request = {} as NextRequest;
 
       const response = await GET(request);
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.error).toBe("Failed to retrieve document information");
-    });
-
-    it("should return 500 on error for list request", async () => {
-      const { getAllDocuments } = await import("@/lib/mastra/vectorstore");
-      vi.mocked(getAllDocuments).mockRejectedValueOnce(
-        new Error("Database error"),
-      );
-
-      const { GET } = await import("@/app/api/documents/route");
-      const request = createGetRequest("list");
-
-      const response = await GET(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(500);
-      expect(data.error).toBe("Failed to retrieve document list");
-    });
-  });
-
-  describe("OPTIONS", () => {
-    it("should return CORS headers", async () => {
-      const { OPTIONS } = await import("@/app/api/documents/route");
-
-      const response = await OPTIONS();
-
-      expect(response.status).toBe(200);
-      expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
-    });
-
-    it("should return correct CORS methods", async () => {
-      const { OPTIONS } = await import("@/app/api/documents/route");
-
-      const response = await OPTIONS();
-
-      expect(response.headers.get("Access-Control-Allow-Methods")).toBe(
-        "GET, POST, DELETE, OPTIONS",
-      );
-    });
-
-    it("should return correct CORS headers for content-type", async () => {
-      const { OPTIONS } = await import("@/app/api/documents/route");
-
-      const response = await OPTIONS();
-
-      expect(response.headers.get("Access-Control-Allow-Headers")).toBe(
-        "Content-Type",
-      );
+      expect(data.error.code).toBe("INTERNAL_ERROR");
     });
   });
 });

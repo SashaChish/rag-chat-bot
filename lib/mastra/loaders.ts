@@ -1,5 +1,6 @@
 import type { RAGDocument } from "../types/core.types";
 import { MAX_FILE_SIZE_MB } from "../constants";
+import { ValidationError } from "../api/errors";
 
 export const SUPPORTED_FORMATS = ["pdf", "docx", "md", "txt"];
 
@@ -28,7 +29,7 @@ export function getFileType(filename: string): string | null {
 
 export function validateFile(file: File): boolean {
   if (getFileType(file.name) === null) {
-    throw new Error(
+    throw new ValidationError(
       `Unsupported file format: ${file.name}. Supported formats: ${SUPPORTED_EXTENSIONS.join(", ")}`,
     );
   }
@@ -36,13 +37,13 @@ export function validateFile(file: File): boolean {
   const maxSizeBytes = MAX_FILE_SIZE_MB * 1024 * 1024;
 
   if (file.size > maxSizeBytes) {
-    throw new Error(
+    throw new ValidationError(
       `File size (${(file.size / 1024 / 1024).toFixed(2)}MB) exceeds maximum allowed size (${MAX_FILE_SIZE_MB}MB)`,
     );
   }
 
   if (file.size === 0) {
-    throw new Error("File is empty");
+    throw new ValidationError("File is empty");
   }
 
   return true;
@@ -52,20 +53,9 @@ export async function loadDocumentFromBuffer(
   buffer: Buffer,
   filename: string,
 ): Promise<{ documents: RAGDocument[] }> {
-  if (buffer.length === 0) {
-    throw new Error("File is empty");
-  }
-
   const ext = filename.split(".").pop()?.toLowerCase();
   if (!ext) {
-    throw new Error("Invalid filename - no extension found");
-  }
-
-  const maxSizeBytes = MAX_FILE_SIZE_MB * 1024 * 1024;
-  if (buffer.length > maxSizeBytes) {
-    throw new Error(
-      `File size (${(buffer.length / 1024 / 1024).toFixed(2)}MB) exceeds maximum allowed size (${MAX_FILE_SIZE_MB}MB)`,
-    );
+    throw new ValidationError("Invalid filename - no extension found");
   }
 
   let text: string;
@@ -93,13 +83,13 @@ export async function loadDocumentFromBuffer(
       text = buffer.toString("utf-8");
       break;
     default:
-      throw new Error(
+      throw new ValidationError(
         `Unsupported file type: .${ext}. Supported formats: ${SUPPORTED_EXTENSIONS.join(", ")}`,
       );
   }
 
   if (!text || text.trim().length === 0) {
-    throw new Error("Could not extract text from file");
+    throw new ValidationError("Could not extract text from file");
   }
 
   return {

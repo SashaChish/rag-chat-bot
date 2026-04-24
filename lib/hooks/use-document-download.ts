@@ -11,7 +11,7 @@ export function useDocumentDownload() {
         throw new Error('Download not available for this document');
       }
 
-      const response = await fetch(`/api/documents/${id}?action=download`);
+      const response = await fetch(`/api/documents/${encodeURIComponent(id)}/download`);
 
       if (!response.ok) {
         throw new Error('Failed to download document');

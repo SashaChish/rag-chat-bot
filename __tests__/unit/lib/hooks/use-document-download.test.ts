@@ -135,7 +135,7 @@ describe('useDocumentDownload', () => {
       await result.current.mutateAsync(doc);
     });
 
-    expect(mockFetch).toHaveBeenCalledWith('/api/documents/test-doc?action=download');
+    expect(mockFetch).toHaveBeenCalledWith('/api/documents/test-doc/download');
     expect(mockCreateObjectURL).toHaveBeenCalledWith(mockBlob);
     expect(mockRevokeObjectURL).toHaveBeenCalledWith('blob:test-url');
 

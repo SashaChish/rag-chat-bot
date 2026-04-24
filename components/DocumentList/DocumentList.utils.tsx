@@ -4,7 +4,6 @@
  */
 
 import type { DocumentData } from "./DocumentList.types";
-import { formatDate } from "../../lib/utils/date.utils";
 import { IconFileTypePdf, IconFile, IconFileText } from '@tabler/icons-react';
 
 /**
@@ -18,13 +17,6 @@ export function getFileIcon(fileType: string) {
     DOCX: <IconFile size={20} aria-hidden="true" />,
   };
   return iconMap[fileType] || <IconFile size={20} aria-hidden="true" />;
-}
-
-/**
- * Format document date for display
- */
-export function formatDocumentDate(dateString: string): string {
-  return formatDate(dateString);
 }
 
 /**

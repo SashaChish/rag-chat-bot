@@ -67,19 +67,25 @@ describe('DocumentList', () => {
     mockMutate.mockClear();
 
     global.fetch = vi.fn().mockImplementation((url: string) => {
-      if (url.includes('action=list')) {
+      if (url.includes('/api/documents/list')) {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve(mockDocumentsData),
         });
       }
-      if (url.includes('action=preview')) {
-        const fileName = url.match(/file_name=([^&]+)/)?.[1];
-        const decodedName = fileName ? decodeURIComponent(fileName) : '';
-        const content = decodedName === 'document1.txt' ? 'Sample content for document 1' : '';
+      if (url.includes('/preview')) {
+        const match = url.match(/\/api\/documents\/([^/]+)\/preview/);
+        const fileName = match ? decodeURIComponent(match[1]) : '';
+        const content = fileName === 'document1.txt' ? 'Sample content for document 1' : '';
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({ content }),
+        });
+      }
+      if (url.includes('/download')) {
+        return Promise.resolve({
+          ok: true,
+          blob: () => Promise.resolve(new Blob(['test content'], { type: 'text/plain' })),
         });
       }
       return Promise.resolve({
@@ -249,7 +255,7 @@ describe('DocumentList', () => {
           json: () => Promise.resolve({ success: true }),
         });
       }
-      if (url.includes('action=list')) {
+      if (url.includes('/api/documents/list')) {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve(mockDocumentsData),
@@ -594,7 +600,7 @@ describe('DocumentList', () => {
 
   it('should show error state when documents query fails', async () => {
     global.fetch = vi.fn().mockImplementation((url: string) => {
-      if (url.includes('action=list')) {
+      if (url.includes('/api/documents/list')) {
         return Promise.resolve({
           ok: false,
           json: () => Promise.resolve({ error: 'Failed to load document list' }),

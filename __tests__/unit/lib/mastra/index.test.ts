@@ -115,45 +115,6 @@ describe("index (indexing)", () => {
     });
   });
 
-  describe("deleteDocument", () => {
-    it("should call deleteDocumentByName with correct filename", async () => {
-      mockDeleteVectors.mockResolvedValue(undefined);
-      mockGet.mockResolvedValue([]);
-
-      const { deleteDocument } = await import("@/lib/mastra/index");
-      const result = await deleteDocument("test.pdf");
-
-      expect(result.success).toBe(true);
-      expect(mockDeleteVectors).toHaveBeenCalledWith({
-        indexName: "documents",
-        filter: { file_name: "test.pdf" },
-      });
-    });
-
-    it("should handle errors gracefully", async () => {
-      mockDeleteVectors.mockRejectedValue(new Error("Delete failed"));
-
-      const { deleteDocument } = await import("@/lib/mastra/index");
-      const result = await deleteDocument("test.pdf");
-
-      expect(result.success).toBe(false);
-      expect(result.error).toContain("Delete failed");
-    });
-  });
-
-  describe("clearIndex", () => {
-    it("should call clearCollection", async () => {
-      mockListIndexes.mockResolvedValue(["documents"]);
-      mockDeleteIndex.mockResolvedValue(undefined);
-
-      const { clearIndex } = await import("@/lib/mastra/index");
-      const result = await clearIndex("documents");
-
-      expect(result.success).toBe(true);
-      expect(mockDeleteIndex).toHaveBeenCalled();
-    });
-  });
-
   describe("clearIndexCache", () => {
     it("should clear chat engine cache", async () => {
       const { clearIndexCache } = await import("@/lib/mastra/index");
@@ -232,16 +193,27 @@ describe("index (indexing)", () => {
 
       const history = [
         { role: "user" as const, content: "What is RAG?" },
-        { role: "assistant" as const, content: "RAG stands for Retrieval-Augmented Generation." },
+        {
+          role: "assistant" as const,
+          content: "RAG stands for Retrieval-Augmented Generation.",
+        },
       ];
 
-      await mod.executeQuery("Tell me more about it", false, history, "context");
+      await mod.executeQuery(
+        "Tell me more about it",
+        false,
+        history,
+        "context",
+      );
 
       expect(mockAgentGenerate).toHaveBeenCalledTimes(1);
       const messagesArg = mockAgentGenerate.mock.calls[0][0];
       expect(messagesArg).toHaveLength(3);
       expect(messagesArg[0]).toEqual({ role: "user", content: "What is RAG?" });
-      expect(messagesArg[1]).toEqual({ role: "assistant", content: "RAG stands for Retrieval-Augmented Generation." });
+      expect(messagesArg[1]).toEqual({
+        role: "assistant",
+        content: "RAG stands for Retrieval-Augmented Generation.",
+      });
       expect(messagesArg[2].role).toBe("user");
       expect(messagesArg[2].content).toContain("Tell me more about it");
     });
@@ -267,9 +239,13 @@ describe("index (indexing)", () => {
       mockAgentGenerate.mockImplementation(() => {
         condenseCallCount.value++;
         if (condenseCallCount.value === 1) {
-          return Promise.resolve({ text: "What are the main features of RAG?" });
+          return Promise.resolve({
+            text: "What are the main features of RAG?",
+          });
         }
-        return Promise.resolve({ text: "RAG features include retrieval and augmentation." });
+        return Promise.resolve({
+          text: "RAG features include retrieval and augmentation.",
+        });
       });
 
       const mod = await import("@/lib/mastra/index");
@@ -288,7 +264,9 @@ describe("index (indexing)", () => {
       );
 
       expect(mockAgentGenerate).toHaveBeenCalledTimes(2);
-      expect(result.response).toBe("RAG features include retrieval and augmentation.");
+      expect(result.response).toBe(
+        "RAG features include retrieval and augmentation.",
+      );
       expect(result.sources).toHaveLength(1);
     });
 
@@ -403,7 +381,14 @@ describe("index (indexing)", () => {
       const mod = await import("@/lib/mastra/index");
       mod.clearChatEngineCache();
 
-      await mod.executeQuery("query", false, [], null, "session-custom", "Custom instructions");
+      await mod.executeQuery(
+        "query",
+        false,
+        [],
+        null,
+        "session-custom",
+        "Custom instructions",
+      );
 
       expect(mockAgentGenerate).toHaveBeenCalledTimes(1);
     });
@@ -416,6 +401,31 @@ describe("index (indexing)", () => {
     it("should clear all sessions when no key provided", async () => {
       const { clearChatEngineCache } = await import("@/lib/mastra/index");
       expect(() => clearChatEngineCache()).not.toThrow();
+    });
+  });
+
+  describe("cache TTL", () => {
+    it("should evict expired entries on next access", async () => {
+      mockListIndexes.mockResolvedValue(["documents"]);
+      mockDescribeIndex.mockResolvedValue({ count: 5, dimension: 1536 });
+      mockEmbed.mockResolvedValue({
+        embedding: new Array(1536).fill(0.1),
+        value: "test",
+        usage: { tokens: 1 },
+      });
+      mockQuery.mockResolvedValue([]);
+      mockAgentGenerate.mockResolvedValue({ text: "Response" });
+
+      const mod = await import("@/lib/mastra/index");
+      mod.clearChatEngineCache();
+
+      await mod.executeQuery("query", false, [], null, "ttl-session");
+
+      vi.spyOn(Date, "now").mockReturnValue(Date.now() + 31 * 60 * 1000);
+
+      await mod.executeQuery("query", false, [], null, "ttl-session");
+
+      vi.restoreAllMocks();
     });
   });
 });

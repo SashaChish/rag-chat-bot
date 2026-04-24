@@ -5,7 +5,7 @@ export function useDocumentList() {
   return useQuery({
     queryKey: ['documents-list'],
     queryFn: async () => {
-      const response = await fetch('/api/documents?action=list');
+      const response = await fetch('/api/documents/list');
       if (!response.ok) {
         throw new Error('Failed to load document list');
       }

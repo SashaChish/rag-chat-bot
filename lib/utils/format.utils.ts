@@ -10,14 +10,3 @@ export function formatFileSize(bytes: number): string {
 
   return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
 }
-
-/**
- * Chunk text to a maximum length with ellipsis
- */
-export function chunkText(text: string, maxLength = 200): string {
-  if (!text || text.length <= maxLength) {
-    return text;
-  }
-
-  return text.substring(0, maxLength) + "...";
-}

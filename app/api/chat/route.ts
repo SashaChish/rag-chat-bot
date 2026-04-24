@@ -14,7 +14,6 @@ async function postChat(request: NextRequest): Promise<NextResponse> {
     message,
     conversationHistory = [],
     streaming = false,
-    chatEngineType = "condense",
     sessionKey = null,
     systemPrompt = null,
   } = validateBody(chatRequestSchema, rawBody);
@@ -42,7 +41,6 @@ async function postChat(request: NextRequest): Promise<NextResponse> {
     message,
     streaming,
     conversationHistory,
-    chatEngineType,
     sessionKey,
     systemPrompt,
   );
@@ -91,7 +89,6 @@ async function postChat(request: NextRequest): Promise<NextResponse> {
         });
       }
     });
-
     return createSSEResponse(stream);
   }
 

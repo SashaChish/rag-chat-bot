@@ -26,9 +26,3 @@ export interface ContentModalProps {
   size?: "small" | "medium" | "large";
   testId?: string;
 }
-
-export type ModalProps = ConfirmModalProps | ContentModalProps;
-
-export function isConfirmModal(props: ModalProps): props is ConfirmModalProps {
-  return "onConfirm" in props;
-}

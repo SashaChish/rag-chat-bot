@@ -1,6 +1,5 @@
 import type {
   ChatMessage,
-  ChatEngineType,
   DocumentListEntry,
   IndexStats,
   SourceInfo,
@@ -10,7 +9,6 @@ export interface ChatRequest {
   message: string;
   conversationHistory?: ChatMessage[];
   streaming?: boolean;
-  chatEngineType?: ChatEngineType;
   sessionKey?: string | null;
   systemPrompt?: string | null;
 }

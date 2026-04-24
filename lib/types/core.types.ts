@@ -21,13 +21,6 @@ export interface RAGDocument {
   metadata: DocumentMetadata;
 }
 
-export interface MastraQueryResult {
-  id: string;
-  score: number;
-  metadata?: Record<string, unknown>;
-  document?: string;
-}
-
 export interface SourceInfo {
   filename: string;
   fileType: string;
@@ -49,8 +42,6 @@ export interface QueryChunk {
   done?: boolean;
   sources?: SourceInfo[];
 }
-
-export type ChatEngineType = "condense" | "context";
 
 export type LLMProvider = "openai" | "anthropic" | "groq" | "ollama";
 

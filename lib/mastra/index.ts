@@ -3,26 +3,18 @@ import { embedMany } from "ai";
 import type {
   RAGDocument,
   ChatMessage,
-  ChatEngineType,
   QueryResponse,
   SourceInfo,
+  DocumentMetadata,
 } from "../types/core.types";
-import { getEmbeddingModel } from "./config";
+import { getEmbeddingModel, CHUNK_SIZE, CHUNK_OVERLAP } from "./config";
 import {
   INDEX_NAME,
   getVectorStore,
   hasDocuments,
   ensureIndex,
 } from "./vectorstore";
-import { extractSources } from "./sources";
 import { createAgent } from "./agent";
-import { convertToChatMessages } from "./chat";
-import { embed } from "ai";
-
-const TOP_K = 3;
-
-const CHUNK_SIZE = parseInt(process.env.CHUNK_SIZE || "512", 10);
-const CHUNK_OVERLAP = parseInt(process.env.CHUNK_OVERLAP || "50", 10);
 
 export interface AddDocumentsResult {
   success: boolean;
@@ -94,126 +86,65 @@ export async function addDocuments(
   };
 }
 
-export function clearIndexCache(): void {
-  clearChatEngineCache();
+interface VectorQuerySource {
+  id: string;
+  score: number;
+  metadata?: Record<string, unknown>;
+  document?: string;
 }
 
-type RAGAgent = ReturnType<typeof createAgent>;
-
-interface CacheEntry {
-  agent: RAGAgent;
-  lastAccessed: number;
+interface ToolResultPayload {
+  toolName: string;
+  result: unknown;
+  isError?: boolean;
 }
 
-const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
-
-const chatEngineCache = new Map<string, CacheEntry>();
-
-function pruneCache(): void {
-  const now = Date.now();
-  for (const [key, entry] of chatEngineCache) {
-    if (now - entry.lastAccessed > CACHE_TTL_MS) {
-      chatEngineCache.delete(key);
-    }
-  }
-}
-
-function getAgent(sessionKey: string, systemPrompt: string | null): RAGAgent {
-  pruneCache();
-
-  const cacheKey = sessionKey;
-
-  const cached = chatEngineCache.get(cacheKey);
-  if (cached) {
-    cached.lastAccessed = Date.now();
-    return cached.agent;
-  }
-
-  const agent = createAgent({
-    id: `rag-agent-${sessionKey}`,
-    name: `rag-agent-${sessionKey}`,
-    instructions: systemPrompt ?? undefined,
-  });
-
-  chatEngineCache.set(cacheKey, { agent, lastAccessed: Date.now() });
-  return agent;
-}
-
-export function clearChatEngineCache(sessionKey?: string): void {
-  if (sessionKey) {
-    chatEngineCache.delete(sessionKey);
-  } else {
-    chatEngineCache.clear();
-  }
-}
-
-// --- Singleton Condenser Agent ---
-
-const condenserAgent = createAgent({
-  id: "query-condenser",
-  name: "query-condenser",
-  instructions:
-    "Given a conversation history and a follow-up question, rephrase the follow-up question to be a standalone question that can be understood without the conversation history. Return ONLY the rephrased question, nothing else.",
-});
-
-// --- Query Execution ---
-
-async function retrieveContext(query: string): Promise<{
-  results: {
-    id: string;
-    score: number;
-    metadata?: Record<string, unknown>;
-    document?: string;
-  }[];
-  sources: SourceInfo[];
-  contextText: string;
-}> {
-  const embeddingModel = getEmbeddingModel();
-  const { embedding: queryVector } = await embed({
-    model: embeddingModel,
-    value: query,
-  });
-
-  await ensureIndex(queryVector.length);
-
-  const store = getVectorStore();
-  const results = await store.query({
-    indexName: INDEX_NAME,
-    queryVector,
-    topK: TOP_K,
-  });
-
-  const sources = extractSources(results);
-  const contextText = results
-    .map((r) => r.document || "")
-    .filter(Boolean)
-    .join("\n\n");
-
-  return { results, sources, contextText };
-}
-
-async function buildCondensedQuery(
-  query: string,
-  conversationHistory: ChatMessage[],
-): Promise<string> {
-  if (conversationHistory.length === 0) return query;
-
-  const historyText = conversationHistory
-    .map((m) => `${m.role}: ${m.content}`)
-    .join("\n");
-
-  const result = await condenserAgent.generate(
-    `Conversation history:\n${historyText}\n\nFollow-up question: ${query}`,
+function extractSourcesFromToolResults(
+  toolResults: Array<{ payload: ToolResultPayload }>,
+): SourceInfo[] {
+  const vectorResults = toolResults.filter(
+    (r) => r.payload.toolName === "vectorQueryTool" && !r.payload.isError,
   );
 
-  return result.text || query;
+  if (vectorResults.length === 0) return [];
+
+  const allSources: SourceInfo[] = [];
+  for (const entry of vectorResults) {
+    const output = entry.payload.result as {
+      sources?: VectorQuerySource[];
+    } | null;
+
+    if (!output?.sources) continue;
+
+    for (const source of output.sources) {
+      const metadata = (source.metadata || {}) as Partial<DocumentMetadata>;
+      const fileName =
+        typeof metadata.file_name === "string" ? metadata.file_name : "Unknown";
+      const fileType =
+        typeof metadata.file_type === "string" ? metadata.file_type : "Unknown";
+      const scoreValue = source.score ? parseFloat(source.score.toFixed(3)) : 0;
+      const content = source.document || "";
+      const preview = content
+        ? content.substring(0, 200) + (content.length > 200 ? "..." : "")
+        : undefined;
+
+      allSources.push({
+        filename: fileName,
+        fileType,
+        score: scoreValue,
+        text: preview,
+        metadata: metadata as DocumentMetadata,
+      });
+    }
+  }
+
+  return allSources;
 }
 
 export async function executeQuery(
   query: string,
   streaming: boolean = false,
   conversationHistory: ChatMessage[] = [],
-  chatEngineType: ChatEngineType | null = null,
   sessionKey: string | null = null,
   systemPrompt: string | null = null,
 ): Promise<QueryResponse> {
@@ -228,45 +159,39 @@ export async function executeQuery(
       };
     }
 
-    const effectiveSessionKey = sessionKey || "default";
-    const agent = getAgent(effectiveSessionKey, systemPrompt);
-
-    const retrievalQuery =
-      chatEngineType === "condense"
-        ? await buildCondensedQuery(query, conversationHistory)
-        : query;
-
-    const { sources, contextText } = await retrieveContext(retrievalQuery);
-
-    const contextPrefix = contextText
-      ? `Here is the relevant context from the documents:\n\n=== CONTEXT START ===\n${contextText}\n=== CONTEXT END ===\n\n`
-      : "No relevant documents were found for this query.\n\n";
-
-    const fullPrompt = `${contextPrefix}User question: ${query}`;
+    const agent = createAgent({
+      id: sessionKey ? `rag-agent-${sessionKey}` : "rag-agent-default",
+      name: sessionKey ? `rag-agent-${sessionKey}` : "rag-agent-default",
+      instructions: systemPrompt ?? undefined,
+    });
 
     const messages = [
-      ...convertToChatMessages(conversationHistory),
-      { role: "user" as const, content: fullPrompt },
+      ...conversationHistory,
+      { role: "user" as const, content: query },
     ];
 
     if (streaming) {
-      const stream = await agent.stream(messages);
+      const streamResponse = await agent.stream(messages);
 
       async function* wrapStream() {
-        for await (const chunk of stream.textStream) {
+        for await (const chunk of streamResponse.textStream) {
           yield { delta: chunk } as const;
         }
+
+        const toolResults = await streamResponse.toolResults;
+        const sources = extractSourcesFromToolResults(toolResults);
         yield { done: true, sources } as const;
       }
 
       return {
         response: wrapStream(),
-        sources,
+        sources: [],
         streaming: true,
       };
     }
 
     const result = await agent.generate(messages);
+    const sources = extractSourcesFromToolResults(result.toolResults);
     return {
       response: result.text,
       sources,

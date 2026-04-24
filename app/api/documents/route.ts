@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { withErrorHandler } from "@/lib/api/handler";
 import { loadDocumentFromBuffer, validateFile } from "@/lib/mastra/loaders";
-import { addDocuments, clearIndexCache } from "@/lib/mastra/index";
+import { addDocuments } from "@/lib/mastra/index";
 import { getCollectionStats } from "@/lib/mastra/vectorstore";
 import { formatFileSize } from "@/lib/utils/format.utils";
 import type {
@@ -29,7 +29,6 @@ async function uploadDocument(request: NextRequest): Promise<NextResponse> {
     throw new Error("No content could be extracted from file");
   }
 
-  clearIndexCache();
   const result = await addDocuments(documents);
 
   const response: DocumentUploadResponse = {

@@ -77,7 +77,6 @@ describe("/api/chat", () => {
 
       const request = createMockRequest({
         message: "What is this about?",
-        chatEngineType: "condense",
       });
 
       const response = await POST(request);
@@ -88,7 +87,6 @@ describe("/api/chat", () => {
         "What is this about?",
         false,
         [],
-        "condense",
         null,
         null,
       );
@@ -121,7 +119,6 @@ describe("/api/chat", () => {
         "Follow up",
         false,
         history,
-        "condense",
         null,
         null,
       );

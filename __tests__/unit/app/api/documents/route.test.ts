@@ -22,8 +22,6 @@ const mockAddDocuments = vi.fn().mockResolvedValue({
   chunksProcessed: 3,
 });
 
-const mockClearIndexCache = vi.fn();
-
 vi.mock("@/lib/mastra/loaders", () => ({
   loadDocumentFromBuffer: mockLoadDocumentFromBuffer,
   validateFile: mockValidateFile,
@@ -31,7 +29,6 @@ vi.mock("@/lib/mastra/loaders", () => ({
 
 vi.mock("@/lib/mastra/index", () => ({
   addDocuments: mockAddDocuments,
-  clearIndexCache: mockClearIndexCache,
 }));
 
 vi.mock("@/lib/mastra/vectorstore", () => ({

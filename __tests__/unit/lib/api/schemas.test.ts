@@ -29,7 +29,6 @@ describe("schemas", () => {
           { role: "assistant", content: "Hello" },
         ],
         streaming: true,
-        chatEngineType: "condense",
         sessionKey: "session-1",
         systemPrompt: "Custom prompt",
       });
@@ -44,12 +43,15 @@ describe("schemas", () => {
       expect(result.success).toBe(true);
     });
 
-    it("should reject invalid chatEngineType", () => {
+    it("should strip unknown fields", () => {
       const result = chatRequestSchema.safeParse({
         message: "Hello",
-        chatEngineType: "invalid",
+        chatEngineType: "condense",
       });
-      expect(result.success).toBe(false);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect("chatEngineType" in result.data).toBe(false);
+      }
     });
   });
 

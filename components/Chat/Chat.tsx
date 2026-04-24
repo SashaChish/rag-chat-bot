@@ -6,7 +6,6 @@ import {
   Group,
   Text,
   Textarea,
-  Select,
   Divider,
   Box,
   Alert,
@@ -22,13 +21,10 @@ export default function Chat() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [inputError, setInputError] = useState("");
-  const [chatEngineType, setChatEngineType] = useState<"condense" | "context">(
-    "condense",
-  );
   const [showClearModal, setShowClearModal] = useState(false);
   const sessionKey = useId();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  console.log(sessionKey);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -84,7 +80,6 @@ export default function Chat() {
           message: trimmedInput,
           streaming: true,
           conversationHistory: history,
-          chatEngineType: chatEngineType,
           sessionKey: sessionKey,
         }),
       });
@@ -214,7 +209,6 @@ export default function Chat() {
 
   const handleConfirmClear = (): void => {
     setMessages([]);
-    setChatEngineType("condense");
     setShowClearModal(false);
   };
 
@@ -241,22 +235,6 @@ export default function Chat() {
             </Text>
           </Group>
           <Group gap="xs" wrap="nowrap">
-            <Select
-              size="sm"
-              value={chatEngineType}
-              onChange={(value) => {
-                if (value === "condense" || value === "context") {
-                  setChatEngineType(value);
-                }
-              }}
-              data={[
-                { value: "condense", label: "Condense Question" },
-                { value: "context", label: "Context Engine" },
-              ]}
-              disabled={isLoading}
-              data-testid="engine-selector"
-              allowDeselect={false}
-            />
             {messages.length > 0 && (
               <Button
                 onClick={handleClearChat}
@@ -271,9 +249,8 @@ export default function Chat() {
           </Group>
         </Group>
         <Text c="dimmed" size="sm" px="md" pb="sm" style={{ lineHeight: 1.6 }}>
-          {chatEngineType === "condense"
-            ? "Condenses conversation history into a standalone query before retrieving relevant documents. Maintains context while keeping queries focused."
-            : "Retrieves relevant documents and provides them as context to LLM along with your conversation history. Explicit context for comprehensive answers."}
+          Ask questions about your uploaded documents. The AI will search
+          through your knowledge base and provide answers with source citations.
         </Text>
         <Divider />
       </Box>

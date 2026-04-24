@@ -107,10 +107,10 @@ Before marking tasks complete:
 - **Serverless-compatible**: No global state; indexes created on-demand from ChromaDB
 - **Centralized API error handling**: `lib/api/errors.ts` provides `AppError` hierarchy (`ValidationError`, `NotFoundError`); all routes use `withErrorHandler()` from `lib/api/handler.ts`; errors return `{ error: { code, message } }`
 - **Input validation with Zod**: Request bodies validated via `lib/api/schemas.ts` schemas and `validateBody()` from `lib/api/validate.ts`
-- **RESTful API routes**: Each endpoint handles one operation — no `?action=` dispatch. Route map: `GET/POST /api/documents`, `GET /api/documents/list`, `GET /api/documents/[id]`, `DELETE /api/documents/[id]`, `GET /api/documents/[id]/preview`, `GET /api/documents/[id]/download`, `POST /api/documents/bulk-delete`, `POST /api/documents/clear`, `GET/POST /api/chat`
+- **RESTful API routes**: Each endpoint handles one operation — no `?action=` dispatch. Route map: `GET/POST /api/documents`, `GET /api/documents/list`, `GET /api/documents/[id]`, `DELETE /api/documents/[id]`, `GET /api/documents/[id]/preview`, `GET /api/documents/[id]/download`, `POST /api/documents/bulk-delete`, `POST /api/documents/clear`, `GET/POST /api/chat` (no `chatEngineType` parameter — agent handles retrieval autonomously)
 - **CORS via middleware**: `middleware.ts` handles OPTIONS for all `/api/*` routes
-- **Mastra RAG pipeline**: `lib/mastra/` handles chunking (MDocument), embeddings (Vercel AI SDK), vector storage (@mastra/chroma), and chat (Mastra Agent)
-- **Agent-based chat**: Mastra Agent with model router strings (`"openai/gpt-4o-mini"`) for multi-LLM support
+- **Mastra RAG pipeline**: `lib/mastra/` handles chunking (MDocument), embeddings (Vercel AI SDK), vector storage (@mastra/chroma), and chat (Mastra Agent with `createVectorQueryTool`)
+- **Agent-based chat**: Mastra Agent uses `createVectorQueryTool` from `@mastra/rag` to autonomously retrieve documents. Sources are extracted from `toolResults` in the agent response. Agent instructions include `CHROMA_PROMPT` from `@mastra/chroma` for metadata filtering.
 - **Multi-provider LLM**: OpenAI (embeddings required), optional Anthropic/Groq/Ollama via Mastra model router
 - **Turbopack**: Default bundler (Next.js 16+); no webpack config needed
 - **ESLint flat config**: Uses `eslint.config.mjs` with `typescript-eslint` and `@next/eslint-plugin-next`

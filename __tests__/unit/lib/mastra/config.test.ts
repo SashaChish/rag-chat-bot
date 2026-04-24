@@ -76,5 +76,4 @@ describe("config", () => {
       expect(model).toBeDefined();
     });
   });
-
 });

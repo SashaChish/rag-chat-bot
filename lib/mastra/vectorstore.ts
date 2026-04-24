@@ -5,23 +5,16 @@ export const INDEX_NAME = "documents";
 
 let vectorStoreInstance: ChromaVector | null = null;
 
-function buildChromaConfig():
-  | ConstructorParameters<typeof ChromaVector>[0]
-  | undefined {
-  const chromaUrl = process.env.CHROMA_URL?.trim();
-  if (!chromaUrl || chromaUrl === "http://localhost:8000") {
-    return process.env.CHROMA_API_KEY
-      ? { id: INDEX_NAME, apiKey: process.env.CHROMA_API_KEY }
-      : undefined;
-  }
-
+function buildChromaConfig(): ConstructorParameters<typeof ChromaVector>[0] {
+  const chromaUrl = process.env.CHROMA_URL as string;
   const parsed = new URL(chromaUrl);
+
   return {
     id: INDEX_NAME,
     host: parsed.hostname,
     port: parseInt(parsed.port) || (parsed.protocol === "https:" ? 443 : 8000),
     ssl: parsed.protocol === "https:",
-    ...(process.env.CHROMA_API_KEY && { apiKey: process.env.CHROMA_API_KEY }),
+    apiKey: process.env.CHROMA_API_KEY,
   };
 }
 

@@ -76,8 +76,3 @@ export interface ContentModalProps {
   contentClassName?: string;
   size?: "small" | "medium" | "large";
 }
-
-/**
- * Modal component props (either confirm or content)
- */
-export type ModalProps = ConfirmModalProps | ContentModalProps;

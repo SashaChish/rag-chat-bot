@@ -11,7 +11,6 @@ export const chatRequestSchema = z.object({
     )
     .optional(),
   streaming: z.boolean().optional(),
-  chatEngineType: z.enum(["condense", "context"]).optional(),
   sessionKey: z.string().nullable().optional(),
   systemPrompt: z.string().nullable().optional(),
 });

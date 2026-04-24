@@ -2,8 +2,6 @@ import type { RAGDocument } from "../types/core.types";
 import { MAX_FILE_SIZE_MB } from "../constants";
 import { ValidationError } from "../api/errors";
 
-export const SUPPORTED_FORMATS = ["pdf", "docx", "md", "txt"];
-
 export const SUPPORTED_EXTENSIONS = [
   ".pdf",
   ".docx",

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { RAGDocument } from "@/lib/types/core.types";
+import type * as MastraRag from "@mastra/rag";
 
 const mockListIndexes = vi.fn();
 const mockDescribeIndex = vi.fn();
@@ -10,7 +11,6 @@ const mockDeleteVectors = vi.fn();
 const mockGet = vi.fn();
 const mockQuery = vi.fn();
 const mockEmbedMany = vi.fn();
-const mockEmbed = vi.fn();
 
 class MockChromaVector {
   listIndexes = mockListIndexes;
@@ -25,10 +25,10 @@ class MockChromaVector {
 
 vi.mock("@mastra/chroma", () => ({
   ChromaVector: MockChromaVector,
+  CHROMA_PROMPT: "Chroma filter instructions",
 }));
 
 vi.mock("ai", () => ({
-  embed: mockEmbed,
   embedMany: mockEmbedMany,
 }));
 
@@ -36,7 +36,20 @@ vi.mock("@mastra/core/llm", () => ({
   ModelRouterEmbeddingModel: vi.fn().mockImplementation(() => ({})),
 }));
 
-const mockAgentGenerate = vi.fn().mockResolvedValue({ text: "Test response" });
+vi.mock("@mastra/rag", async (importOriginal) => {
+  const actual = await importOriginal<typeof MastraRag>();
+  return {
+    ...actual,
+    createVectorQueryTool: vi.fn().mockReturnValue({
+      execute: vi.fn(),
+    }),
+  };
+});
+
+const mockAgentGenerate = vi.fn().mockResolvedValue({
+  text: "Test response",
+  toolResults: [],
+});
 const mockAgentStream = vi.fn();
 
 function createMockAgent() {
@@ -64,13 +77,12 @@ describe("index (indexing)", () => {
     mockGet.mockReset();
     mockQuery.mockReset();
     mockEmbedMany.mockReset();
-    mockEmbed.mockReset();
     mockAgentGenerate.mockReset();
-    mockAgentGenerate.mockResolvedValue({ text: "Test response" });
+    mockAgentGenerate.mockResolvedValue({
+      text: "Test response",
+      toolResults: [],
+    });
     mockAgentStream.mockReset();
-
-    const { clearChatEngineCache } = await import("@/lib/mastra/index");
-    clearChatEngineCache();
   });
 
   afterEach(() => {
@@ -115,13 +127,6 @@ describe("index (indexing)", () => {
     });
   });
 
-  describe("clearIndexCache", () => {
-    it("should clear chat engine cache", async () => {
-      const { clearIndexCache } = await import("@/lib/mastra/index");
-      expect(() => clearIndexCache()).not.toThrow();
-    });
-  });
-
   describe("executeQuery", () => {
     it("should return error when no documents available", async () => {
       mockListIndexes.mockResolvedValue([]);
@@ -133,63 +138,51 @@ describe("index (indexing)", () => {
       expect(result.streaming).toBe(false);
     });
 
-    it("should return non-streaming response with sources", async () => {
+    it("should return non-streaming response with sources from tool results", async () => {
       mockListIndexes.mockResolvedValue(["documents"]);
       mockDescribeIndex.mockResolvedValue({ count: 5, dimension: 1536 });
-      mockEmbed.mockResolvedValue({
-        embedding: new Array(1536).fill(0.1),
-        value: "test",
-        usage: { tokens: 1 },
+
+      mockAgentGenerate.mockResolvedValue({
+        text: "Test response",
+        toolResults: [
+          {
+            type: "tool-result",
+            payload: {
+              toolName: "vectorQueryTool",
+              result: {
+                relevantContext: "Some context",
+                sources: [
+                  {
+                    id: "result-1",
+                    score: 0.9,
+                    metadata: { file_name: "test.pdf", file_type: "pdf" },
+                    document: "Relevant content",
+                  },
+                ],
+              },
+            },
+          },
+        ],
       });
-      mockQuery.mockResolvedValue([
-        {
-          id: "result-1",
-          score: 0.9,
-          metadata: { file_name: "test.pdf", file_type: "pdf" },
-          document: "Relevant content",
-        },
-      ]);
 
-      const mod = await import("@/lib/mastra/index");
-      mod.clearChatEngineCache();
+      const { executeQuery } = await import("@/lib/mastra/index");
+      const result = await executeQuery("What is in the document?");
 
-      mockAgentGenerate.mockResolvedValue({ text: "Test response" });
-
-      const result = await mod.executeQuery(
-        "What is in the document?",
-        false,
-        [],
-        "context",
-      );
-
-      expect([result.response, result.error, result.streaming]).toEqual([
-        "Test response",
-        undefined,
-        false,
-      ]);
+      expect(result.response).toBe("Test response");
+      expect(result.streaming).toBe(false);
       expect(result.sources).toHaveLength(1);
+      expect(result.sources[0].filename).toBe("test.pdf");
     });
 
-    it("should pass conversation history to agent in context mode", async () => {
+    it("should pass conversation history to agent", async () => {
       mockListIndexes.mockResolvedValue(["documents"]);
       mockDescribeIndex.mockResolvedValue({ count: 5, dimension: 1536 });
-      mockEmbed.mockResolvedValue({
-        embedding: new Array(1536).fill(0.1),
-        value: "test",
-        usage: { tokens: 1 },
+      mockAgentGenerate.mockResolvedValue({
+        text: "Follow-up answer",
+        toolResults: [],
       });
-      mockQuery.mockResolvedValue([
-        {
-          id: "result-1",
-          score: 0.9,
-          metadata: { file_name: "doc.pdf", file_type: "pdf" },
-          document: "Some content",
-        },
-      ]);
-      mockAgentGenerate.mockResolvedValue({ text: "Follow-up answer" });
 
-      const mod = await import("@/lib/mastra/index");
-      mod.clearChatEngineCache();
+      const { executeQuery } = await import("@/lib/mastra/index");
 
       const history = [
         { role: "user" as const, content: "What is RAG?" },
@@ -199,12 +192,7 @@ describe("index (indexing)", () => {
         },
       ];
 
-      await mod.executeQuery(
-        "Tell me more about it",
-        false,
-        history,
-        "context",
-      );
+      await executeQuery("Tell me more about it", false, history);
 
       expect(mockAgentGenerate).toHaveBeenCalledTimes(1);
       const messagesArg = mockAgentGenerate.mock.calls[0][0];
@@ -214,78 +202,15 @@ describe("index (indexing)", () => {
         role: "assistant",
         content: "RAG stands for Retrieval-Augmented Generation.",
       });
-      expect(messagesArg[2].role).toBe("user");
-      expect(messagesArg[2].content).toContain("Tell me more about it");
-    });
-
-    it("should use condense mode to rewrite query", async () => {
-      mockListIndexes.mockResolvedValue(["documents"]);
-      mockDescribeIndex.mockResolvedValue({ count: 5, dimension: 1536 });
-      mockEmbed.mockResolvedValue({
-        embedding: new Array(1536).fill(0.1),
-        value: "test",
-        usage: { tokens: 1 },
+      expect(messagesArg[2]).toEqual({
+        role: "user",
+        content: "Tell me more about it",
       });
-      mockQuery.mockResolvedValue([
-        {
-          id: "result-1",
-          score: 0.85,
-          metadata: { file_name: "doc.pdf", file_type: "pdf" },
-          document: "Chunk content",
-        },
-      ]);
-
-      const condenseCallCount = { value: 0 };
-      mockAgentGenerate.mockImplementation(() => {
-        condenseCallCount.value++;
-        if (condenseCallCount.value === 1) {
-          return Promise.resolve({
-            text: "What are the main features of RAG?",
-          });
-        }
-        return Promise.resolve({
-          text: "RAG features include retrieval and augmentation.",
-        });
-      });
-
-      const mod = await import("@/lib/mastra/index");
-      mod.clearChatEngineCache();
-
-      const history = [
-        { role: "user" as const, content: "What is RAG?" },
-        { role: "assistant" as const, content: "RAG is a technique." },
-      ];
-
-      const result = await mod.executeQuery(
-        "What are its main features?",
-        false,
-        history,
-        "condense",
-      );
-
-      expect(mockAgentGenerate).toHaveBeenCalledTimes(2);
-      expect(result.response).toBe(
-        "RAG features include retrieval and augmentation.",
-      );
-      expect(result.sources).toHaveLength(1);
     });
 
     it("should return streaming response with AsyncGenerator", async () => {
       mockListIndexes.mockResolvedValue(["documents"]);
       mockDescribeIndex.mockResolvedValue({ count: 5, dimension: 1536 });
-      mockEmbed.mockResolvedValue({
-        embedding: new Array(1536).fill(0.1),
-        value: "test",
-        usage: { tokens: 1 },
-      });
-      mockQuery.mockResolvedValue([
-        {
-          id: "result-1",
-          score: 0.9,
-          metadata: { file_name: "doc.pdf", file_type: "pdf" },
-          document: "Streaming content",
-        },
-      ]);
 
       async function* mockTextStream() {
         yield "Hello";
@@ -294,15 +219,31 @@ describe("index (indexing)", () => {
 
       mockAgentStream.mockResolvedValue({
         textStream: mockTextStream(),
+        toolResults: Promise.resolve([
+          {
+            type: "tool-result",
+            payload: {
+              toolName: "vectorQueryTool",
+              result: {
+                relevantContext: "Streaming content",
+                sources: [
+                  {
+                    id: "result-1",
+                    score: 0.9,
+                    metadata: { file_name: "doc.pdf", file_type: "pdf" },
+                    document: "Streaming content",
+                  },
+                ],
+              },
+            },
+          },
+        ]),
       });
 
-      const mod = await import("@/lib/mastra/index");
-      mod.clearChatEngineCache();
-
-      const result = await mod.executeQuery("test query", true);
+      const { executeQuery } = await import("@/lib/mastra/index");
+      const result = await executeQuery("test query", true);
 
       expect(result.streaming).toBe(true);
-      expect(result.sources).toHaveLength(1);
 
       const chunks: QueryChunk[] = [];
       for await (const chunk of result.response as AsyncGenerator<QueryChunk>) {
@@ -312,120 +253,57 @@ describe("index (indexing)", () => {
       expect(chunks).toHaveLength(3);
       expect(chunks[0]).toEqual({ delta: "Hello" });
       expect(chunks[1]).toEqual({ delta: " world" });
-      expect(chunks[2]).toEqual({ done: true, sources: result.sources });
+      expect(chunks[2].done).toBe(true);
+      expect(chunks[2].sources).toHaveLength(1);
     });
 
     it("should handle LLM errors gracefully", async () => {
       mockListIndexes.mockResolvedValue(["documents"]);
       mockDescribeIndex.mockResolvedValue({ count: 5, dimension: 1536 });
-      mockEmbed.mockRejectedValue(new Error("LLM provider error"));
+      mockAgentGenerate.mockRejectedValue(new Error("LLM provider error"));
 
       const { executeQuery } = await import("@/lib/mastra/index");
       const result = await executeQuery("test query");
 
       expect(result.error).toBeTruthy();
     });
+
+    it("should return empty sources when tool is not called", async () => {
+      mockListIndexes.mockResolvedValue(["documents"]);
+      mockDescribeIndex.mockResolvedValue({ count: 5, dimension: 1536 });
+      mockAgentGenerate.mockResolvedValue({
+        text: "Response without tool use",
+        toolResults: [],
+      });
+
+      const { executeQuery } = await import("@/lib/mastra/index");
+      const result = await executeQuery("test query");
+
+      expect(result.response).toBe("Response without tool use");
+      expect(result.sources).toEqual([]);
+    });
   });
 
-  describe("agent caching", () => {
-    it("should create new agent on cache miss", async () => {
-      mockListIndexes.mockResolvedValue(["documents"]);
-      mockDescribeIndex.mockResolvedValue({ count: 5, dimension: 1536 });
-      mockEmbed.mockResolvedValue({
-        embedding: new Array(1536).fill(0.1),
-        value: "test",
-        usage: { tokens: 1 },
-      });
-      mockQuery.mockResolvedValue([]);
-      mockAgentGenerate.mockResolvedValue({ text: "Response" });
-
-      const mod = await import("@/lib/mastra/index");
-      mod.clearChatEngineCache();
-
-      await mod.executeQuery("first query", false, [], null, "session-A");
-
-      expect(mockAgentGenerate).toHaveBeenCalledTimes(1);
-    });
-
-    it("should reuse cached agent for same session key", async () => {
-      mockListIndexes.mockResolvedValue(["documents"]);
-      mockDescribeIndex.mockResolvedValue({ count: 5, dimension: 1536 });
-      mockEmbed.mockResolvedValue({
-        embedding: new Array(1536).fill(0.1),
-        value: "test",
-        usage: { tokens: 1 },
-      });
-      mockQuery.mockResolvedValue([]);
-      mockAgentGenerate.mockResolvedValue({ text: "Response" });
-
-      const mod = await import("@/lib/mastra/index");
-      mod.clearChatEngineCache();
-
-      await mod.executeQuery("query 1", false, [], null, "session-X");
-      await mod.executeQuery("query 2", false, [], null, "session-X");
-
-      expect(mockAgentGenerate).toHaveBeenCalledTimes(2);
-    });
-
+  describe("session key handling", () => {
     it("should use custom system prompt when provided", async () => {
       mockListIndexes.mockResolvedValue(["documents"]);
       mockDescribeIndex.mockResolvedValue({ count: 5, dimension: 1536 });
-      mockEmbed.mockResolvedValue({
-        embedding: new Array(1536).fill(0.1),
-        value: "test",
-        usage: { tokens: 1 },
+      mockAgentGenerate.mockResolvedValue({
+        text: "Custom response",
+        toolResults: [],
       });
-      mockQuery.mockResolvedValue([]);
-      mockAgentGenerate.mockResolvedValue({ text: "Custom response" });
 
-      const mod = await import("@/lib/mastra/index");
-      mod.clearChatEngineCache();
+      const { executeQuery } = await import("@/lib/mastra/index");
 
-      await mod.executeQuery(
+      await executeQuery(
         "query",
         false,
         [],
-        null,
         "session-custom",
         "Custom instructions",
       );
 
       expect(mockAgentGenerate).toHaveBeenCalledTimes(1);
-    });
-
-    it("should clear specific session from cache", async () => {
-      const { clearChatEngineCache } = await import("@/lib/mastra/index");
-      expect(() => clearChatEngineCache("session-1")).not.toThrow();
-    });
-
-    it("should clear all sessions when no key provided", async () => {
-      const { clearChatEngineCache } = await import("@/lib/mastra/index");
-      expect(() => clearChatEngineCache()).not.toThrow();
-    });
-  });
-
-  describe("cache TTL", () => {
-    it("should evict expired entries on next access", async () => {
-      mockListIndexes.mockResolvedValue(["documents"]);
-      mockDescribeIndex.mockResolvedValue({ count: 5, dimension: 1536 });
-      mockEmbed.mockResolvedValue({
-        embedding: new Array(1536).fill(0.1),
-        value: "test",
-        usage: { tokens: 1 },
-      });
-      mockQuery.mockResolvedValue([]);
-      mockAgentGenerate.mockResolvedValue({ text: "Response" });
-
-      const mod = await import("@/lib/mastra/index");
-      mod.clearChatEngineCache();
-
-      await mod.executeQuery("query", false, [], null, "ttl-session");
-
-      vi.spyOn(Date, "now").mockReturnValue(Date.now() + 31 * 60 * 1000);
-
-      await mod.executeQuery("query", false, [], null, "ttl-session");
-
-      vi.restoreAllMocks();
     });
   });
 });

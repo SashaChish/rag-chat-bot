@@ -1,36 +1,36 @@
-import { describe, it, expect } from "vitest";
-import { getSystemPrompt, DEFAULT_SYSTEM_PROMPT } from "@/lib/mastra/prompts";
+import { describe, it, expect, vi } from "vitest";
+
+vi.mock("@mastra/chroma", () => ({
+  CHROMA_PROMPT: "Chroma filter instructions for metadata filtering",
+}));
 
 describe("prompts", () => {
-  describe("DEFAULT_SYSTEM_PROMPT", () => {
-    it("should contain RAG instructions", () => {
-      expect(DEFAULT_SYSTEM_PROMPT).toContain("CONTEXT START");
-      expect(DEFAULT_SYSTEM_PROMPT).toContain("CONTEXT END");
-      expect(DEFAULT_SYSTEM_PROMPT).toContain("Citations");
-      expect(DEFAULT_SYSTEM_PROMPT).toContain("context");
+  describe("BASE_INSTRUCTIONS", () => {
+    it("should contain tool-aware RAG instructions", async () => {
+      const { BASE_INSTRUCTIONS } = await import("@/lib/mastra/prompts");
+      expect(BASE_INSTRUCTIONS).toContain("vector query tool");
+      expect(BASE_INSTRUCTIONS).toContain("Cite sources");
     });
 
-    it("should be a non-empty string", () => {
-      expect(DEFAULT_SYSTEM_PROMPT).toBeTruthy();
-      expect(DEFAULT_SYSTEM_PROMPT.length).toBeGreaterThan(100);
+    it("should be a non-empty string", async () => {
+      const { BASE_INSTRUCTIONS } = await import("@/lib/mastra/prompts");
+      expect(BASE_INSTRUCTIONS).toBeTruthy();
+      expect(BASE_INSTRUCTIONS.length).toBeGreaterThan(100);
     });
   });
 
-  describe("getSystemPrompt", () => {
-    it("should return default prompt when no options provided", () => {
-      const result = getSystemPrompt();
-      expect(result).toBe(DEFAULT_SYSTEM_PROMPT);
+  describe("getDefaultInstructions", () => {
+    it("should include CHROMA_PROMPT", async () => {
+      const { getDefaultInstructions } = await import("@/lib/mastra/prompts");
+      const instructions = getDefaultInstructions();
+      expect(instructions).toContain("Chroma filter instructions");
     });
 
-    it("should return default prompt when customPrompt is undefined", () => {
-      const result = getSystemPrompt({});
-      expect(result).toBe(DEFAULT_SYSTEM_PROMPT);
-    });
-
-    it("should return custom prompt when provided", () => {
-      const customPrompt = "You are a helpful assistant.";
-      const result = getSystemPrompt({ customPrompt });
-      expect(result).toBe(customPrompt);
+    it("should include base instructions", async () => {
+      const { getDefaultInstructions, BASE_INSTRUCTIONS } =
+        await import("@/lib/mastra/prompts");
+      const instructions = getDefaultInstructions();
+      expect(instructions).toContain(BASE_INSTRUCTIONS);
     });
   });
 });

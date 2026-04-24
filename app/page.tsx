@@ -8,6 +8,7 @@ import {
   ScrollArea,
   Affix,
   ActionIcon,
+  Title,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import Chat from "@/components/Chat/Chat";
@@ -51,9 +52,9 @@ export default function Home() {
           >
             <Group gap="md">
               <IconSparkles size={40} aria-hidden="true" />
-              <Text fw={700} size="xl" style={{ fontSize: "2rem" }}>
+              <Title order={1}>
                 RAG Chatbot
-              </Text>
+              </Title>
             </Group>
             <Text c="dimmed" size="md">
               Upload documents and ask questions using AI

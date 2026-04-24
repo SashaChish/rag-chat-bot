@@ -1,4 +1,7 @@
-import { createTheme } from "@mantine/core";
+import { createTheme, rem } from "@mantine/core";
+
+const interFontFamily =
+  'var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 
 export const theme = createTheme({
   primaryColor: "violet",
@@ -10,9 +13,21 @@ export const theme = createTheme({
     blue: ["#e6f4fe", "#d5efff", "#c2e5ff", "#acd8fc", "#8ec8f6", "#5eb1ef", "#0090ff", "#0588f0", "#0d74ce", "#113264"],
     amber: ["#fff7c2", "#ffee9c", "#fbe577", "#f3d673", "#e9c162", "#e2a336", "#ffc53d", "#ffba18", "#ab6400", "#4f3422"],
   },
-  fontFamily:
-    'var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  fontFamily: interFontFamily,
   defaultRadius: "md",
   white: "#fcfcfc",
   black: "#202020",
+  headings: {
+    fontWeight: "600",
+    fontFamily: interFontFamily,
+    textWrap: "wrap",
+    sizes: {
+      h1: { fontSize: rem(32), lineHeight: "1.3", fontWeight: "700" },
+      h2: { fontSize: rem(26), lineHeight: "1.35" },
+      h3: { fontSize: rem(22), lineHeight: "1.4" },
+      h4: { fontSize: rem(18), lineHeight: "1.45" },
+      h5: { fontSize: rem(16), lineHeight: "1.5" },
+      h6: { fontSize: rem(14), lineHeight: "1.5" },
+    },
+  },
 });

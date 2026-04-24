@@ -9,6 +9,7 @@ import {
   Divider,
   Box,
   Alert,
+  Title,
 } from "@mantine/core";
 import MessageList from "../MessageList/MessageList";
 import { ConfirmModal } from "../ui/Modal";
@@ -230,9 +231,9 @@ export default function Chat() {
       <Box style={{ flexShrink: 0 }}>
         <Group justify="space-between" p="md" wrap="nowrap">
           <Group gap="xs" wrap="nowrap">
-            <Text fw={600} size="xl">
+            <Title order={3}>
               Chat with Your Documents
-            </Text>
+            </Title>
           </Group>
           <Group gap="xs" wrap="nowrap">
             {messages.length > 0 && (
@@ -248,7 +249,7 @@ export default function Chat() {
             )}
           </Group>
         </Group>
-        <Text c="dimmed" size="sm" px="md" pb="sm" style={{ lineHeight: 1.6 }}>
+        <Text c="dimmed" size="sm" px="md" pb="sm">
           Ask questions about your uploaded documents. The AI will search
           through your knowledge base and provide answers with source citations.
         </Text>

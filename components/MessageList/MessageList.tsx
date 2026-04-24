@@ -10,6 +10,7 @@ import {
   ScrollArea,
   Box,
   Center,
+  Title,
 } from "@mantine/core";
 import type { SourceInfo } from "../../lib/types/core.types";
 import type { MessageListProps } from "../../lib/types/components";
@@ -56,9 +57,9 @@ export default function MessageList({
           <Center py="xl">
             <Stack align="center" gap="sm">
               <IconMessageChatbot size={64} aria-hidden="true" />
-              <Text fw={600} c="dimmed" size="lg">
+              <Title order={5} c="dimmed">
                 No messages yet
-              </Text>
+              </Title>
               <Text c="dimmed">
                 Upload a document and start asking questions!
               </Text>
@@ -184,7 +185,6 @@ export default function MessageList({
                           size="sm"
                           fs="italic"
                           mt="sm"
-                          style={{ lineHeight: 1.6 }}
                         >
                           {source.preview}
                         </Text>

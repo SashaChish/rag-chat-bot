@@ -1,6 +1,6 @@
 "use client";
 
-import { Modal, Group } from "@mantine/core";
+import { Modal, Group, Text } from "@mantine/core";
 import { Button } from "../Button";
 import type {
   ConfirmModalProps,
@@ -58,16 +58,9 @@ function ConfirmModal({
         },
       }}
     >
-      <p
-        style={{
-          margin: 0,
-          color: "var(--mantine-color-gray-6)",
-          fontSize: "15px",
-          lineHeight: 1.6,
-        }}
-      >
+      <Text c="dimmed" size="sm">
         {message}
-      </p>
+      </Text>
       <Group justify="flex-end" gap="sm" mt="md">
         <Button variant="outlined" color="gray" onClick={onClose}>
           {cancelText}

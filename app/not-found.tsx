@@ -1,9 +1,9 @@
-import { Stack, Text } from '@mantine/core';
+import { Stack, Text, Title } from '@mantine/core';
 
 export default function NotFound() {
   return (
     <Stack align="center" justify="center" h="100vh" gap="md">
-      <Text size="xl" fw={600}>Not Found</Text>
+      <Title order={3}>Not Found</Title>
       <Text c="dimmed">The page you are looking for does not exist.</Text>
     </Stack>
   );

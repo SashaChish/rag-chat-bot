@@ -86,6 +86,13 @@ Hookify rules in `.claude/` block problematic patterns:
 - @tabler/icons-react for icons (not @heroicons)
 - TanStack Query for all data fetching and server state management (`useQuery`, `useMutation`) - never use raw `fetch` in components; extract data fetching into custom hooks or use TanStack Query directly
 
+### Typography
+
+- Use `Title` with `order` prop for all headings (never `Text` with large `fw`/`size`)
+- Use `Text` for body text, labels, captions — use Mantine props (`c`, `size`, `fw`, `truncate`) instead of inline styles
+- No raw `<p>`/`<span>`/`<div>` for text. No inline `style` for fontSize, lineHeight, fontWeight, or fontFamily
+- Use `Code` with `block` prop for preformatted content
+
 ### Testing
 
 - Vitest for unit tests, Playwright for E2E

@@ -1,6 +1,6 @@
 "use client";
 
-import { Stack, Text, Button } from "@mantine/core";
+import { Stack, Text, Button, Title } from "@mantine/core";
 
 export default function Error({
   error,
@@ -11,9 +11,9 @@ export default function Error({
 }) {
   return (
     <Stack align="center" justify="center" h="100vh" gap="md">
-      <Text size="xl" fw={600}>
+      <Title order={3}>
         Something went wrong
-      </Text>
+      </Title>
       <Text c="dimmed">{error.message}</Text>
       <Button onClick={reset} color="primary">
         Try again

@@ -14,6 +14,8 @@ import {
   Alert,
   Divider,
   Box,
+  Title,
+  Code,
 } from "@mantine/core";
 import { Button } from "../ui/Button";
 import { IconButton } from "../ui/IconButton";
@@ -127,9 +129,9 @@ export default function DocumentList() {
     return (
       <Paper shadow="xs" radius="md" p="md">
         <Group justify="space-between" mb="md">
-          <Text fw={600} size="lg">
+          <Title order={4}>
             Documents
-          </Text>
+          </Title>
         </Group>
         <Center py="xl">
           <Loader size="sm" />
@@ -146,9 +148,9 @@ export default function DocumentList() {
       style={{ maxHeight: "100vh", overflowY: "auto" }}
     >
       <Group justify="space-between" mb="md">
-        <Text fw={600} size="lg">
+        <Title order={4}>
           Documents
-        </Text>
+        </Title>
         <Button
           onClick={() => {
             refetch();
@@ -377,18 +379,9 @@ export default function DocumentList() {
                     Loading preview...
                   </Text>
                 ) : previewContent ? (
-                  <Text
-                    ff="monospace"
-                    size="sm"
-                    style={{
-                      whiteSpace: "pre-wrap",
-                      wordBreak: "break-word",
-                      lineHeight: 1.6,
-                    }}
-                    c="dimmed"
-                  >
+                  <Code block>
                     {previewContent}
-                  </Text>
+                  </Code>
                 ) : (
                   <Text c="dimmed" fs="italic">
                     No content available for preview

@@ -75,18 +75,14 @@ export default function Upload() {
 
       setSuccess({
         message: data.message,
-        filename: data.filename,
-        chunksProcessed: data.chunksProcessed,
+        filename: data.document.filename,
+        chunksProcessed: data.document.chunkCount,
       });
 
       setTimeout(() => setSuccess(null), 3000);
 
       queryClient.invalidateQueries({ queryKey: ["documents-stats"] });
       queryClient.invalidateQueries({ queryKey: ["documents-list"] });
-
-      window.dispatchEvent(
-        new CustomEvent("documentUploaded", { detail: data }),
-      );
     },
     onError: (error) => {
       setUploadProgress(0);

@@ -16,9 +16,12 @@ export interface DocumentMetadata {
   [key: string]: unknown;
 }
 
-export interface RAGDocument {
-  text: string;
-  metadata: DocumentMetadata;
+export interface DocumentChunk {
+  id: string;
+  content: string;
+  filename: string;
+  fileType: string | null;
+  uploadDate: string;
 }
 
 export interface SourceInfo {
@@ -50,26 +53,4 @@ export interface IndexStats {
   collectionName: string;
   count: number;
   documentCount: number;
-}
-
-export interface DocumentListEntry {
-  id: string;
-  file_name: string;
-  file_type: string;
-  upload_date: string;
-  chunk_count: number;
-  content: string;
-  file_size: string | null;
-  can_download: boolean;
-  deleted_chunks?: number;
-  error?: string;
-  success?: boolean;
-}
-
-export interface ChromaDocumentSummary {
-  file_name: string;
-  file_type: string;
-  chunk_count: number;
-  upload_date: string | null;
-  first_chunk_id: string;
 }

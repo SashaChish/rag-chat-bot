@@ -1,8 +1,28 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { NextRequest } from "next/server";
 
+const mockSelectWhereFn = vi.fn().mockResolvedValue([]);
+const mockFromFn = vi.fn().mockReturnValue({ where: mockSelectWhereFn });
+const mockSelectFn = vi.fn().mockReturnValue({ from: mockFromFn });
+const mockDeleteWhereFn = vi.fn().mockResolvedValue(undefined);
+const mockDeleteFn = vi.fn().mockReturnValue({ where: mockDeleteWhereFn });
+
 vi.mock("@/lib/mastra/vectorstore", () => ({
-  deleteDocumentByName: vi.fn(),
+  deleteDocumentChunks: vi.fn(),
+}));
+
+vi.mock("@/lib/db", () => ({
+  db: {
+    select: mockSelectFn,
+    delete: mockDeleteFn,
+  },
+}));
+
+vi.mock("@/lib/db/schema", () => ({
+  documentsTable: {
+    id: "id",
+    filename: "file_name",
+  },
 }));
 
 const createMockRequest = (body: unknown): NextRequest => {
@@ -14,6 +34,12 @@ const createMockRequest = (body: unknown): NextRequest => {
 describe("/api/documents/bulk-delete", () => {
   beforeEach(() => {
     vi.spyOn(console, "error").mockImplementation(() => {});
+
+    mockSelectFn.mockReturnValue({ from: mockFromFn });
+    mockFromFn.mockReturnValue({ where: mockSelectWhereFn });
+    mockSelectWhereFn.mockResolvedValue([]);
+    mockDeleteFn.mockReturnValue({ where: mockDeleteWhereFn });
+    mockDeleteWhereFn.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -21,10 +47,12 @@ describe("/api/documents/bulk-delete", () => {
   });
 
   it("should delete documents and return results", async () => {
-    const { deleteDocumentByName } = await import("@/lib/mastra/vectorstore");
-    vi.mocked(deleteDocumentByName)
-      .mockResolvedValueOnce(3)
-      .mockResolvedValueOnce(2);
+    mockSelectWhereFn
+      .mockResolvedValueOnce([{ id: "id-1" }])
+      .mockResolvedValueOnce([{ id: "id-2" }]);
+
+    const { deleteDocumentChunks } = await import("@/lib/mastra/vectorstore");
+    vi.mocked(deleteDocumentChunks).mockResolvedValue(undefined);
 
     const { POST } = await import("@/app/api/documents/bulk-delete/route");
     const request = createMockRequest({ fileNames: ["doc1.txt", "doc2.txt"] });
@@ -32,17 +60,18 @@ describe("/api/documents/bulk-delete", () => {
     const data = await response.json();
 
     expect(data.success).toBe(true);
-    expect(data.total_deleted_chunks).toBe(5);
     expect(data.results).toHaveLength(2);
-    expect(data.results[0].deleted_chunks).toBe(3);
-    expect(data.results[1].deleted_chunks).toBe(2);
+    expect(data.results[0].deleted_id).toBe("id-1");
+    expect(data.results[1].deleted_id).toBe("id-2");
   });
 
   it("should handle partial delete failures", async () => {
-    const { deleteDocumentByName } = await import("@/lib/mastra/vectorstore");
-    vi.mocked(deleteDocumentByName)
-      .mockResolvedValueOnce(3)
-      .mockRejectedValueOnce(new Error("Delete failed"));
+    mockSelectWhereFn
+      .mockResolvedValueOnce([{ id: "id-1" }])
+      .mockResolvedValueOnce([]);
+
+    const { deleteDocumentChunks } = await import("@/lib/mastra/vectorstore");
+    vi.mocked(deleteDocumentChunks).mockResolvedValue(undefined);
 
     const { POST } = await import("@/app/api/documents/bulk-delete/route");
     const request = createMockRequest({ fileNames: ["doc1.txt", "doc2.txt"] });
@@ -52,7 +81,7 @@ describe("/api/documents/bulk-delete", () => {
     expect(data.success).toBe(true);
     expect(data.results[0].success).toBe(true);
     expect(data.results[1].success).toBe(false);
-    expect(data.results[1].error).toBe("Delete failed");
+    expect(data.results[1].error).toBe("Document not found");
   });
 
   it("should return validation error for empty fileNames", async () => {

@@ -76,15 +76,25 @@ describe("loaders", () => {
     it("should accept valid files under 10MB", async () => {
       const { validateFile } = await import("@/lib/mastra/loaders");
       const file = new File(["content"], "test.txt", { type: "text/plain" });
-      expect(validateFile(file)).toBe(true);
+      const result = validateFile(file);
+      expect(result.isValid).toBe(true);
+      expect(result.file).toBe(file);
+    });
+
+    it("should reject null input with ValidationError", async () => {
+      const { validateFile } = await import("@/lib/mastra/loaders");
+      try {
+        validateFile(null);
+        expect.unreachable("Should have thrown");
+      } catch (error) {
+        expect((error as Error).message).toBe("No file provided");
+        expect((error as { code: string }).code).toBe("VALIDATION_ERROR");
+      }
     });
 
     it("should reject oversized files with ValidationError", async () => {
       const { validateFile } = await import("@/lib/mastra/loaders");
-      const bigFile = {
-        name: "big.pdf",
-        size: 11 * 1024 * 1024,
-      } as File;
+      const bigFile = new File([new Uint8Array(11 * 1024 * 1024)], "big.pdf");
       try {
         validateFile(bigFile);
         expect.unreachable("Should have thrown");
@@ -96,10 +106,7 @@ describe("loaders", () => {
 
     it("should reject unsupported formats with ValidationError", async () => {
       const { validateFile } = await import("@/lib/mastra/loaders");
-      const file = {
-        name: "image.png",
-        size: 100,
-      } as File;
+      const file = new File(["content"], "image.png", { type: "image/png" });
       try {
         validateFile(file);
         expect.unreachable("Should have thrown");
@@ -111,10 +118,7 @@ describe("loaders", () => {
 
     it("should reject empty files with ValidationError", async () => {
       const { validateFile } = await import("@/lib/mastra/loaders");
-      const file = {
-        name: "empty.txt",
-        size: 0,
-      } as File;
+      const file = new File([], "empty.txt", { type: "text/plain" });
       try {
         validateFile(file);
         expect.unreachable("Should have thrown");
@@ -131,8 +135,8 @@ describe("loaders", () => {
       const buffer = Buffer.from("fake pdf content");
       const result = await loadDocumentFromBuffer(buffer, "test.pdf");
 
-      expect(result.documents).toHaveLength(1);
-      expect(result.documents[0].metadata.file_type).toBe("pdf");
+      expect(result.content).toBeTruthy();
+      expect(result.fileType).toBe("pdf");
     });
 
     it("should parse DOCX files", async () => {
@@ -140,9 +144,8 @@ describe("loaders", () => {
       const buffer = Buffer.from("fake docx content");
       const result = await loadDocumentFromBuffer(buffer, "test.docx");
 
-      expect(result.documents).toHaveLength(1);
-      expect(result.documents[0].text).toBe("Extracted DOCX text content");
-      expect(result.documents[0].metadata.file_type).toBe("docx");
+      expect(result.content).toBe("Extracted DOCX text content");
+      expect(result.fileType).toBe("docx");
     });
 
     it("should parse MD files as text", async () => {
@@ -150,9 +153,8 @@ describe("loaders", () => {
       const buffer = Buffer.from("# Hello World\nThis is markdown.");
       const result = await loadDocumentFromBuffer(buffer, "test.md");
 
-      expect(result.documents).toHaveLength(1);
-      expect(result.documents[0].text).toContain("Hello World");
-      expect(result.documents[0].metadata.file_type).toBe("md");
+      expect(result.content).toContain("Hello World");
+      expect(result.fileType).toBe("md");
     });
 
     it("should parse TXT files as text", async () => {
@@ -160,9 +162,8 @@ describe("loaders", () => {
       const buffer = Buffer.from("Plain text content here.");
       const result = await loadDocumentFromBuffer(buffer, "test.txt");
 
-      expect(result.documents).toHaveLength(1);
-      expect(result.documents[0].text).toBe("Plain text content here.");
-      expect(result.documents[0].metadata.file_type).toBe("txt");
+      expect(result.content).toBe("Plain text content here.");
+      expect(result.fileType).toBe("txt");
     });
 
     it("should throw ValidationError for missing filename extension", async () => {
@@ -176,20 +177,20 @@ describe("loaders", () => {
       }
     });
 
-    it("should set file_name metadata", async () => {
+    it("should set filename", async () => {
       const { loadDocumentFromBuffer } = await import("@/lib/mastra/loaders");
       const buffer = Buffer.from("content");
       const result = await loadDocumentFromBuffer(buffer, "my-document.txt");
 
-      expect(result.documents[0].metadata.file_name).toBe("my-document.txt");
+      expect(result.filename).toBe("my-document.txt");
     });
 
-    it("should set upload_date metadata", async () => {
+    it("should set uploadDate", async () => {
       const { loadDocumentFromBuffer } = await import("@/lib/mastra/loaders");
       const buffer = Buffer.from("content");
       const result = await loadDocumentFromBuffer(buffer, "test.txt");
 
-      expect(result.documents[0].metadata.upload_date).toBeTruthy();
+      expect(result.uploadDate).toBeTruthy();
     });
 
     it("should throw ValidationError for unsupported file type", async () => {

@@ -21,6 +21,9 @@ npm run test             # Run tests in watch mode
 npm run test:run         # Run all tests once
 npm run test:coverage    # Run tests with coverage
 npm run test:e2e         # Run Playwright E2E tests
+npm run db:push          # Push schema changes to Neon Postgres
+npm run db:generate      # Generate Drizzle migration files
+npm run db:migrate       # Run Drizzle migrations
 ```
 
 ## Project Structure
@@ -38,6 +41,7 @@ rag-chatbot/
 ├── components/          # React components (Chat, Upload, DocumentList, MessageList)
 ├── lib/
 │   ├── api/             # API infrastructure (errors, handler, schemas, streaming, validation)
+│   ├── db/              # Neon Postgres + Drizzle ORM (schema, client)
 │   ├── constants/       # App-wide constants (file limits, format strings)
 │   ├── hooks/           # Custom React hooks
 │   ├── icons/           # Tabler icon components (@tabler/icons-react)
@@ -47,6 +51,7 @@ rag-chatbot/
 │   ├── query-client.ts  # TanStack Query configuration
 │   └── types/           # TypeScript definitions
 ├── middleware.ts         # CORS middleware for /api/* routes
+├── drizzle.config.ts    # Drizzle Kit config (schema, migrations)
 ├── next.config.ts       # Next.js config (optimizePackageImports)
 └── postcss.config.mjs   # PostCSS config (postcss-preset-mantine)
 └── eslint.config.mjs    # ESLint flat config
@@ -111,21 +116,14 @@ Before marking tasks complete:
 
 ## Architecture Decisions
 
-- **Serverless-compatible**: No global state; indexes created on-demand from ChromaDB
-- **Centralized API error handling**: `lib/api/errors.ts` provides `AppError` hierarchy (`ValidationError`, `NotFoundError`); all routes use `withErrorHandler()` from `lib/api/handler.ts`; errors return `{ error: { code, message } }`
-- **Input validation with Zod**: Request bodies validated via `lib/api/schemas.ts` schemas and `validateBody()` from `lib/api/validate.ts`
-- **RESTful API routes**: Each endpoint handles one operation — no `?action=` dispatch. Route map: `GET/POST /api/documents`, `GET /api/documents/list`, `GET /api/documents/[id]`, `DELETE /api/documents/[id]`, `GET /api/documents/[id]/preview`, `GET /api/documents/[id]/download`, `POST /api/documents/bulk-delete`, `POST /api/documents/clear`, `GET/POST /api/chat` (no `chatEngineType` parameter — agent handles retrieval autonomously)
-- **CORS via middleware**: `middleware.ts` handles OPTIONS for all `/api/*` routes
-- **Mastra RAG pipeline**: `lib/mastra/` handles chunking (MDocument), embeddings (Vercel AI SDK), vector storage (@mastra/chroma), and chat (Mastra Agent with `createVectorQueryTool`)
-- **Agent-based chat**: Mastra Agent uses `createVectorQueryTool` from `@mastra/rag` to autonomously retrieve documents. Sources are extracted from `toolResults` in the agent response. Agent instructions include `CHROMA_PROMPT` from `@mastra/chroma` for metadata filtering.
-- **Multi-provider LLM**: OpenAI (embeddings required), optional Anthropic/Groq/Ollama via Mastra model router
-- **Turbopack**: Default bundler (Next.js 16+); no webpack config needed
-- **ESLint flat config**: Uses `eslint.config.mjs` with `typescript-eslint` and `@next/eslint-plugin-next`
-- **Mantine UI v7**: All styling via Mantine components and theme; no Tailwind/CSS modules. Theme uses Radix Colors palette (violet, gray, red, green, blue, amber) — never hardcode hex values in components, use Mantine color props or CSS variables (`var(--mantine-color-{name}-{shade})`) instead.
-- **AppShell layout**: Responsive layout with collapsible navbar via Mantine AppShell and useDisclosure
+- **API**: RESTful routes with centralized error handling (`AppError` hierarchy), Zod validation, and CORS middleware
+- **RAG**: Mastra pipeline — ChromaDB for vector storage, Agent with `createVectorQueryTool` for autonomous retrieval
+- **Database**: Neon Postgres + Drizzle ORM for document metadata; ChromaDB for vector chunks
+- **UI**: Mantine v7 with Radix Colors palette (never hardcode hex values), AppShell layout
+- **Build**: Next.js 16 with Turbopack, ESLint flat config
 
 ## Environment
 
-Required: `OPENAI_API_KEY` (embeddings)
+Required: `OPENAI_API_KEY` (embeddings), `DATABASE_URL` (Neon Postgres)
 
 All other variables (LLM provider, chunk size, timeouts, etc.) are optional with sensible defaults - see `.env.example`.

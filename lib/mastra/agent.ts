@@ -2,7 +2,7 @@ import { Agent } from "@mastra/core/agent";
 import { createVectorQueryTool } from "@mastra/rag";
 import { getEmbeddingModel, getLanguageModel, getModelString } from "./config";
 import { INDEX_NAME, getVectorStore } from "./vectorstore";
-import { getDefaultInstructions } from "./prompts";
+import { BASE_INSTRUCTIONS } from "./prompts";
 
 export function createAgent(options: {
   id: string;
@@ -26,7 +26,7 @@ export function createAgent(options: {
   return new Agent({
     id: options.id,
     name: options.name,
-    instructions: options.instructions ?? getDefaultInstructions(),
+    instructions: options.instructions || BASE_INSTRUCTIONS,
     model: options.model ?? getModelString(),
     tools: { vectorQueryTool },
   });

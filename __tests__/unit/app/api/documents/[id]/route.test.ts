@@ -1,10 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { NextRequest } from "next/server";
-import { DELETE, GET } from "@/app/api/documents/[id]/route";
 
 vi.mock("@/lib/mastra/vectorstore", () => ({
-  deleteDocumentByName: vi.fn(),
+  deleteDocumentChunks: vi.fn(),
   getDocumentStats: vi.fn(),
+}));
+
+vi.mock("@/lib/db/utils", () => ({
+  deleteDocument: vi.fn(),
 }));
 
 const createParams = (id: string) => ({ params: Promise.resolve({ id }) });
@@ -25,26 +28,41 @@ describe("/api/documents/[id]", () => {
 
   describe("DELETE", () => {
     it("should delete document successfully", async () => {
-      const { deleteDocumentByName } = await import("@/lib/mastra/vectorstore");
-      vi.mocked(deleteDocumentByName).mockResolvedValue(3);
+      const { deleteDocumentChunks } = await import(
+        "@/lib/mastra/vectorstore"
+      );
+      const { deleteDocument } = await import("@/lib/db/utils");
+      vi.mocked(deleteDocument).mockResolvedValue({ rows: [] } as never);
+      vi.mocked(deleteDocumentChunks).mockResolvedValue(undefined);
 
+      const { DELETE } = await import(
+        "@/app/api/documents/[id]/route"
+      );
       const request = {} as NextRequest;
-      const response = await DELETE(request, createParams("test.txt"));
+      const response = await DELETE(request, createParams("test-id"));
       const data = await response.json();
 
-      expect(data.success).toBe(true);
+      expect(data.id).toBe("test-id");
       expect(data.message).toBe("Document deleted successfully");
-      expect(deleteDocumentByName).toHaveBeenCalledWith("test.txt");
+      expect(deleteDocument).toHaveBeenCalledWith("test-id");
+      expect(deleteDocumentChunks).toHaveBeenCalledWith("test-id");
     });
 
     it("should handle unexpected errors", async () => {
-      const { deleteDocumentByName } = await import("@/lib/mastra/vectorstore");
-      vi.mocked(deleteDocumentByName).mockRejectedValue(
-        new Error("Unexpected error"),
+      const { deleteDocumentChunks } = await import(
+        "@/lib/mastra/vectorstore"
       );
+      const { deleteDocument } = await import("@/lib/db/utils");
+      vi.mocked(deleteDocument).mockRejectedValue(
+        new Error("Unexpected error") as never,
+      );
+      vi.mocked(deleteDocumentChunks).mockResolvedValue(undefined);
 
+      const { DELETE } = await import(
+        "@/app/api/documents/[id]/route"
+      );
       const request = {} as NextRequest;
-      const response = await DELETE(request, createParams("test.txt"));
+      const response = await DELETE(request, createParams("test-id"));
       const data = await response.json();
 
       expect(response.status).toBe(500);
@@ -62,6 +80,7 @@ describe("/api/documents/[id]", () => {
         upload_date: "2024-01-01T00:00:00Z",
       });
 
+      const { GET } = await import("@/app/api/documents/[id]/route");
       const request = {} as NextRequest;
       const response = await GET(request, createParams("test.txt"));
       const data = await response.json();
@@ -82,6 +101,7 @@ describe("/api/documents/[id]", () => {
         upload_date: null,
       });
 
+      const { GET } = await import("@/app/api/documents/[id]/route");
       const request = {} as NextRequest;
       const response = await GET(request, createParams("missing.txt"));
       const data = await response.json();
@@ -95,6 +115,7 @@ describe("/api/documents/[id]", () => {
       const { getDocumentStats } = await import("@/lib/mastra/vectorstore");
       vi.mocked(getDocumentStats).mockRejectedValue(new Error("Failed"));
 
+      const { GET } = await import("@/app/api/documents/[id]/route");
       const request = {} as NextRequest;
       const response = await GET(request, createParams("test.txt"));
       const data = await response.json();

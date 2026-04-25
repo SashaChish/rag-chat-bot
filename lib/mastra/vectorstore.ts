@@ -1,5 +1,11 @@
 import { ChromaVector } from "@mastra/chroma";
-import type { ChromaDocumentSummary, IndexStats } from "../types/core.types";
+import { MDocument } from "@mastra/rag";
+import { count, eq } from "drizzle-orm";
+import { embedMany } from "ai";
+import { db } from "../db";
+import { documentsTable } from "../db/schema";
+import type { IndexStats, DocumentChunk } from "../types/core.types";
+import { getEmbeddingModel, CHUNK_SIZE, CHUNK_OVERLAP } from "./config";
 
 export const INDEX_NAME = "documents";
 
@@ -18,22 +24,84 @@ function buildChromaConfig(): ConstructorParameters<typeof ChromaVector>[0] {
   };
 }
 
+// TODO: refactor
+export async function addDocumentsToVectorStore(documents: DocumentChunk[]) {
+  if (documents.length === 0) {
+    return { chunksProcessed: 0 };
+  }
+  console.log(documents);
+  const allChunks = [];
+
+  for (const doc of documents) {
+    const mDoc =
+      doc.fileType === "md"
+        ? MDocument.fromMarkdown(doc.content, { file_name: doc.filename })
+        : MDocument.fromText(doc.content, { file_name: doc.filename });
+
+    const chunks = await mDoc.chunk({
+      strategy: "recursive",
+      maxSize: CHUNK_SIZE,
+      overlap: CHUNK_OVERLAP,
+    });
+
+    for (let i = 0; i < chunks.length; i++) {
+      allChunks.push({
+        text: chunks[i].text,
+        metadata: {
+          document_id: doc.id,
+          file_name: doc.filename,
+          file_type: doc.fileType,
+          upload_date: doc.uploadDate,
+          chunk_index: i,
+          chunk_text: chunks[i].text,
+        },
+      });
+    }
+  }
+
+  const embeddingModel = getEmbeddingModel();
+
+  const { embeddings } = await embedMany({
+    model: embeddingModel,
+    values: allChunks.map((c) => c.text),
+  });
+
+  await ensureIndex(embeddings[0].length);
+
+  const store = getVectorStore();
+
+  await store.upsert({
+    indexName: INDEX_NAME,
+    vectors: embeddings,
+    metadata: allChunks.map((c) => c.metadata),
+    documents: allChunks.map((c) => c.text),
+  });
+
+  return {
+    chunksProcessed: allChunks.length,
+  };
+}
+
 export function getVectorStore(): ChromaVector {
   if (!vectorStoreInstance) {
     const config = buildChromaConfig();
-    vectorStoreInstance = new ChromaVector(config ?? { id: INDEX_NAME });
+    vectorStoreInstance = new ChromaVector(config);
   }
+
   return vectorStoreInstance;
 }
 
 export async function ensureIndex(dimension: number = 1536): Promise<void> {
   const store = getVectorStore();
   const indexes = await store.listIndexes();
+
   if (!indexes.includes(INDEX_NAME)) {
     await store.createIndex({ indexName: INDEX_NAME, dimension });
     return;
   }
+
   const stats = await store.describeIndex({ indexName: INDEX_NAME });
+
   if (stats.dimension !== dimension) {
     await store.deleteIndex({ indexName: INDEX_NAME });
     await store.createIndex({ indexName: INDEX_NAME, dimension });
@@ -50,94 +118,17 @@ export async function hasDocuments(): Promise<boolean> {
   }
 }
 
-export async function getAllDocuments(): Promise<{
-  documents: ChromaDocumentSummary[];
-  total_chunks: number;
-}> {
+export async function deleteDocumentChunks(fileId: string) {
   try {
     const store = getVectorStore();
-    const indexes = await store.listIndexes();
-    if (!indexes.includes(INDEX_NAME)) {
-      return { documents: [], total_chunks: 0 };
-    }
-
-    const stats = await store.describeIndex({ indexName: INDEX_NAME });
-    if (stats.count === 0) {
-      return { documents: [], total_chunks: 0 };
-    }
-
-    const results = await store.get({
-      indexName: INDEX_NAME,
-      limit: stats.count,
-    });
-
-    if (!results || results.length === 0 || !results[0].metadata) {
-      return { documents: [], total_chunks: 0 };
-    }
-
-    const grouped = new Map<string, ChromaDocumentSummary>();
-
-    for (const record of results) {
-      const metadata = record.metadata as Record<string, unknown> | undefined;
-      if (!metadata) continue;
-
-      const fileName =
-        typeof metadata.file_name === "string" ? metadata.file_name : "unknown";
-
-      if (!grouped.has(fileName)) {
-        grouped.set(fileName, {
-          file_name: fileName,
-          file_type:
-            typeof metadata.file_type === "string"
-              ? metadata.file_type
-              : "unknown",
-          chunk_count: 0,
-          upload_date:
-            typeof metadata.upload_date === "string"
-              ? metadata.upload_date
-              : null,
-          first_chunk_id: record.id,
-        });
-      }
-
-      grouped.get(fileName)!.chunk_count++;
-    }
-
-    const documentList = Array.from(grouped.values()).sort((a, b) => {
-      const dateA = a.upload_date ? new Date(a.upload_date).getTime() : 0;
-      const dateB = b.upload_date ? new Date(b.upload_date).getTime() : 0;
-      return dateB - dateA || a.file_name.localeCompare(b.file_name);
-    });
-
-    return {
-      documents: documentList,
-      total_chunks: results.length,
-    };
-  } catch (error) {
-    console.error("Error getting all documents:", error);
-    return { documents: [], total_chunks: 0 };
-  }
-}
-
-export async function deleteDocumentByName(fileName: string): Promise<number> {
-  try {
-    const store = getVectorStore();
-
-    const existing = await store.get({
-      indexName: INDEX_NAME,
-      filter: { file_name: fileName },
-    });
-    const chunkCount = existing?.length ?? 0;
-
     await store.deleteVectors({
       indexName: INDEX_NAME,
-      filter: { file_name: fileName },
+      filter: { document_id: fileId },
     });
-
-    return chunkCount;
   } catch (error) {
-    console.error(`Error deleting document ${fileName}:`, error);
-    throw new Error(`Failed to delete document: ${(error as Error).message}`);
+    throw new Error(
+      `Failed to delete document from Vector Store: ${(error as Error).message}`,
+    );
   }
 }
 
@@ -148,13 +139,12 @@ export async function getDocumentStats(fileName: string): Promise<{
   upload_date: string | null;
 }> {
   try {
-    const store = getVectorStore();
-    const results = await store.get({
-      indexName: INDEX_NAME,
-      filter: { file_name: fileName },
-    });
+    const [row] = await db
+      .select()
+      .from(documentsTable)
+      .where(eq(documentsTable.filename, fileName));
 
-    if (!results || results.length === 0) {
+    if (!row) {
       return {
         exists: false,
         chunk_count: 0,
@@ -163,19 +153,11 @@ export async function getDocumentStats(fileName: string): Promise<{
       };
     }
 
-    const metadata = results[0].metadata as Record<string, unknown> | undefined;
-
     return {
       exists: true,
-      chunk_count: results.length,
-      file_type:
-        metadata && typeof metadata.file_type === "string"
-          ? metadata.file_type
-          : null,
-      upload_date:
-        metadata && typeof metadata.upload_date === "string"
-          ? metadata.upload_date
-          : null,
+      chunk_count: row.chunkCount,
+      file_type: row.fileType,
+      upload_date: row.uploadDate,
     };
   } catch {
     return {
@@ -187,48 +169,29 @@ export async function getDocumentStats(fileName: string): Promise<{
   }
 }
 
-async function getUniqueDocumentCount(
-  store: ChromaVector,
-  vectorCount: number,
-): Promise<number> {
-  const records = await store.get({
-    indexName: INDEX_NAME,
-    limit: vectorCount,
-  });
-
-  const fileNames = new Set<string>();
-  for (const record of records) {
-    const metadata = record.metadata as Record<string, unknown> | undefined;
-    if (metadata && typeof metadata.file_name === "string") {
-      fileNames.add(metadata.file_name);
-    }
-  }
-  return fileNames.size;
-}
-
 export async function getCollectionStats(
   collectionName: string = INDEX_NAME,
 ): Promise<IndexStats> {
   try {
-    const store = getVectorStore();
-    const indexes = await store.listIndexes();
-    if (!indexes.includes(INDEX_NAME)) {
-      return {
-        exists: false,
-        collectionName,
-        count: 0,
-        documentCount: 0,
-      };
+    const [row] = await db.select({ count: count() }).from(documentsTable);
+    const documentCount = row?.count ?? 0;
+
+    let vectorCount = 0;
+    try {
+      const store = getVectorStore();
+      const indexes = await store.listIndexes();
+      if (indexes.includes(INDEX_NAME)) {
+        const stats = await store.describeIndex({ indexName: INDEX_NAME });
+        vectorCount = stats.count;
+      }
+    } catch {
+      // ChromaDB index may not exist yet
     }
 
-    const stats = await store.describeIndex({ indexName: INDEX_NAME });
-    const documentCount =
-      stats.count > 0 ? await getUniqueDocumentCount(store, stats.count) : 0;
-
     return {
-      exists: true,
+      exists: documentCount > 0 || vectorCount > 0,
       collectionName,
-      count: stats.count,
+      count: vectorCount,
       documentCount,
     };
   } catch {
@@ -242,31 +205,11 @@ export async function getCollectionStats(
 }
 
 export async function clearCollection(): Promise<void> {
+  await db.delete(documentsTable);
+
   const store = getVectorStore();
   const indexes = await store.listIndexes();
   if (indexes.includes(INDEX_NAME)) {
     await store.deleteIndex({ indexName: INDEX_NAME });
-  }
-}
-
-export async function getDocumentContent(
-  fileName: string,
-): Promise<string | null> {
-  try {
-    const store = getVectorStore();
-    const results = await store.get({
-      indexName: INDEX_NAME,
-      filter: { file_name: fileName },
-    });
-
-    if (!results || results.length === 0) return null;
-
-    return results
-      .map((r) => r.document || "")
-      .filter(Boolean)
-      .join("\n\n");
-  } catch (error) {
-    console.error(`Error getting document content for ${fileName}:`, error);
-    return null;
   }
 }

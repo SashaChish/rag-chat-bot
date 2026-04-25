@@ -18,19 +18,4 @@ describe("prompts", () => {
       expect(BASE_INSTRUCTIONS.length).toBeGreaterThan(100);
     });
   });
-
-  describe("getDefaultInstructions", () => {
-    it("should include CHROMA_PROMPT", async () => {
-      const { getDefaultInstructions } = await import("@/lib/mastra/prompts");
-      const instructions = getDefaultInstructions();
-      expect(instructions).toContain("Chroma filter instructions");
-    });
-
-    it("should include base instructions", async () => {
-      const { getDefaultInstructions, BASE_INSTRUCTIONS } =
-        await import("@/lib/mastra/prompts");
-      const instructions = getDefaultInstructions();
-      expect(instructions).toContain(BASE_INSTRUCTIONS);
-    });
-  });
 });

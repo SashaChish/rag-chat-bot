@@ -1,90 +1,11 @@
-import { MDocument } from "@mastra/rag";
-import { embedMany } from "ai";
 import type {
-  RAGDocument,
   ChatMessage,
   QueryResponse,
   SourceInfo,
   DocumentMetadata,
 } from "../types/core.types";
-import { getEmbeddingModel, CHUNK_SIZE, CHUNK_OVERLAP } from "./config";
-import {
-  INDEX_NAME,
-  getVectorStore,
-  hasDocuments,
-  ensureIndex,
-} from "./vectorstore";
+import { hasDocuments } from "./vectorstore";
 import { createAgent } from "./agent";
-
-export interface AddDocumentsResult {
-  success: boolean;
-  documentsAdded: number;
-  chunksProcessed: number;
-}
-
-export async function addDocuments(
-  documents: RAGDocument[],
-): Promise<AddDocumentsResult> {
-  if (documents.length === 0) {
-    return { success: true, documentsAdded: 0, chunksProcessed: 0 };
-  }
-
-  const allChunks: { text: string; metadata: Record<string, unknown> }[] = [];
-
-  for (const doc of documents) {
-    const fileName = doc.metadata.file_name || "Unknown";
-    const fileType = doc.metadata.file_type || "Unknown";
-    const uploadDate = doc.metadata.upload_date || new Date().toISOString();
-
-    const mDoc =
-      fileType === "md"
-        ? MDocument.fromMarkdown(doc.text, { file_name: fileName })
-        : MDocument.fromText(doc.text, { file_name: fileName });
-
-    const chunks = await mDoc.chunk({
-      strategy: "recursive",
-      maxSize: CHUNK_SIZE,
-      overlap: CHUNK_OVERLAP,
-    });
-
-    for (let i = 0; i < chunks.length; i++) {
-      allChunks.push({
-        text: chunks[i].text,
-        metadata: {
-          file_name: fileName,
-          file_type: fileType,
-          upload_date: uploadDate,
-          chunk_index: i,
-          chunk_text: chunks[i].text,
-        },
-      });
-    }
-  }
-
-  const embeddingModel = getEmbeddingModel();
-  const { embeddings } = await embedMany({
-    model: embeddingModel,
-    values: allChunks.map((c) => c.text),
-  });
-
-  await ensureIndex(embeddings[0].length);
-
-  const store = getVectorStore();
-  await store.upsert({
-    indexName: INDEX_NAME,
-    vectors: embeddings,
-    metadata: allChunks.map(
-      (c) => c.metadata as Record<string, string | number | boolean>,
-    ),
-    documents: allChunks.map((c) => c.text),
-  });
-
-  return {
-    success: true,
-    documentsAdded: documents.length,
-    chunksProcessed: allChunks.length,
-  };
-}
 
 interface VectorQuerySource {
   id: string;
@@ -150,6 +71,7 @@ export async function executeQuery(
 ): Promise<QueryResponse> {
   try {
     const docsExist = await hasDocuments();
+
     if (!docsExist) {
       return {
         response: "",

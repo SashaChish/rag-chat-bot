@@ -1,17 +1,17 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery } from "@tanstack/react-query";
 
 export function useDocumentPreview(
-  fileName: string | undefined,
+  id: string | undefined,
   options: { enabled: boolean },
 ) {
   return useQuery({
-    queryKey: ['document-preview', fileName],
+    queryKey: ["document-preview", id],
     queryFn: async () => {
       const response = await fetch(
-        `/api/documents/${encodeURIComponent(fileName!)}/preview`,
+        `/api/documents/${encodeURIComponent(id!)}/preview`,
       );
       if (!response.ok) {
-        throw new Error('Failed to load preview');
+        throw new Error("Failed to load preview");
       }
       return response.json() as Promise<{ content: string }>;
     },

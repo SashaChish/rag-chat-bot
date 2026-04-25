@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MantineProvider } from '@mantine/core';
 import { createElement } from 'react';
@@ -13,35 +13,36 @@ vi.mock('@/lib/hooks/use-document-download', () => ({
 }));
 
 const mockStatsData = {
-  stats: {
-    exists: true,
-    collectionName: 'documents',
-    count: 10,
-    documentCount: 3,
-  },
+  exists: true,
+  collectionName: 'documents',
+  count: 10,
+  documentCount: 3,
 };
 
-const mockDocumentsData = {
-  documents: [
-    {
-      id: 'doc1',
-      file_name: 'document1.txt',
-      file_type: 'TEXT',
-      upload_date: '2024-01-01T12:00:00Z',
-      chunk_count: 3,
-      file_size: null,
-      can_download: true,
-    },
-    {
-      id: 'doc2',
-      file_name: 'document2.pdf',
-      file_type: 'PDF',
-      upload_date: '2024-01-02T12:00:00Z',
-      chunk_count: 5,
-      file_size: '1 MB',
-      can_download: true,
-    },
-  ],
+const mockDocumentsData = [
+  {
+    id: 'doc1',
+    filename: 'document1.txt',
+    fileType: 'TEXT',
+    uploadDate: '2024-01-01T12:00:00Z',
+    chunkCount: 3,
+    fileSize: 100,
+    content: null,
+  },
+  {
+    id: 'doc2',
+    filename: 'document2.pdf',
+    fileType: 'PDF',
+    uploadDate: '2024-01-02T12:00:00Z',
+    chunkCount: 5,
+    fileSize: 1024,
+    content: null,
+  },
+];
+
+const mockFetchResponse = {
+  documents: mockDocumentsData,
+  stats: mockStatsData,
 };
 
 const createWrapper = () => {
@@ -67,16 +68,16 @@ describe('DocumentList', () => {
     mockMutate.mockClear();
 
     global.fetch = vi.fn().mockImplementation((url: string) => {
-      if (url.includes('/api/documents/list')) {
+      if (url === '/api/documents') {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve(mockDocumentsData),
+          json: () => Promise.resolve(mockFetchResponse),
         });
       }
       if (url.includes('/preview')) {
         const match = url.match(/\/api\/documents\/([^/]+)\/preview/);
-        const fileName = match ? decodeURIComponent(match[1]) : '';
-        const content = fileName === 'document1.txt' ? 'Sample content for document 1' : '';
+        const docId = match ? match[1] : '';
+        const content = docId === 'doc1' ? 'Sample content for document 1' : '';
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({ content }),
@@ -90,7 +91,7 @@ describe('DocumentList', () => {
       }
       return Promise.resolve({
         ok: true,
-        json: () => Promise.resolve(mockStatsData),
+        json: () => Promise.resolve({}),
       });
     });
   });
@@ -141,19 +142,12 @@ describe('DocumentList', () => {
   });
 
   it('should show empty state when no documents', async () => {
-    global.fetch = vi.fn().mockImplementation((url: string) => {
-      if (url.includes('action=list')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ documents: [] }),
-        });
-      }
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({
-          stats: { exists: false, collectionName: 'documents', count: 0, documentCount: 0 },
-        }),
-      });
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        documents: [],
+        stats: { exists: false, collectionName: 'documents', count: 0, documentCount: 0 },
+      }),
     });
 
     const { Wrapper } = createWrapper();
@@ -255,15 +249,15 @@ describe('DocumentList', () => {
           json: () => Promise.resolve({ success: true }),
         });
       }
-      if (url.includes('/api/documents/list')) {
+      if (url === '/api/documents') {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve(mockDocumentsData),
+          json: () => Promise.resolve(mockFetchResponse),
         });
       }
       return Promise.resolve({
         ok: true,
-        json: () => Promise.resolve(mockStatsData),
+        json: () => Promise.resolve({}),
       });
     });
 
@@ -570,18 +564,10 @@ describe('DocumentList', () => {
     expect(mockMutate).toHaveBeenCalled();
   });
 
-  it('should show error state when stats query fails', async () => {
-    global.fetch = vi.fn().mockImplementation((url: string) => {
-      if (url.includes('action=list')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockDocumentsData),
-        });
-      }
-      return Promise.resolve({
-        ok: false,
-        json: () => Promise.resolve({ error: 'Failed to load document stats' }),
-      });
+  it('should show error state when fetch fails', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      json: () => Promise.resolve({ error: 'Failed to load documents' }),
     });
 
     const { Wrapper } = createWrapper();
@@ -594,61 +580,8 @@ describe('DocumentList', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Failed to load document stats')).toBeInTheDocument();
+      expect(screen.getByText('Failed to load documents')).toBeInTheDocument();
     });
-  });
-
-  it('should show error state when documents query fails', async () => {
-    global.fetch = vi.fn().mockImplementation((url: string) => {
-      if (url.includes('/api/documents/list')) {
-        return Promise.resolve({
-          ok: false,
-          json: () => Promise.resolve({ error: 'Failed to load document list' }),
-        });
-      }
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve(mockStatsData),
-      });
-    });
-
-    const { Wrapper } = createWrapper();
-
-    const DocumentList = (await import('@/components/DocumentList/DocumentList')).default;
-    render(
-      <Wrapper>
-        <DocumentList />
-      </Wrapper>
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText('Failed to load document list')).toBeInTheDocument();
-    });
-  });
-
-  it('should refetch documents when documentUploaded event is fired', async () => {
-    const { Wrapper, queryClient } = createWrapper();
-    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
-
-    const DocumentList = (await import('@/components/DocumentList/DocumentList')).default;
-    render(
-      <Wrapper>
-        <DocumentList />
-      </Wrapper>
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText('document1.txt')).toBeInTheDocument();
-    });
-
-    invalidateSpy.mockClear();
-
-    await act(async () => {
-      window.dispatchEvent(new CustomEvent('documentUploaded'));
-    });
-
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['documents-stats'] });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['documents-list'] });
   });
 
   it('should close delete confirmation modal when clicking overlay', async () => {

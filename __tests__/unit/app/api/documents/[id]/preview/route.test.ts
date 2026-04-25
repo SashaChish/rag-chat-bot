@@ -1,8 +1,21 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { NextRequest } from "next/server";
 
-vi.mock("@/lib/mastra/vectorstore", () => ({
-  getDocumentContent: vi.fn(),
+const mockWhereFn = vi.fn().mockResolvedValue([]);
+const mockFromFn = vi.fn().mockReturnValue({ where: mockWhereFn });
+const mockSelectFn = vi.fn().mockReturnValue({ from: mockFromFn });
+
+vi.mock("@/lib/db", () => ({
+  db: {
+    select: mockSelectFn,
+  },
+}));
+
+vi.mock("@/lib/db/schema", () => ({
+  documentsTable: {
+    file_name: "file_name",
+    content: "content",
+  },
 }));
 
 const createParams = (id: string) => ({ params: Promise.resolve({ id }) });
@@ -10,6 +23,10 @@ const createParams = (id: string) => ({ params: Promise.resolve({ id }) });
 describe("/api/documents/[id]/preview", () => {
   beforeEach(() => {
     vi.spyOn(console, "error").mockImplementation(() => {});
+
+    mockSelectFn.mockReturnValue({ from: mockFromFn });
+    mockFromFn.mockReturnValue({ where: mockWhereFn });
+    mockWhereFn.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -17,8 +34,7 @@ describe("/api/documents/[id]/preview", () => {
   });
 
   it("should return document content", async () => {
-    const { getDocumentContent } = await import("@/lib/mastra/vectorstore");
-    vi.mocked(getDocumentContent).mockResolvedValue("Document text content");
+    mockWhereFn.mockResolvedValue([{ content: "Document text content" }]);
 
     const { GET } = await import("@/app/api/documents/[id]/preview/route");
     const response = await GET({} as NextRequest, createParams("test.txt"));
@@ -26,12 +42,10 @@ describe("/api/documents/[id]/preview", () => {
 
     expect(response.status).toBe(200);
     expect(data.content).toBe("Document text content");
-    expect(getDocumentContent).toHaveBeenCalledWith("test.txt");
   });
 
   it("should return 404 when document not found", async () => {
-    const { getDocumentContent } = await import("@/lib/mastra/vectorstore");
-    vi.mocked(getDocumentContent).mockResolvedValue(null);
+    mockWhereFn.mockResolvedValue([]);
 
     const { GET } = await import("@/app/api/documents/[id]/preview/route");
     const response = await GET({} as NextRequest, createParams("missing.txt"));

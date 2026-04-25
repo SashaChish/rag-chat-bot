@@ -1,4 +1,4 @@
-import type { RAGDocument } from "../types/core.types";
+import { v4 as uuidv4 } from "uuid";
 import { MAX_FILE_SIZE_MB } from "../constants";
 import { ValidationError } from "../api/errors";
 
@@ -25,7 +25,11 @@ export function getFileType(filename: string): string | null {
   return formatMap[ext] || null;
 }
 
-export function validateFile(file: File): boolean {
+export function validateFile(file: FormDataEntryValue | null) {
+  if (!file || !(file instanceof File)) {
+    throw new ValidationError("No file provided");
+  }
+
   if (getFileType(file.name) === null) {
     throw new ValidationError(
       `Unsupported file format: ${file.name}. Supported formats: ${SUPPORTED_EXTENSIONS.join(", ")}`,
@@ -44,41 +48,36 @@ export function validateFile(file: File): boolean {
     throw new ValidationError("File is empty");
   }
 
-  return true;
+  return { isValid: true, file };
 }
 
-export async function loadDocumentFromBuffer(
-  buffer: Buffer,
-  filename: string,
-): Promise<{ documents: RAGDocument[] }> {
+export async function loadDocumentFromBuffer(buffer: Buffer, filename: string) {
   const ext = filename.split(".").pop()?.toLowerCase();
+
   if (!ext) {
     throw new ValidationError("Invalid filename - no extension found");
   }
 
-  let text: string;
-  const fileType = getFileType(filename);
+  let content: string;
 
   switch (ext) {
     case "pdf": {
       const { PDFParse } = await import("pdf-parse");
       const parser = new PDFParse({ data: buffer });
       const { text: extractedText } = await parser.getText();
-      text = extractedText;
+      content = extractedText;
       break;
     }
     case "docx": {
       const mammoth = await import("mammoth");
       const result = await mammoth.extractRawText({ buffer });
-      text = result.value;
+      content = result.value;
       break;
     }
     case "md":
     case "markdown":
-      text = buffer.toString("utf-8");
-      break;
     case "txt":
-      text = buffer.toString("utf-8");
+      content = buffer.toString("utf-8");
       break;
     default:
       throw new ValidationError(
@@ -86,20 +85,15 @@ export async function loadDocumentFromBuffer(
       );
   }
 
-  if (!text || text.trim().length === 0) {
+  if (content.trim().length === 0) {
     throw new ValidationError("Could not extract text from file");
   }
 
   return {
-    documents: [
-      {
-        text,
-        metadata: {
-          file_name: filename,
-          file_type: fileType || ext,
-          upload_date: new Date().toISOString(),
-        },
-      },
-    ],
+    id: uuidv4(),
+    content,
+    filename,
+    fileType: getFileType(filename),
+    uploadDate: new Date().toISOString(),
   };
 }

@@ -1,9 +1,5 @@
-import type {
-  ChatMessage,
-  DocumentListEntry,
-  IndexStats,
-  SourceInfo,
-} from "./core.types";
+import type { DocumentEntry } from "../db/types";
+import type { ChatMessage, IndexStats, SourceInfo } from "./core.types";
 
 export interface ChatRequest {
   message: string;
@@ -27,20 +23,11 @@ export interface ChatStatusResponse {
 }
 
 export interface DocumentUploadResponse {
-  success: boolean;
-  id: string;
-  filename: string;
-  originalName: string;
-  size: string;
-  type: string;
-  chunksProcessed: number;
+  document: Omit<DocumentEntry, "fileSize"> & { fileSize: string };
   message: string;
 }
 
-export interface DocumentListResponse {
-  documents: DocumentListEntry[];
-}
-
-export interface DocumentsGetResponse {
+export interface GetDocumentsResponse {
+  documents: DocumentEntry[];
   stats: IndexStats;
 }

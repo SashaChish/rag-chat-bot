@@ -24,7 +24,7 @@
 
 ### Key Changes
 
-1. **addDocuments()**: Now uses `VectorStoreIndex.fromDocuments()` instead of manual embedding creation and ChromaDB operations
+1. **addDocumentsToVectorStore()**: Now uses `VectorStoreIndex.fromDocuments()` instead of manual embedding creation and ChromaDB operations
 2. **queryDocuments()**: Now uses `index.asQueryEngine()` for retrieval instead of manual ChromaDB queries
 3. **executeQuery()**: Now uses native query engine instead of manual context building and LLM calls
 4. **Global Index Cache**: Added `global.indexCache` to persist VectorStoreIndex instances across API calls

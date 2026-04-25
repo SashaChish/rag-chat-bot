@@ -1,64 +1,54 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { withErrorHandler } from "@/lib/api/handler";
 import { loadDocumentFromBuffer, validateFile } from "@/lib/mastra/loaders";
-import { addDocuments } from "@/lib/mastra/index";
-import { getCollectionStats } from "@/lib/mastra/vectorstore";
+import {
+  addDocumentsToVectorStore,
+  getCollectionStats,
+} from "@/lib/mastra/vectorstore";
 import { formatFileSize } from "@/lib/utils/format.utils";
 import type {
   DocumentUploadResponse,
-  DocumentsGetResponse,
+  GetDocumentsResponse,
 } from "@/lib/types/api";
+import { db } from "@/lib/db";
+import { documentsTable } from "@/lib/db/schema";
+import { getAllDocuments } from "@/lib/db/utils";
 
 async function uploadDocument(request: NextRequest): Promise<NextResponse> {
   const formData = await request.formData();
-  const file = formData.get("file");
-
-  if (!file || !(file instanceof File)) {
-    return NextResponse.json(
-      { error: { code: "VALIDATION_ERROR" as const, message: "No file provided" } },
-      { status: 400 },
-    );
-  }
-
-  validateFile(file);
-
+  const { file } = validateFile(formData.get("file"));
   const buffer = Buffer.from(await file.arrayBuffer());
-  const { documents } = await loadDocumentFromBuffer(buffer, file.name);
+  const document = await loadDocumentFromBuffer(buffer, file.name);
+  const { chunksProcessed } = await addDocumentsToVectorStore([document]);
 
-  if (documents.length === 0) {
-    throw new Error("No content could be extracted from file");
-  }
-
-  const result = await addDocuments(documents);
+  const [addedDocument] = await db
+    .insert(documentsTable)
+    .values({
+      ...document,
+      fileType: document.fileType || file.type,
+      fileSize: file.size,
+      chunkCount: chunksProcessed,
+    })
+    .returning();
 
   const response: DocumentUploadResponse = {
-    success: true,
-    id: file.name,
-    filename: file.name,
-    originalName: file.name,
-    size: formatFileSize(file.size),
-    type: file.type,
-    chunksProcessed: result.chunksProcessed,
+    document: {
+      ...addedDocument,
+      fileSize: formatFileSize(addedDocument.fileSize),
+    },
     message: "Document uploaded and indexed successfully",
   };
 
   return NextResponse.json(response);
 }
 
-async function getStats(_request: NextRequest): Promise<NextResponse> {
+async function getDocuments(_request: NextRequest): Promise<NextResponse> {
   const stats = await getCollectionStats();
-
-  const response: DocumentsGetResponse = {
-    stats: {
-      exists: stats.exists,
-      collectionName: stats.collectionName,
-      count: stats.count,
-      documentCount: stats.documentCount,
-    },
-  };
+  const documents = await getAllDocuments();
+  const response: GetDocumentsResponse = { documents, stats };
 
   return NextResponse.json(response);
 }
 
 export const POST = withErrorHandler(uploadDocument);
-export const GET = withErrorHandler(getStats);
+export const GET = withErrorHandler(getDocuments);

@@ -1,36 +1,123 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-const mockListIndexes = vi.fn();
-const mockDescribeIndex = vi.fn();
-const mockCreateIndex = vi.fn();
-const mockDeleteIndex = vi.fn();
-const mockDeleteVectors = vi.fn();
-const mockGet = vi.fn();
+const {
+  mockListIndexes,
+  mockDescribeIndex,
+  mockCreateIndex,
+  mockDeleteIndex,
+  mockDeleteVectors,
+  mockGet,
+  mockSelectWhereFn,
+  mockFromFn,
+  mockSelectFn,
+  mockDeleteWhereFn,
+  mockDeleteFn,
+  MockChromaVector,
+} = vi.hoisted(() => {
+  const mockListIndexes = vi.fn();
+  const mockDescribeIndex = vi.fn();
+  const mockCreateIndex = vi.fn();
+  const mockDeleteIndex = vi.fn();
+  const mockDeleteVectors = vi.fn();
+  const mockGet = vi.fn();
 
-class MockChromaVector {
-  listIndexes = mockListIndexes;
-  describeIndex = mockDescribeIndex;
-  createIndex = mockCreateIndex;
-  deleteIndex = mockDeleteIndex;
-  deleteVectors = mockDeleteVectors;
-  get = mockGet;
-}
+  class MockChromaVector {
+    listIndexes = mockListIndexes;
+    describeIndex = mockDescribeIndex;
+    createIndex = mockCreateIndex;
+    deleteIndex = mockDeleteIndex;
+    deleteVectors = mockDeleteVectors;
+    get = mockGet;
+  }
+
+  const mockSelectWhereFn = vi.fn().mockResolvedValue([]);
+
+  const mockFromFn = vi.fn().mockReturnValue({
+    where: mockSelectWhereFn,
+    then: (resolve: (v: unknown) => void) => Promise.resolve([]).then(resolve),
+  });
+
+  const mockSelectFn = vi.fn().mockReturnValue({ from: mockFromFn });
+
+  const mockDeleteWhereFn = vi.fn().mockResolvedValue(undefined);
+
+  const mockDeleteFn = vi.fn().mockReturnValue({
+    where: mockDeleteWhereFn,
+    then: (resolve: (v: unknown) => void) =>
+      Promise.resolve(undefined).then(resolve),
+  });
+
+  return {
+    mockListIndexes,
+    mockDescribeIndex,
+    mockCreateIndex,
+    mockDeleteIndex,
+    mockDeleteVectors,
+    mockGet,
+    mockSelectWhereFn,
+    mockFromFn,
+    mockSelectFn,
+    mockDeleteWhereFn,
+    mockDeleteFn,
+    MockChromaVector,
+  };
+});
 
 vi.mock("@mastra/chroma", () => ({
   ChromaVector: MockChromaVector,
 }));
 
+vi.mock("@/lib/db", () => ({
+  db: {
+    select: mockSelectFn,
+    delete: mockDeleteFn,
+  },
+}));
+
+vi.mock("@/lib/db/schema", () => ({
+  documentsTable: {
+    filename: "file_name",
+    fileType: "file_type",
+    fileSize: "file_size",
+    uploadDate: "upload_date",
+    chunkCount: "chunk_count",
+  },
+}));
+
+vi.mock("drizzle-orm", () => ({
+  eq: vi.fn().mockReturnValue({}),
+  count: vi.fn().mockReturnValue("count"),
+}));
+
 describe("vectorstore", () => {
   const originalEnv = process.env;
 
-  beforeEach(async () => {
-    process.env = { ...originalEnv };
+  beforeEach(() => {
+    process.env = { ...originalEnv, CHROMA_URL: "http://localhost:8000" };
     mockListIndexes.mockReset();
     mockDescribeIndex.mockReset();
     mockCreateIndex.mockReset();
     mockDeleteIndex.mockReset();
     mockDeleteVectors.mockReset();
     mockGet.mockReset();
+    mockSelectFn.mockReset();
+    mockDeleteFn.mockReset();
+    mockDeleteWhereFn.mockReset();
+    mockFromFn.mockReset();
+    mockSelectWhereFn.mockReset();
+
+    mockSelectWhereFn.mockResolvedValue([]);
+    mockFromFn.mockReturnValue({
+      where: mockSelectWhereFn,
+      then: (resolve: (v: unknown) => void) => Promise.resolve([]).then(resolve),
+    });
+    mockSelectFn.mockReturnValue({ from: mockFromFn });
+    mockDeleteWhereFn.mockResolvedValue(undefined);
+    mockDeleteFn.mockReturnValue({
+      where: mockDeleteWhereFn,
+      then: (resolve: (v: unknown) => void) =>
+        Promise.resolve(undefined).then(resolve),
+    });
   });
 
   afterEach(() => {
@@ -38,15 +125,8 @@ describe("vectorstore", () => {
     vi.clearAllMocks();
   });
 
-  async function importFreshVectorstore() {
-    vi.resetModules();
-    const mod = await import("@/lib/mastra/vectorstore");
-    return mod;
-  }
-
   describe("getVectorStore", () => {
-    it("should create a ChromaVector instance", async () => {
-      const { getVectorStore } = await importFreshVectorstore();
+    it("should create a ChromaVector instance", () => {
       const store = getVectorStore();
       expect(store).toBeDefined();
       expect(store).toBeInstanceOf(MockChromaVector);
@@ -54,27 +134,16 @@ describe("vectorstore", () => {
   });
 
   describe("hasDocuments", () => {
-    it("should return true when index has documents", async () => {
-      mockDescribeIndex.mockResolvedValue({ count: 5, dimension: 1536 });
+    it("should return true when ChromaDB has documents", async () => {
+      mockDescribeIndex.mockResolvedValue({ count: 5 });
 
-      const { hasDocuments } = await importFreshVectorstore();
       const result = await hasDocuments();
       expect(result).toBe(true);
-      expect(mockListIndexes).not.toHaveBeenCalled();
     });
 
-    it("should return false when index is empty", async () => {
-      mockDescribeIndex.mockResolvedValue({ count: 0, dimension: 1536 });
+    it("should return false when ChromaDB is empty", async () => {
+      mockDescribeIndex.mockResolvedValue({ count: 0 });
 
-      const { hasDocuments } = await importFreshVectorstore();
-      const result = await hasDocuments();
-      expect(result).toBe(false);
-    });
-
-    it("should return false when index does not exist (describeIndex throws)", async () => {
-      mockDescribeIndex.mockRejectedValue(new Error("Not found"));
-
-      const { hasDocuments } = await importFreshVectorstore();
       const result = await hasDocuments();
       expect(result).toBe(false);
     });
@@ -82,114 +151,54 @@ describe("vectorstore", () => {
     it("should return false on error", async () => {
       mockDescribeIndex.mockRejectedValue(new Error("Connection failed"));
 
-      const { hasDocuments } = await importFreshVectorstore();
       const result = await hasDocuments();
       expect(result).toBe(false);
     });
   });
 
-  describe("getAllDocuments", () => {
-    it("should return empty when no indexes exist", async () => {
-      mockListIndexes.mockResolvedValue([]);
-
-      const { getAllDocuments } = await importFreshVectorstore();
-      const result = await getAllDocuments();
-      expect(result.documents).toEqual([]);
-      expect(result.total_chunks).toBe(0);
-    });
-
-    it("should map query results to document summaries", async () => {
-      mockListIndexes.mockResolvedValue(["documents"]);
-      mockDescribeIndex.mockResolvedValue({ count: 2, dimension: 1536 });
-      mockGet.mockResolvedValue([
-        {
-          id: "chunk-1",
-          metadata: { file_name: "test.pdf", file_type: "pdf", upload_date: "2026-04-01" },
-          document: "text 1",
-        },
-        {
-          id: "chunk-2",
-          metadata: { file_name: "test.pdf", file_type: "pdf", upload_date: "2026-04-01" },
-          document: "text 2",
-        },
-      ]);
-
-      const { getAllDocuments } = await importFreshVectorstore();
-      const result = await getAllDocuments();
-
-      expect(result.documents).toHaveLength(1);
-      expect(result.documents[0].file_name).toBe("test.pdf");
-      expect(result.documents[0].chunk_count).toBe(2);
-      expect(result.total_chunks).toBe(2);
-      expect(mockGet).toHaveBeenCalledWith({
-        indexName: "documents",
-        limit: 2,
-      });
-    });
-  });
-
-  describe("deleteDocumentByName", () => {
-    it("should query chunk count before deletion and return it", async () => {
-      mockGet.mockResolvedValue([
-        { id: "1", metadata: { file_name: "test.pdf" } },
-        { id: "2", metadata: { file_name: "test.pdf" } },
-        { id: "3", metadata: { file_name: "test.pdf" } },
-      ]);
+  describe("deleteDocumentChunks", () => {
+    it("should delete vectors from ChromaDB by document ID", async () => {
       mockDeleteVectors.mockResolvedValue(undefined);
 
-      const { deleteDocumentByName } = await importFreshVectorstore();
-      const result = await deleteDocumentByName("test.pdf");
+      await deleteDocumentChunks("test-id");
 
-      expect(mockGet).toHaveBeenCalledWith({
-        indexName: "documents",
-        filter: { file_name: "test.pdf" },
-      });
       expect(mockDeleteVectors).toHaveBeenCalledWith({
         indexName: "documents",
-        filter: { file_name: "test.pdf" },
+        filter: { document_id: "test-id" },
       });
-      expect(result).toBe(3);
     });
 
-    it("should return 0 for non-existent documents", async () => {
-      mockGet.mockResolvedValue([]);
-      mockDeleteVectors.mockResolvedValue(undefined);
+    it("should throw when vector deletion fails", async () => {
+      mockDeleteVectors.mockRejectedValue(new Error("Connection failed"));
 
-      const { deleteDocumentByName } = await importFreshVectorstore();
-      const result = await deleteDocumentByName("nonexistent.pdf");
-
-      expect(result).toBe(0);
+      await expect(deleteDocumentChunks("test-id")).rejects.toThrow(
+        "Failed to delete document from Vector Store",
+      );
     });
   });
 
   describe("getDocumentStats", () => {
     it("should return stats for existing document", async () => {
-      mockGet.mockResolvedValue([
+      mockSelectWhereFn.mockResolvedValue([
         {
-          id: "chunk-1",
-          metadata: { file_name: "test.pdf", file_type: "pdf", upload_date: "2026-04-01" },
-          document: "text 1",
-        },
-        {
-          id: "chunk-2",
-          metadata: { file_name: "test.pdf", file_type: "pdf", upload_date: "2026-04-01" },
-          document: "text 2",
+          filename: "test.pdf",
+          fileType: "pdf",
+          uploadDate: new Date("2026-04-01"),
+          chunkCount: 2,
         },
       ]);
 
-      const { getDocumentStats } = await importFreshVectorstore();
       const stats = await getDocumentStats("test.pdf");
 
       expect(stats.exists).toBe(true);
       expect(stats.chunk_count).toBe(2);
       expect(stats.file_type).toBe("pdf");
-      expect(stats.upload_date).toBe("2026-04-01");
+      expect(stats.upload_date).toEqual(new Date("2026-04-01"));
     });
 
     it("should return not-exists for missing documents", async () => {
-      mockGet.mockResolvedValue([]);
+      mockSelectWhereFn.mockResolvedValue([]);
 
-      const { getDocumentStats } = await importFreshVectorstore();
       const stats = await getDocumentStats("missing.pdf");
 
       expect(stats.exists).toBe(false);
@@ -199,9 +208,8 @@ describe("vectorstore", () => {
     });
 
     it("should return not-exists on error", async () => {
-      mockGet.mockRejectedValue(new Error("Connection failed"));
+      mockSelectWhereFn.mockRejectedValue(new Error("Connection failed"));
 
-      const { getDocumentStats } = await importFreshVectorstore();
       const stats = await getDocumentStats("test.pdf");
 
       expect(stats.exists).toBe(false);
@@ -210,110 +218,87 @@ describe("vectorstore", () => {
   });
 
   describe("getCollectionStats", () => {
-    it("should return correct stats using lightweight count path", async () => {
+    it("should return correct stats from Postgres and ChromaDB", async () => {
+      mockFromFn.mockReturnValue({
+        where: mockSelectWhereFn,
+        then: (resolve: (v: unknown) => void) =>
+          Promise.resolve([{ count: 2 }]).then(resolve),
+      });
       mockListIndexes.mockResolvedValue(["documents"]);
       mockDescribeIndex.mockResolvedValue({ count: 10, dimension: 1536 });
-      mockGet.mockResolvedValue([
-        { id: "1", metadata: { file_name: "a.pdf" } },
-        { id: "2", metadata: { file_name: "a.pdf" } },
-        { id: "3", metadata: { file_name: "b.pdf" } },
-      ]);
 
-      const { getCollectionStats } = await importFreshVectorstore();
       const stats = await getCollectionStats();
 
       expect(stats.exists).toBe(true);
       expect(stats.count).toBe(10);
       expect(stats.documentCount).toBe(2);
-      expect(mockGet).toHaveBeenCalledWith({
-        indexName: "documents",
-        limit: 10,
-      });
     });
 
-    it("should return empty stats when index does not exist", async () => {
+    it("should return stats when ChromaDB index does not exist", async () => {
+      mockFromFn.mockReturnValue({
+        where: mockSelectWhereFn,
+        then: (resolve: (v: unknown) => void) =>
+          Promise.resolve([{ count: 3 }]).then(resolve),
+      });
       mockListIndexes.mockResolvedValue([]);
 
-      const { getCollectionStats } = await importFreshVectorstore();
-      const stats = await getCollectionStats();
-
-      expect(stats.exists).toBe(false);
-      expect(stats.count).toBe(0);
-    });
-
-    it("should return zero documentCount when collection has no vectors", async () => {
-      mockListIndexes.mockResolvedValue(["documents"]);
-      mockDescribeIndex.mockResolvedValue({ count: 0, dimension: 1536 });
-
-      const { getCollectionStats } = await importFreshVectorstore();
       const stats = await getCollectionStats();
 
       expect(stats.exists).toBe(true);
       expect(stats.count).toBe(0);
+      expect(stats.documentCount).toBe(3);
+    });
+
+    it("should return empty stats when both stores are empty", async () => {
+      mockFromFn.mockReturnValue({
+        where: mockSelectWhereFn,
+        then: (resolve: (v: unknown) => void) =>
+          Promise.resolve([{ count: 0 }]).then(resolve),
+      });
+      mockListIndexes.mockResolvedValue([]);
+
+      const stats = await getCollectionStats();
+
+      expect(stats.exists).toBe(false);
+      expect(stats.count).toBe(0);
       expect(stats.documentCount).toBe(0);
-      expect(mockGet).not.toHaveBeenCalled();
     });
   });
 
   describe("clearCollection", () => {
-    it("should delete existing index", async () => {
+    it("should delete from Postgres and delete existing ChromaDB index", async () => {
       mockListIndexes.mockResolvedValue(["documents"]);
       mockDeleteIndex.mockResolvedValue(undefined);
 
-      const { clearCollection } = await importFreshVectorstore();
       await clearCollection();
 
+      expect(mockDeleteFn).toHaveBeenCalled();
       expect(mockDeleteIndex).toHaveBeenCalledWith({ indexName: "documents" });
-      expect(mockCreateIndex).not.toHaveBeenCalled();
     });
 
-    it("should do nothing when index does not exist", async () => {
+    it("should delete from Postgres even when ChromaDB index does not exist", async () => {
       mockListIndexes.mockResolvedValue([]);
 
-      const { clearCollection } = await importFreshVectorstore();
       await clearCollection();
 
+      expect(mockDeleteFn).toHaveBeenCalled();
       expect(mockDeleteIndex).not.toHaveBeenCalled();
-      expect(mockCreateIndex).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("getDocumentContent", () => {
-    it("should return joined document text", async () => {
-      mockGet.mockResolvedValue([
-        { id: "1", document: "Paragraph 1" },
-        { id: "2", document: "Paragraph 2" },
-      ]);
-
-      const { getDocumentContent } = await importFreshVectorstore();
-      const content = await getDocumentContent("test.pdf");
-
-      expect(content).toBe("Paragraph 1\n\nParagraph 2");
-    });
-
-    it("should return null when document not found", async () => {
-      mockGet.mockResolvedValue([]);
-
-      const { getDocumentContent } = await importFreshVectorstore();
-      const content = await getDocumentContent("nonexistent.pdf");
-
-      expect(content).toBeNull();
-    });
-
-    it("should return null on error", async () => {
-      mockGet.mockRejectedValue(new Error("Connection failed"));
-
-      const { getDocumentContent } = await importFreshVectorstore();
-      const content = await getDocumentContent("test.pdf");
-
-      expect(content).toBeNull();
     });
   });
 
   describe("INDEX_NAME", () => {
-    it("should export INDEX_NAME constant", async () => {
-      const { INDEX_NAME } = await importFreshVectorstore();
+    it("should export INDEX_NAME constant", () => {
       expect(INDEX_NAME).toBe("documents");
     });
   });
 });
+
+import {
+  getVectorStore,
+  hasDocuments,
+  deleteDocumentChunks,
+  getDocumentStats,
+  getCollectionStats,
+  clearCollection,
+  INDEX_NAME,
+} from "@/lib/mastra/vectorstore";

@@ -1,19 +1,18 @@
-import type { DocumentListEntry } from '@/lib/types/core.types';
 import type { DocumentMetadata } from '@/lib/types/core.types';
+import type { DocumentEntry } from '@/lib/db/types';
 
 /**
- * Create a mock DocumentListEntry object with all required properties
+ * Create a mock DocumentEntry object with all required properties
  */
-export function createMockDocumentListEntry(overrides: Partial<DocumentListEntry> = {}): DocumentListEntry {
+export function createMockDocumentEntry(overrides: Partial<DocumentEntry> = {}): DocumentEntry {
   return {
     id: 'test-id',
-    file_name: 'test.txt',
-    file_type: 'text/plain',
-    upload_date: '2024-01-15T10:30:00Z',
-    chunk_count: 5,
+    filename: 'test.txt',
+    fileType: 'text/plain',
+    uploadDate: '2024-01-15T10:30:00Z',
+    chunkCount: 5,
     content: 'Test content',
-    file_size: '1024',
-    can_download: true,
+    fileSize: 1024,
     ...overrides,
   };
 }
@@ -31,13 +30,13 @@ export function createMockDocumentMetadata(overrides: Partial<DocumentMetadata> 
 }
 
 /**
- * Create multiple mock DocumentListEntry objects
+ * Create multiple mock DocumentEntry objects
  */
-export function createMockDocumentListEntryList(count: number, overrides: Partial<DocumentListEntry>[] = []): DocumentListEntry[] {
+export function createMockDocumentEntryList(count: number, overrides: Partial<DocumentEntry>[] = []): DocumentEntry[] {
   return Array.from({ length: count }, (_, i) =>
-    createMockDocumentListEntry({
+    createMockDocumentEntry({
       id: `doc-${i}`,
-      file_name: `doc${i}.txt`,
+      filename: `doc${i}.txt`,
       content: `Content ${i}`,
       ...overrides[i],
     })

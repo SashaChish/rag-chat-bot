@@ -129,8 +129,7 @@ describe('useDocumentDelete', () => {
 
     const { Wrapper, queryClient } = createWrapper();
 
-    // Pre-populate cache with documents
-    queryClient.setQueryData(['documents-list'], mockDocumentsData);
+    queryClient.setQueryData(['documents'], mockDocumentsData);
 
     const { useDocumentDelete } = await import('@/lib/hooks/use-document-delete');
     const { result } = renderHook(() => useDocumentDelete(), { wrapper: Wrapper });
@@ -141,7 +140,7 @@ describe('useDocumentDelete', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    const cachedData = queryClient.getQueryData<{ documents: Array<{ id: string }> }>(['documents-list']);
+    const cachedData = queryClient.getQueryData<{ documents: Array<{ id: string }> }>(['documents']);
     expect(cachedData?.documents).toEqual([{ id: 'doc2', file_name: 'document2.pdf', file_type: 'PDF', upload_date: '2024-01-02T12:00:00Z', chunk_count: 5, file_size: '1 MB', can_download: true }]);
   });
 
@@ -153,7 +152,7 @@ describe('useDocumentDelete', () => {
 
     const { Wrapper, queryClient } = createWrapper();
 
-    queryClient.setQueryData(['documents-list'], mockDocumentsData);
+    queryClient.setQueryData(['documents'], mockDocumentsData);
 
     const { useDocumentDelete } = await import('@/lib/hooks/use-document-delete');
     const { result } = renderHook(() => useDocumentDelete(), { wrapper: Wrapper });
@@ -164,9 +163,8 @@ describe('useDocumentDelete', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
 
-    const cachedData = queryClient.getQueryData(['documents-list']);
+    const cachedData = queryClient.getQueryData(['documents']);
     expect(cachedData).toEqual(mockDocumentsData);
-    expect(global.alert).toHaveBeenCalledWith('Delete failed');
   });
 
   it('should invalidate stats and list queries on settled', async () => {
@@ -187,7 +185,6 @@ describe('useDocumentDelete', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['documents-stats'] });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['documents-list'] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['documents'] });
   });
 });

@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import type { RAGDocument } from "@/lib/types/core.types";
 import type * as MastraRag from "@mastra/rag";
 
 const mockListIndexes = vi.fn();
@@ -28,12 +27,40 @@ vi.mock("@mastra/chroma", () => ({
   CHROMA_PROMPT: "Chroma filter instructions",
 }));
 
+const { mockInsertValues, mockDbInsert, mockDbSelect } = vi.hoisted(() => {
+  const mockInsertValues = vi.fn().mockResolvedValue(undefined);
+  const mockDbInsert = vi.fn().mockReturnValue({ values: mockInsertValues });
+  const mockDbSelect = vi.fn().mockReturnValue({
+    from: () => Promise.resolve([{ count: 5 }]),
+  });
+  return { mockInsertValues, mockDbInsert, mockDbSelect };
+});
+
+vi.mock("@/lib/db", () => ({
+  db: {
+    insert: mockDbInsert,
+    select: mockDbSelect,
+  },
+}));
+
+vi.mock("@/lib/db/schema", () => ({
+  documentsTable: {
+    file_name: "file_name",
+    file_type: "file_type",
+    file_size: "file_size",
+    upload_date: "upload_date",
+    chunk_count: "chunk_count",
+  },
+}));
+
 vi.mock("ai", () => ({
   embedMany: mockEmbedMany,
 }));
 
 vi.mock("@mastra/core/llm", () => ({
-  ModelRouterEmbeddingModel: vi.fn().mockImplementation(() => ({})),
+  ModelRouterEmbeddingModel: vi.fn().mockImplementation(function () {
+    return {};
+  }),
 }));
 
 vi.mock("@mastra/rag", async (importOriginal) => {
@@ -67,7 +94,7 @@ describe("index (indexing)", () => {
   const originalEnv = process.env;
 
   beforeEach(async () => {
-    process.env = { ...originalEnv };
+    process.env = { ...originalEnv, CHROMA_URL: "http://localhost:8000" };
     mockListIndexes.mockReset();
     mockDescribeIndex.mockReset();
     mockCreateIndex.mockReset();
@@ -77,6 +104,14 @@ describe("index (indexing)", () => {
     mockGet.mockReset();
     mockQuery.mockReset();
     mockEmbedMany.mockReset();
+    mockInsertValues.mockReset();
+    mockInsertValues.mockResolvedValue(undefined);
+    mockDbInsert.mockReset();
+    mockDbInsert.mockReturnValue({ values: mockInsertValues });
+    mockDbSelect.mockReset();
+    mockDbSelect.mockReturnValue({
+      from: () => Promise.resolve([{ count: 5 }]),
+    });
     mockAgentGenerate.mockReset();
     mockAgentGenerate.mockResolvedValue({
       text: "Test response",
@@ -90,46 +125,11 @@ describe("index (indexing)", () => {
     vi.clearAllMocks();
   });
 
-  describe("addDocuments", () => {
-    it("should return early with empty array", async () => {
-      const { addDocuments } = await import("@/lib/mastra/index");
-      const result = await addDocuments([]);
-
-      expect(result.success).toBe(true);
-      expect(result.documentsAdded).toBe(0);
-      expect(result.chunksProcessed).toBe(0);
-    });
-
-    it("should process documents through chunk -> embed -> upsert pipeline", async () => {
-      mockListIndexes.mockResolvedValue(["documents"]);
-      mockDescribeIndex.mockResolvedValue({ count: 1, dimension: 1536 });
-      mockEmbedMany.mockResolvedValue({
-        embeddings: [new Array(1536).fill(0.1)],
-        values: ["chunked text content"],
-        usage: { tokens: 1 },
-      });
-
-      const { addDocuments } = await import("@/lib/mastra/index");
-      const doc: RAGDocument = {
-        text: "Short test content",
-        metadata: {
-          file_name: "test.txt",
-          file_type: "txt",
-          upload_date: "2026-04-01",
-        },
-      };
-
-      const result = await addDocuments([doc]);
-
-      expect(result.success).toBe(true);
-      expect(result.documentsAdded).toBe(1);
-      expect(result.chunksProcessed).toBeGreaterThan(0);
-    });
-  });
-
   describe("executeQuery", () => {
     it("should return error when no documents available", async () => {
-      mockListIndexes.mockResolvedValue([]);
+      mockDbSelect.mockReturnValue({
+        from: () => Promise.resolve([{ count: 0 }]),
+      });
 
       const { executeQuery } = await import("@/lib/mastra/index");
       const result = await executeQuery("test query");

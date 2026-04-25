@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { MAX_FILE_SIZE_MB } from "../constants";
 import { ValidationError } from "../api/errors";
+import { getFileExtension } from "../utils";
 
 export const SUPPORTED_EXTENSIONS = [
   ".pdf",
@@ -11,7 +12,8 @@ export const SUPPORTED_EXTENSIONS = [
 ];
 
 export function getFileType(filename: string): string | null {
-  const ext = filename.split(".").pop()?.toLowerCase();
+  const ext = getFileExtension(filename);
+
   if (!ext) return null;
 
   const formatMap: Record<string, string> = {
@@ -52,11 +54,9 @@ export function validateFile(file: FormDataEntryValue | null) {
 }
 
 export async function loadDocumentFromBuffer(buffer: Buffer, filename: string) {
-  const ext = filename.split(".").pop()?.toLowerCase();
+  const ext = getFileExtension(filename);
 
-  if (!ext) {
-    throw new ValidationError("Invalid filename - no extension found");
-  }
+  if (!ext) throw new ValidationError("Invalid filename - no extension found");
 
   let content: string;
 

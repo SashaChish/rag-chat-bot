@@ -9,3 +9,10 @@ export async function getAllDocuments() {
 export async function deleteDocument(id: string) {
   return await db.delete(documentsTable).where(eq(documentsTable.id, id));
 }
+
+export async function getDocument(id: string) {
+  return await db
+    .select()
+    .from(documentsTable)
+    .where(eq(documentsTable.id, id));
+}

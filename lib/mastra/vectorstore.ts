@@ -1,6 +1,6 @@
 import { ChromaVector } from "@mastra/chroma";
 import { MDocument } from "@mastra/rag";
-import { count, eq } from "drizzle-orm";
+import { count } from "drizzle-orm";
 import { embedMany } from "ai";
 import { db } from "../db";
 import { documentsTable } from "../db/schema";
@@ -132,43 +132,7 @@ export async function deleteDocumentChunks(fileId: string) {
   }
 }
 
-export async function getDocumentStats(fileName: string): Promise<{
-  exists: boolean;
-  chunk_count: number;
-  file_type: string | null;
-  upload_date: string | null;
-}> {
-  try {
-    const [row] = await db
-      .select()
-      .from(documentsTable)
-      .where(eq(documentsTable.filename, fileName));
-
-    if (!row) {
-      return {
-        exists: false,
-        chunk_count: 0,
-        file_type: null,
-        upload_date: null,
-      };
-    }
-
-    return {
-      exists: true,
-      chunk_count: row.chunkCount,
-      file_type: row.fileType,
-      upload_date: row.uploadDate,
-    };
-  } catch {
-    return {
-      exists: false,
-      chunk_count: 0,
-      file_type: null,
-      upload_date: null,
-    };
-  }
-}
-
+// TODO: Need refactor, separete chroma db and postgree db operations
 export async function getCollectionStats(
   collectionName: string = INDEX_NAME,
 ): Promise<IndexStats> {

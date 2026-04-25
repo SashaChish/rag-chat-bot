@@ -1,5 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
+import {
+  getVectorStore,
+  hasDocuments,
+  deleteDocumentChunks,
+  getCollectionStats,
+  clearCollection,
+  INDEX_NAME,
+} from "@/lib/mastra/vectorstore";
+
 const {
   mockListIndexes,
   mockDescribeIndex,
@@ -109,7 +118,8 @@ describe("vectorstore", () => {
     mockSelectWhereFn.mockResolvedValue([]);
     mockFromFn.mockReturnValue({
       where: mockSelectWhereFn,
-      then: (resolve: (v: unknown) => void) => Promise.resolve([]).then(resolve),
+      then: (resolve: (v: unknown) => void) =>
+        Promise.resolve([]).then(resolve),
     });
     mockSelectFn.mockReturnValue({ from: mockFromFn });
     mockDeleteWhereFn.mockResolvedValue(undefined);
@@ -174,46 +184,6 @@ describe("vectorstore", () => {
       await expect(deleteDocumentChunks("test-id")).rejects.toThrow(
         "Failed to delete document from Vector Store",
       );
-    });
-  });
-
-  describe("getDocumentStats", () => {
-    it("should return stats for existing document", async () => {
-      mockSelectWhereFn.mockResolvedValue([
-        {
-          filename: "test.pdf",
-          fileType: "pdf",
-          uploadDate: new Date("2026-04-01"),
-          chunkCount: 2,
-        },
-      ]);
-
-      const stats = await getDocumentStats("test.pdf");
-
-      expect(stats.exists).toBe(true);
-      expect(stats.chunk_count).toBe(2);
-      expect(stats.file_type).toBe("pdf");
-      expect(stats.upload_date).toEqual(new Date("2026-04-01"));
-    });
-
-    it("should return not-exists for missing documents", async () => {
-      mockSelectWhereFn.mockResolvedValue([]);
-
-      const stats = await getDocumentStats("missing.pdf");
-
-      expect(stats.exists).toBe(false);
-      expect(stats.chunk_count).toBe(0);
-      expect(stats.file_type).toBeNull();
-      expect(stats.upload_date).toBeNull();
-    });
-
-    it("should return not-exists on error", async () => {
-      mockSelectWhereFn.mockRejectedValue(new Error("Connection failed"));
-
-      const stats = await getDocumentStats("test.pdf");
-
-      expect(stats.exists).toBe(false);
-      expect(stats.chunk_count).toBe(0);
     });
   });
 
@@ -292,13 +262,3 @@ describe("vectorstore", () => {
     });
   });
 });
-
-import {
-  getVectorStore,
-  hasDocuments,
-  deleteDocumentChunks,
-  getDocumentStats,
-  getCollectionStats,
-  clearCollection,
-  INDEX_NAME,
-} from "@/lib/mastra/vectorstore";

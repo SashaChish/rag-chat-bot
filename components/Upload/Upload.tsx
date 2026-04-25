@@ -18,9 +18,9 @@ import {
   IconCircleCheck,
   IconX,
 } from "@tabler/icons-react";
-import type { DocumentUploadResponse as APIUploadResponse } from "../../lib/types/api";
 import { getSupportedMimeTypes } from "./Upload.utils";
 import { FILE_EXTENSIONS } from "@/lib/constants";
+import type { UploadDocumentResponse } from "@/app/api/documents/types";
 
 export default function Upload() {
   const queryClient = useQueryClient();
@@ -34,7 +34,7 @@ export default function Upload() {
   const openRef = useRef<() => void>(null);
 
   const { mutate: uploadFile, isPending: isUploading } = useMutation({
-    mutationFn: async (file: File): Promise<APIUploadResponse> => {
+    mutationFn: async (file: File): Promise<UploadDocumentResponse> => {
       const formData = new FormData();
       formData.append("file", file);
 
@@ -81,7 +81,6 @@ export default function Upload() {
 
       setTimeout(() => setSuccess(null), 3000);
 
-      queryClient.invalidateQueries({ queryKey: ["documents-stats"] });
       queryClient.invalidateQueries({ queryKey: ["documents-list"] });
     },
     onError: (error) => {

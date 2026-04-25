@@ -6,15 +6,14 @@ import {
   getCollectionStats,
 } from "@/lib/mastra/vectorstore";
 import { formatFileSize } from "@/lib/utils/format.utils";
-import type {
-  DocumentUploadResponse,
-  GetDocumentsResponse,
-} from "@/lib/types/api";
 import { db } from "@/lib/db";
 import { documentsTable } from "@/lib/db/schema";
 import { getAllDocuments } from "@/lib/db/utils";
+import type { UploadDocumentResponse, GetDocumentsResponse } from "./types";
 
-async function uploadDocument(request: NextRequest): Promise<NextResponse> {
+async function uploadDocument(
+  request: NextRequest,
+): Promise<NextResponse<UploadDocumentResponse>> {
   const formData = await request.formData();
   const { file } = validateFile(formData.get("file"));
   const buffer = Buffer.from(await file.arrayBuffer());
@@ -31,7 +30,7 @@ async function uploadDocument(request: NextRequest): Promise<NextResponse> {
     })
     .returning();
 
-  const response: DocumentUploadResponse = {
+  const response: UploadDocumentResponse = {
     document: {
       ...addedDocument,
       fileSize: formatFileSize(addedDocument.fileSize),
@@ -42,7 +41,7 @@ async function uploadDocument(request: NextRequest): Promise<NextResponse> {
   return NextResponse.json(response);
 }
 
-async function getDocuments(_request: NextRequest): Promise<NextResponse> {
+async function getDocuments(): Promise<NextResponse<GetDocumentsResponse>> {
   const stats = await getCollectionStats();
   const documents = await getAllDocuments();
   const response: GetDocumentsResponse = { documents, stats };

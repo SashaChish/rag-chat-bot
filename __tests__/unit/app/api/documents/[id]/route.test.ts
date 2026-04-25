@@ -3,11 +3,11 @@ import type { NextRequest } from "next/server";
 
 vi.mock("@/lib/mastra/vectorstore", () => ({
   deleteDocumentChunks: vi.fn(),
-  getDocumentStats: vi.fn(),
 }));
 
 vi.mock("@/lib/db/utils", () => ({
   deleteDocument: vi.fn(),
+  getDocument: vi.fn(),
 }));
 
 const createParams = (id: string) => ({ params: Promise.resolve({ id }) });
@@ -71,53 +71,50 @@ describe("/api/documents/[id]", () => {
   });
 
   describe("GET", () => {
-    it("should return document-specific stats", async () => {
-      const { getDocumentStats } = await import("@/lib/mastra/vectorstore");
-      vi.mocked(getDocumentStats).mockResolvedValue({
-        exists: true,
-        chunk_count: 5,
-        file_type: "txt",
-        upload_date: "2024-01-01T00:00:00Z",
-      });
+    it("should return document by id", async () => {
+      const { getDocument } = await import("@/lib/db/utils");
+      vi.mocked(getDocument).mockResolvedValue([
+        {
+          id: "doc-1",
+          filename: "test.txt",
+          fileType: "TEXT",
+          fileSize: 1024,
+          uploadDate: "2024-01-01T00:00:00Z",
+          chunkCount: 5,
+          content: "Hello world",
+        },
+      ] as never);
 
       const { GET } = await import("@/app/api/documents/[id]/route");
       const request = {} as NextRequest;
-      const response = await GET(request, createParams("test.txt"));
+      const response = await GET(request, createParams("doc-1"));
       const data = await response.json();
 
-      expect(data.id).toBe("test.txt");
-      expect(data.exists).toBe(true);
-      expect(data.chunk_count).toBe(5);
-      expect(data.file_type).toBe("txt");
-      expect(getDocumentStats).toHaveBeenCalledWith("test.txt");
+      expect(data.id).toBe("doc-1");
+      expect(data.filename).toBe("test.txt");
+      expect(data.chunkCount).toBe(5);
+      expect(data.content).toBe("Hello world");
+      expect(getDocument).toHaveBeenCalledWith("doc-1");
     });
 
-    it("should return not-exists for missing documents", async () => {
-      const { getDocumentStats } = await import("@/lib/mastra/vectorstore");
-      vi.mocked(getDocumentStats).mockResolvedValue({
-        exists: false,
-        chunk_count: 0,
-        file_type: null,
-        upload_date: null,
-      });
+    it("should handle missing document", async () => {
+      const { getDocument } = await import("@/lib/db/utils");
+      vi.mocked(getDocument).mockResolvedValue([] as never);
 
       const { GET } = await import("@/app/api/documents/[id]/route");
       const request = {} as NextRequest;
-      const response = await GET(request, createParams("missing.txt"));
-      const data = await response.json();
+      const response = await GET(request, createParams("missing-id"));
 
-      expect(data.id).toBe("missing.txt");
-      expect(data.exists).toBe(false);
-      expect(data.chunk_count).toBe(0);
+      expect(response.status).toBe(500);
     });
 
     it("should handle errors", async () => {
-      const { getDocumentStats } = await import("@/lib/mastra/vectorstore");
-      vi.mocked(getDocumentStats).mockRejectedValue(new Error("Failed"));
+      const { getDocument } = await import("@/lib/db/utils");
+      vi.mocked(getDocument).mockRejectedValue(new Error("Failed"));
 
       const { GET } = await import("@/app/api/documents/[id]/route");
       const request = {} as NextRequest;
-      const response = await GET(request, createParams("test.txt"));
+      const response = await GET(request, createParams("test-id"));
       const data = await response.json();
 
       expect(response.status).toBe(500);

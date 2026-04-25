@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { NextRequest } from "next/server";
-import { POST, GET } from "@/app/api/chat/route";
+import { POST } from "@/app/api/chat/route";
 
 vi.mock("@/lib/mastra/index", () => ({
   executeQuery: vi.fn(),
@@ -188,38 +188,4 @@ describe("/api/chat", () => {
     });
   });
 
-  describe("GET", () => {
-    it("should return ready status when documents exist", async () => {
-      const { hasDocuments } = await import("@/lib/mastra/vectorstore");
-      vi.mocked(hasDocuments).mockResolvedValue(true);
-
-      const response = await GET({} as NextRequest);
-      const data = await response.json();
-
-      expect(data.ready).toBe(true);
-      expect(data.message).toBe("Ready to answer questions");
-    });
-
-    it("should return not ready status when no documents", async () => {
-      const { hasDocuments } = await import("@/lib/mastra/vectorstore");
-      vi.mocked(hasDocuments).mockResolvedValue(false);
-
-      const response = await GET({} as NextRequest);
-      const data = await response.json();
-
-      expect(data.ready).toBe(false);
-      expect(data.message).toBe("Please upload documents first");
-    });
-
-    it("should handle errors", async () => {
-      const { hasDocuments } = await import("@/lib/mastra/vectorstore");
-      vi.mocked(hasDocuments).mockRejectedValue(new Error("Check failed"));
-
-      const response = await GET({} as NextRequest);
-      const data = await response.json();
-
-      expect(response.status).toBe(500);
-      expect(data.error.code).toBe("INTERNAL_ERROR");
-    });
-  });
 });

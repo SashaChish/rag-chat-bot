@@ -46,7 +46,7 @@ describe("useDocumentDownload", () => {
 
   it("should be defined", async () => {
     const { useDocumentDownload } =
-      await import("@/lib/hooks/use-document-download");
+      await import("@/lib/hooks/useDocumentDownload");
     expect(useDocumentDownload).toBeDefined();
     expect(typeof useDocumentDownload).toBe("function");
   });
@@ -54,7 +54,7 @@ describe("useDocumentDownload", () => {
   it("should return mutation functions", async () => {
     const { Wrapper } = createWrapper();
     const { useDocumentDownload } =
-      await import("@/lib/hooks/use-document-download");
+      await import("@/lib/hooks/useDocumentDownload");
     const { result } = renderHook(() => useDocumentDownload(), {
       wrapper: Wrapper,
     });
@@ -71,7 +71,7 @@ describe("useDocumentDownload", () => {
 
     const { Wrapper } = createWrapper();
     const { useDocumentDownload } =
-      await import("@/lib/hooks/use-document-download");
+      await import("@/lib/hooks/useDocumentDownload");
     const { result } = renderHook(() => useDocumentDownload(), {
       wrapper: Wrapper,
     });
@@ -107,7 +107,7 @@ describe("useDocumentDownload", () => {
 
     const { Wrapper } = createWrapper();
     const { useDocumentDownload } =
-      await import("@/lib/hooks/use-document-download");
+      await import("@/lib/hooks/useDocumentDownload");
     const { result } = renderHook(() => useDocumentDownload(), {
       wrapper: Wrapper,
     });

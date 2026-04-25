@@ -1,4 +1,7 @@
-import { ModelRouterEmbeddingModel, ModelRouterLanguageModel } from "@mastra/core/llm";
+import {
+  ModelRouterEmbeddingModel,
+  ModelRouterLanguageModel,
+} from "@mastra/core/llm";
 import type { LLMProvider } from "../types/core.types";
 
 const DEFAULT_MODELS: Record<LLMProvider, string> = {
@@ -14,14 +17,12 @@ export const CHUNK_SIZE = 512;
 export const CHUNK_OVERLAP = 50;
 
 export function getModelString(): string {
-  const provider = process.env.LLM_PROVIDER as LLMProvider;
+  const provider = (process.env.LLM_PROVIDER || "openai") as LLMProvider;
   const customModel = process.env.LLM_MODEL;
 
-  if (customModel) {
-    return `${provider}/${customModel}`;
-  }
+  if (customModel) return `${provider}/${customModel}`;
 
-  return DEFAULT_MODELS[provider] || DEFAULT_MODELS.openai;
+  return DEFAULT_MODELS[provider];
 }
 
 let embeddingModelInstance: ModelRouterEmbeddingModel | null = null;

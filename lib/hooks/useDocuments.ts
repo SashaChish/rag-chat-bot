@@ -1,5 +1,6 @@
+import type { GetDocumentsResponse } from "@/app/api/documents/types";
+
 import { useQuery } from "@tanstack/react-query";
-import type { GetDocumentsResponse } from "../types";
 
 export function useDocuments() {
   return useQuery({

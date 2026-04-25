@@ -5,9 +5,6 @@
 
 import type { SourceInfo } from "@/lib/types/core.types";
 
-/**
- * Chat UI message extending base ChatMessage with UI-specific properties
- */
 export interface ChatUIMessage {
   id: number | string;
   role: "user" | "assistant" | "system";

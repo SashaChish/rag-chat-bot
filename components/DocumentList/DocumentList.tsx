@@ -33,9 +33,9 @@ import {
 import { getFileIcon } from "./DocumentList.utils";
 import { formatDate, formatDateTime } from "@/lib/utils/date.utils";
 import { useDocuments } from "@/lib/hooks/useDocuments";
-import { useDocumentPreview } from "@/lib/hooks/use-document-preview";
-import { useDocumentDelete } from "@/lib/hooks/use-document-delete";
-import { useDocumentDownload } from "@/lib/hooks/use-document-download";
+import { useGetDocument } from "@/lib/hooks/useGetDocument";
+import { useDocumentDelete } from "@/lib/hooks/useDocumentDelete";
+import { useDocumentDownload } from "@/lib/hooks/useDocumentDownload";
 import type { DocumentEntry } from "@/lib/db/types";
 
 export default function DocumentList() {
@@ -56,10 +56,8 @@ export default function DocumentList() {
   const [showDetails, setShowDetails] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
-  const { data: previewData, isLoading: previewLoading } = useDocumentPreview(
-    selectedDocument?.id,
-    { enabled: showPreview },
-  );
+  const { data: previewDocumentData, isLoading: previewLoading } =
+    useGetDocument(selectedDocument?.id);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -343,8 +341,8 @@ export default function DocumentList() {
                   <Text c="dimmed" fs="italic">
                     Loading preview...
                   </Text>
-                ) : previewData?.content ? (
-                  <Code block>{previewData.content}</Code>
+                ) : previewDocumentData?.content ? (
+                  <Code block>{previewDocumentData.content}</Code>
                 ) : (
                   <Text c="dimmed" fs="italic">
                     No content available for preview

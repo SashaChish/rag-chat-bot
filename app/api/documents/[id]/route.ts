@@ -1,10 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { withErrorHandler } from "@/lib/api/handler";
-import {
-  deleteDocumentChunks,
-  getDocumentStats,
-} from "@/lib/mastra/vectorstore";
-import { deleteDocument } from "@/lib/db/utils";
+import { deleteDocumentChunks } from "@/lib/mastra/vectorstore";
+import { deleteDocument, getDocument } from "@/lib/db/utils";
+import type { DocumentEntry } from "@/lib/db/types";
 
 async function deleteDocumentRoute(
   _request: NextRequest,
@@ -15,21 +13,18 @@ async function deleteDocumentRoute(
   await deleteDocument(id);
   await deleteDocumentChunks(id);
 
-  return NextResponse.json({
-    id,
-    message: "Document deleted successfully",
-  });
+  return NextResponse.json({ id, message: "Document deleted successfully" });
 }
 
-async function getDocument(
+async function getDocumentRoute(
   _request: NextRequest,
   context?: { params: Promise<Record<string, string>> },
-): Promise<NextResponse> {
+): Promise<NextResponse<DocumentEntry>> {
   const { id } = await context!.params;
-  const stats = await getDocumentStats(id);
+  const [document] = await getDocument(id);
 
-  return NextResponse.json({ id, ...stats });
+  return NextResponse.json(document);
 }
 
 export const DELETE = withErrorHandler(deleteDocumentRoute);
-export const GET = withErrorHandler(getDocument);
+export const GET = withErrorHandler(getDocumentRoute);

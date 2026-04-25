@@ -5,7 +5,6 @@ import { chatRequestSchema } from "@/lib/api/schemas";
 import { executeQuery } from "@/lib/mastra/index";
 import { hasDocuments } from "@/lib/mastra/vectorstore";
 import { createSSEStream, createSSEResponse } from "@/lib/api/streaming";
-import type { ChatStatusResponse } from "@/lib/types/api";
 import type { QueryChunk, SourceInfo } from "@/lib/types/core.types";
 
 async function postChat(request: NextRequest): Promise<NextResponse> {
@@ -98,18 +97,4 @@ async function postChat(request: NextRequest): Promise<NextResponse> {
   });
 }
 
-async function getStatus(): Promise<NextResponse> {
-  const docsExist = await hasDocuments();
-
-  const response: ChatStatusResponse = {
-    ready: docsExist,
-    message: docsExist
-      ? "Ready to answer questions"
-      : "Please upload documents first",
-  };
-
-  return NextResponse.json(response);
-}
-
 export const POST = withErrorHandler(postChat);
-export const GET = withErrorHandler(getStatus);
